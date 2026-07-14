@@ -1,0 +1,48 @@
+# HealthTrack monorepo
+.DS_Store
+Thumbs.db
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# Dependencies & builds
+node_modules/
+dist/
+dist-ssr/
+**/.vite/
+**/public/build/
+**/public/hot/
+
+# Secrets — never commit
+.env
+.env.*
+!.env.example
+!**/.env.example
+!.env.seed.example
+!**/.env.seed.example
+
+# Laravel
+HealthTrackAPI/vendor/
+HealthTrackAPI/storage/*.key
+HealthTrackAPI/storage/pail
+HealthTrackAPI/storage/logs/*.log
+HealthTrackAPI/bootstrap/cache/*.php
+.phpunit.result.cache
+auth.json
+
+# Editor / IDE
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Local tooling
+Homestead.json
+Homestead.yaml
+**/.git.*.bak
+**/.*git*.bak

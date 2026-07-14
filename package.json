@@ -1,0 +1,10 @@
+{
+  "name": "healthtrack-monorepo",
+  "private": true,
+  "scripts": {
+    "dev": "npm --prefix HealthTrackWEB run dev",
+    "build:web": "npm --prefix HealthTrackWEB run build",
+    "lint:web": "npm --prefix HealthTrackWEB run lint",
+    "preview:web": "npm --prefix HealthTrackWEB run preview"
+  }
+}
