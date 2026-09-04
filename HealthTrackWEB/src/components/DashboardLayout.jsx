@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/useAuth'
-import { MODULE_META, getSidebarModules } from '../config/rbac'
+import { MODULE_META, MODULES, getSidebarModules } from '../config/rbac'
+import { useConfirm } from '../context/ConfirmContext'
 
 function MenuIcon({ open }) {
   return (
@@ -68,25 +69,44 @@ function NavIcon({ name }) {
 
 const PAGE_COPY = {
   '/dashboard/queue': { kicker: 'Front desk', title: 'Queue', subtitle: 'Call patients and manage today’s line.' },
+  '/dashboard/staff-encode': {
+    kicker: 'BHW / Volunteer',
+    title: 'Encode Desk',
+    subtitle: 'Encode Get-in-line patients, then issue queue numbers.',
+  },
   '/dashboard/doctor-consult': { kicker: 'Clinic', title: 'Doctor Consult', subtitle: 'AB, OPD, Medical Certificate, and TB consults.' },
   '/dashboard/nurse-service-desk': { kicker: 'Desk', title: 'Service Desk', subtitle: 'Permits, health cards, and nurse-handled services.' },
   '/dashboard/patient-records': { kicker: 'Records', title: 'Patient Records', subtitle: 'Paperless consult history and profiles.' },
   '/dashboard/follow-ups': { kicker: 'Care', title: 'Follow-ups', subtitle: 'Animal bite and TB monitoring schedules.' },
   '/dashboard/reported-cases': { kicker: 'Surveillance', title: 'Reported Cases', subtitle: 'Community and clinic case reports.' },
-  '/dashboard/heat-map': { kicker: 'GIS', title: 'Heat Map', subtitle: 'Geographic disease signals.' },
+  '/dashboard/heat-map': { kicker: 'GIS', title: 'Heat Map', subtitle: 'ICD-10 doctor consults and reported cases by barangay.' },
   '/dashboard/workflow': { kicker: 'Process', title: 'Workflow', subtitle: 'Active service requests and steps.' },
   '/dashboard/inventory': { kicker: 'Supplies', title: 'Inventory', subtitle: 'Medicines and clinic stock.' },
   '/dashboard/reports': { kicker: 'Analytics', title: 'Reports', subtitle: 'Operational summaries for RHU Pila.' },
   '/dashboard/archive': { kicker: 'Storage', title: 'Archive', subtitle: 'Soft-deleted items kept for retention.' },
+  '/dashboard/accounts': {
+    kicker: 'Administration',
+    title: 'Accounts',
+    subtitle: 'Manage staff and patient account access.',
+  },
 }
 
 export default function DashboardLayout() {
   const navigate = useNavigate()
   const location = useLocation()
   const { user, profile, role, signOut } = useAuth()
+  const { confirm } = useConfirm()
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
 
-  const menuItems = getSidebarModules(role)
+  const managerName = (import.meta.env.VITE_ACCOUNT_MANAGER_NAME || 'Alma Divinagracia').trim().toLowerCase()
+  const managerEmail = (import.meta.env.VITE_ACCOUNT_MANAGER_EMAIL || '').trim().toLowerCase()
+  const isAccountManager =
+    (profile?.name || '').trim().toLowerCase() === managerName ||
+    (managerEmail && (profile?.email || user?.email || '').trim().toLowerCase() === managerEmail)
+
+  const menuItems = isAccountManager
+    ? [MODULES.ACCOUNTS]
+    : getSidebarModules(role).filter((moduleKey) => moduleKey !== MODULES.ACCOUNTS)
   const isHeatMapRoute = location.pathname.startsWith('/dashboard/heat-map')
   const isDashboardHome = location.pathname === '/dashboard'
   const pageMeta = PAGE_COPY[location.pathname] || null
@@ -105,6 +125,15 @@ export default function DashboardLayout() {
   }, [mobileNavOpen])
 
   const handleLogout = async () => {
+    const ok = await confirm({
+      type: 'warning',
+      title: 'Sign out?',
+      message:
+        'You will be signed out of the staff console on this device. Unsynced offline work stays on this browser until you sign back in as the same user.',
+      confirmLabel: 'Sign out',
+      cancelLabel: 'Stay signed in',
+    })
+    if (!ok) return
     await signOut()
     navigate('/login', { replace: true })
   }

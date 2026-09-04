@@ -27,6 +27,7 @@ import {
   resolveNurseDeskKind,
 } from '../../lib/nurseServices'
 import { resolveCharterKeyFromServiceName } from '../../lib/resolveCharterService'
+import { resolvePatientPriority, compareByPriorityThenArrival } from '../../lib/patientPriority'
 
 const ACTIVE = new Set(['waiting', 'next', 'called', 'skipped'])
 
@@ -123,7 +124,7 @@ export default function NurseServiceDeskPage() {
         }
         const d = rank(a.status) - rank(b.status)
         if (d !== 0) return d
-        return String(a.created_at).localeCompare(String(b.created_at))
+        return compareByPriorityThenArrival(a, b)
       })
   }, [queueItems, serviceNameById])
 
@@ -409,15 +410,24 @@ export default function NurseServiceDeskPage() {
   const downloadIssuedPdf = () => {
     if (!issuedDoc?.row) return
     const name = selected?.patient_name || patientProfile?.name || 'Patient'
-    const payload =
+    const base =
       issuedDoc.kind === 'permit'
         ? pdfPayloadFromPermit(issuedDoc.row, name)
         : pdfPayloadFromCertificate(issuedDoc.row, name)
+    const mergedDetails = {
+      ...(base.details || {}),
+      ...(intakeData && typeof intakeData === 'object' ? intakeData : {}),
+    }
     downloadIssuedDocumentPdf({
-      ...payload,
+      ...base,
+      details: mergedDetails,
       patientDetails: {
-        age: patientProfile?.age ?? intakeData.age,
-        sex: patientProfile?.sex ?? intakeData.sex,
+        age:
+          patientProfile?.age ??
+          intakeData.applicant_age ??
+          intakeData.age ??
+          null,
+        sex: patientProfile?.sex ?? intakeData.applicant_sex ?? intakeData.sex,
         birthdate: patientProfile?.birthdate ?? intakeData.birthdate,
         barangay: patientProfile?.barangay ?? intakeData.barangay,
         house_no_purok: patientProfile?.house_no_purok ?? intakeData.house_no_purok,

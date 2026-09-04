@@ -1,5 +1,6 @@
 import { Navigate } from 'react-router-dom'
 import { useAuth } from '../context/useAuth'
+import { isPatientEmailVerified } from '../lib/patientEmailVerified'
 
 function LoadingState() {
   return (
@@ -22,6 +23,15 @@ export default function ProtectedRoute({ children }) {
     return <Navigate to="/login" replace />
   }
 
+  if (!isPatientEmailVerified(user)) {
+    return (
+      <Navigate
+        to="/verify"
+        replace
+        state={{ userId: user.id, email: user.email }}
+      />
+    )
+  }
+
   return children
 }
-

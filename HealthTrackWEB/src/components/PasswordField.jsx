@@ -31,6 +31,7 @@ export default function PasswordField({
   required = false,
   autoComplete,
   showCriteria = false,
+  disabled = false,
 }) {
   const [showPassword, setShowPassword] = useState(false)
 
@@ -53,6 +54,7 @@ export default function PasswordField({
           onChange={onChange}
           placeholder={placeholder}
           autoComplete={autoComplete}
+          disabled={disabled}
         />
         <button
           type="button"
@@ -60,6 +62,7 @@ export default function PasswordField({
           onClick={() => setShowPassword((prev) => !prev)}
           aria-label={showPassword ? 'Hide password' : 'Show password'}
           aria-pressed={showPassword}
+          disabled={disabled}
         >
           {showPassword ? <EyeSlashIcon /> : <EyeIcon />}
         </button>

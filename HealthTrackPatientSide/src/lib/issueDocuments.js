@@ -9,14 +9,14 @@ function resolveSpecFromServiceName(serviceName = '') {
     return { table: 'certificates', cert_type: 'medical', title: 'Medical Certificate', purpose: n || 'Medical Certificate' }
   }
   if (/health\s*card/i.test(n)) {
-    return { table: 'certificates', cert_type: 'health_card', title: 'Health Card', purpose: n || 'Health Card' }
+    return { table: 'certificates', cert_type: 'health_card', title: 'Health Certificate', purpose: n || 'Health Certificate' }
   }
   if (/death\s*cert/i.test(n)) {
     return {
       table: 'certificates',
       cert_type: 'death_cert_review',
-      title: 'Death Certificate Review',
-      purpose: n || 'Death Certificate Review',
+      title: 'Certificate of Death (Review)',
+      purpose: n || 'Review of Death Certificate',
     }
   }
   if (/pre-?\s*marriage|premarriage/i.test(n)) {
@@ -33,11 +33,21 @@ function resolveSpecFromServiceName(serviceName = '') {
   if (/cremation/i.test(n)) {
     return { table: 'permits', permit_type: 'cremation', title: 'Cremation Permit', purpose: n || 'Cremation Permit' }
   }
-  if (/transfer/i.test(n) && /permit|exhumation|cremation|remains/i.test(n)) {
-    return { table: 'permits', permit_type: 'transfer', title: 'Transfer Permit', purpose: n || 'Transfer Permit' }
+  if (/transfer/i.test(n) && /permit|exhumation|cremation|remains|cadaver|bones|ashes/i.test(n)) {
+    return {
+      table: 'permits',
+      permit_type: 'transfer',
+      title: 'Certificate of Transfer of Cadaver/Bones and Ashes',
+      purpose: n || 'Certificate of Transfer',
+    }
   }
   if (/exhumation/i.test(n)) {
-    return { table: 'permits', permit_type: 'exhumation', title: 'Exhumation Permit', purpose: n || 'Exhumation Permit' }
+    return {
+      table: 'permits',
+      permit_type: 'exhumation',
+      title: 'Certificate of Exhumation',
+      purpose: n || 'Certificate of Exhumation',
+    }
   }
   return null
 }

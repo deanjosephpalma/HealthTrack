@@ -9,6 +9,8 @@ use Symfony\Component\HttpFoundation\Response;
 
 class EnsureStaffRole
 {
+    private const STAFF_ROLES = ['Doctor', 'Nurse', 'BHW', 'Volunteer'];
+
     public function handle(Request $request, Closure $next): Response
     {
         $userId = $request->attributes->get('supabase_user_id');
@@ -17,7 +19,7 @@ class EnsureStaffRole
         }
 
         $role = $this->resolveRole($userId, $request->attributes->get('supabase_jwt', []));
-        if (!in_array($role, ['Doctor', 'Nurse'], true)) {
+        if (!in_array($role, self::STAFF_ROLES, true)) {
             return response()->json(['ok' => false, 'error' => 'Forbidden'], 403);
         }
 
@@ -30,7 +32,7 @@ class EnsureStaffRole
     {
         $metaRole = data_get($jwt, 'app_metadata.role')
             ?? data_get($jwt, 'user_metadata.role');
-        if (in_array($metaRole, ['Doctor', 'Nurse'], true)) {
+        if (in_array($metaRole, self::STAFF_ROLES, true)) {
             return $metaRole;
         }
 
@@ -56,7 +58,7 @@ class EnsureStaffRole
             $rows = $response->json();
             $role = is_array($rows) && isset($rows[0]['role']) ? $rows[0]['role'] : null;
 
-            return in_array($role, ['Doctor', 'Nurse'], true) ? $role : null;
+            return in_array($role, self::STAFF_ROLES, true) ? $role : null;
         } catch (\Throwable) {
             return null;
         }

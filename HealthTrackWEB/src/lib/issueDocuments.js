@@ -8,18 +8,22 @@ export function resolveIssuedDocumentSpec({ serviceKind, serviceName, intakeData
     .toLowerCase()
 
   if (serviceKind === 'health_card') {
+    const handler = (intakeData.handler_type || '').toString().toLowerCase()
+    const isNonFood = /non[-\s]?food/.test(handler)
     return {
       table: 'certificates',
       cert_type: 'health_card',
-      title: 'Health Card',
-      purpose: 'Issuance of Health Card',
+      title: isNonFood ? 'Health Certificate (Non-Food)' : 'Health Certificate (Food)',
+      purpose: isNonFood
+        ? 'Issuance of Health Certificate — Non-Food Establishment'
+        : 'Issuance of Health Certificate — Food Establishment',
     }
   }
   if (serviceKind === 'death_certificate') {
     return {
       table: 'certificates',
       cert_type: 'death_cert_review',
-      title: 'Death Certificate Review',
+      title: 'Certificate of Death (Review)',
       purpose: 'Review of Death Certificate',
     }
   }
@@ -48,8 +52,8 @@ export function resolveIssuedDocumentSpec({ serviceKind, serviceName, intakeData
       permit_type === 'cremation'
         ? 'Cremation Permit'
         : permit_type === 'transfer'
-          ? 'Transfer Permit'
-          : 'Exhumation Permit'
+          ? 'Certificate of Transfer of Cadaver/Bones and Ashes'
+          : 'Certificate of Exhumation'
     return {
       table: 'permits',
       permit_type,
@@ -107,17 +111,50 @@ export async function releaseIssuedDocument({
 
   try {
     if (spec.table === 'certificates') {
+      const details = {
+        ...(intakeData && typeof intakeData === 'object' ? intakeData : {}),
+        outcome: outcome || null,
+        notes: notes || null,
+        service_name: serviceName || null,
+      }
       const row = {
         patient_id: patientId,
         service_request_id: serviceRequestId || null,
         cert_type: spec.cert_type,
         purpose: purpose || null,
+        details,
         issued_by: issuedBy || null,
         approved_by: issuedBy || null,
         issued_at: nowIso,
         released_at: nowIso,
         status: 'released',
       }
+
+      const insertWithoutDetails = async () => {
+        const { details: _drop, ...legacy } = row
+        if (serviceRequestId) {
+          const { data: existing } = await supabase
+            .from('certificates')
+            .select('id')
+            .eq('service_request_id', serviceRequestId)
+            .eq('cert_type', spec.cert_type)
+            .maybeSingle()
+          if (existing?.id) {
+            const { data, error } = await supabase
+              .from('certificates')
+              .update(legacy)
+              .eq('id', existing.id)
+              .select('*')
+              .maybeSingle()
+            if (error) return { ok: false, error: error.message }
+            return { ok: true, table: 'certificates', row: { ...data, details }, title: spec.title }
+          }
+        }
+        const { data, error } = await supabase.from('certificates').insert(legacy).select('*').maybeSingle()
+        if (error) return { ok: false, error: error.message }
+        return { ok: true, table: 'certificates', row: { ...data, details }, title: spec.title }
+      }
+
       if (serviceRequestId) {
         const { data: existing } = await supabase
           .from('certificates')
@@ -132,11 +169,13 @@ export async function releaseIssuedDocument({
             .eq('id', existing.id)
             .select('*')
             .maybeSingle()
+          if (error && /details/i.test(error.message || '')) return insertWithoutDetails()
           if (error) return { ok: false, error: error.message }
           return { ok: true, table: 'certificates', row: data, title: spec.title }
         }
       }
       const { data, error } = await supabase.from('certificates').insert(row).select('*').maybeSingle()
+      if (error && /details/i.test(error.message || '')) return insertWithoutDetails()
       if (error) return { ok: false, error: error.message }
       return { ok: true, table: 'certificates', row: data, title: spec.title }
     }
@@ -188,13 +227,19 @@ export async function releaseIssuedDocument({
 export function documentTitleFromRow(doc) {
   if (!doc) return 'Issued Document'
   if (doc.cert_type === 'medical') return 'Medical Certificate'
-  if (doc.cert_type === 'health_card') return 'Health Card'
-  if (doc.cert_type === 'death_cert_review') return 'Death Certificate Review'
+  if (doc.cert_type === 'health_card') {
+    const details = doc.details && typeof doc.details === 'object' ? doc.details : {}
+    const handler = (details.handler_type || '').toString().toLowerCase()
+    if (/non[-\s]?food/.test(handler)) return 'Health Certificate (Non-Food)'
+    if (/food/.test(handler)) return 'Health Certificate (Food)'
+    return 'Health Certificate'
+  }
+  if (doc.cert_type === 'death_cert_review') return 'Certificate of Death (Review)'
   if (doc.cert_type === 'pre_marriage') return 'Pre-marriage Counseling Certificate'
   if (doc.permit_type === 'sanitary') return 'Sanitary Permit'
-  if (doc.permit_type === 'exhumation') return 'Exhumation Permit'
+  if (doc.permit_type === 'exhumation') return 'Certificate of Exhumation'
   if (doc.permit_type === 'cremation') return 'Cremation Permit'
-  if (doc.permit_type === 'transfer') return 'Transfer Permit'
+  if (doc.permit_type === 'transfer') return 'Certificate of Transfer of Cadaver/Bones and Ashes'
   return 'Issued Document'
 }
 

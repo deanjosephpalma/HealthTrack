@@ -7,7 +7,7 @@ import {
   msgCompleted,
   sendSms,
 } from '../smsService'
-import { staffOfflineDb } from './db'
+import { staffOfflineDb, getMeta, setMeta } from './db'
 import { isOnline } from './connectivity'
 import { mergeRemoteQueueRows, countPendingOutbox } from './queueService'
 
@@ -30,7 +30,7 @@ function emitSync(status) {
 }
 
 async function pushCreate(job) {
-  const { row, assignedStaffId } = job.payload
+  const { row, assignedStaffId, serviceRequestId } = job.payload
   const insertPayload = {
     id: row.id,
     queue_number: row.queue_number,
@@ -43,16 +43,34 @@ async function pushCreate(job) {
     service_code: row.service_code ?? 'RHU',
     counter_room: row.counter_room ?? 'Counter 1',
     estimated_waiting_time: row.estimated_waiting_time ?? null,
+    is_priority: Boolean(row.is_priority),
+    priority_labels: row.priority_labels ?? null,
     created_at: row.created_at,
     updated_at: row.updated_at || row.created_at,
   }
 
-  const { error } = await supabase.from('queue').upsert([insertPayload], { onConflict: 'id' })
+  let { error } = await supabase.from('queue').upsert([insertPayload], { onConflict: 'id' })
+  if (error && /is_priority|priority_labels/i.test(error.message || '')) {
+    const { is_priority, priority_labels, ...legacy } = insertPayload
+    ;({ error } = await supabase.from('queue').upsert([legacy], { onConflict: 'id' }))
+  }
   if (error) throw new Error(error.message)
 
   await staffOfflineDb.queue.update(row.id, { synced: 1, pending_create: 0 })
 
-  if (assignedStaffId || row.patient_id) {
+  const linkedRequestId = serviceRequestId || row.service_request_id || null
+  if (linkedRequestId) {
+    const { error: linkError } = await supabase
+      .from('service_requests')
+      .update({
+        queue_id: row.id,
+        status: 'In Queue',
+        current_status: 'waiting',
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', linkedRequestId)
+    if (linkError) throw new Error(linkError.message)
+  } else if (assignedStaffId || row.patient_id) {
     try {
       await ensureServiceRequest({
         patientId: row.patient_id ?? null,
@@ -91,8 +109,8 @@ async function pushUpdate(job) {
   else if (status === 'completed' || status === 'done')
     message = msgCompleted({ patientName: notify.patient_name })
 
-  const to = notify.patient_email || notify.phone_number
-  if (message && to && String(to).includes('@')) {
+  const to = notify.phone_number || notify.patient_email
+  if (message && to) {
     await sendSms({
       to,
       message,
@@ -214,11 +232,25 @@ async function pullTodayQueue() {
   const { data, error } = await supabase
     .from('queue')
     .select(
-      'id, queue_number, patient_id, patient_name, reason, status, created_at, updated_at, appointment_id, phone_number, counter_room, estimated_waiting_time, service_code, archived_at, patient:patients!queue_patient_id_fkey(patient_number), appointment:appointments!queue_appointment_id_fkey(patient_email)',
+      'id, queue_number, patient_id, patient_name, reason, status, created_at, updated_at, appointment_id, phone_number, counter_room, estimated_waiting_time, service_code, is_priority, priority_labels, archived_at, patient:patients!queue_patient_id_fkey(patient_number), appointment:appointments!queue_appointment_id_fkey(patient_email)',
     )
     .is('archived_at', null)
     .gte('created_at', today.toISOString())
     .order('created_at', { ascending: true })
+
+  if (error && /is_priority|priority_labels/i.test(error.message || '')) {
+    const fallback = await supabase
+      .from('queue')
+      .select(
+        'id, queue_number, patient_id, patient_name, reason, status, created_at, updated_at, appointment_id, phone_number, counter_room, estimated_waiting_time, service_code, archived_at, patient:patients!queue_patient_id_fkey(patient_number), appointment:appointments!queue_appointment_id_fkey(patient_email)',
+      )
+      .is('archived_at', null)
+      .gte('created_at', today.toISOString())
+      .order('created_at', { ascending: true })
+    if (fallback.error) throw new Error(fallback.error.message)
+    await mergeRemoteQueueRows(fallback.data ?? [])
+    return fallback.data ?? []
+  }
 
   if (error) throw new Error(error.message)
   await mergeRemoteQueueRows(data ?? [])
@@ -234,6 +266,18 @@ export async function syncNow() {
   try {
     const pushError = await pushOutbox()
     const rows = await pullTodayQueue()
+    // Refresh patient directory at most every 5 minutes (offline search).
+    try {
+      const lastPull = await getMeta('patientsCachePulledAt', 0)
+      const age = Date.now() - Number(lastPull || 0)
+      if (!lastPull || age > 5 * 60 * 1000) {
+        const { pullPatientsDirectory } = await import('./patientsCacheService')
+        await pullPatientsDirectory({ pageSize: 500, maxPages: 4 })
+        await setMeta('patientsCachePulledAt', Date.now())
+      }
+    } catch {
+      // Non-fatal — queue sync still succeeded
+    }
     const pending = await countPendingOutbox()
     emitSync({
       syncing: false,

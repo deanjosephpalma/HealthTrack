@@ -12,6 +12,8 @@ import {
   countPendingOutbox,
 } from '../../lib/offline/queueService'
 import { startAutoSync, syncNow, subscribeSyncStatus } from '../../lib/offline/syncEngine'
+import { resolvePatientPriority, compareByPriorityThenArrival } from '../../lib/patientPriority'
+import { QUEUE_DEMO_ROWS, isDemoQueueRow, linePositionLabel } from '../../lib/queueDemoExamples'
 
 const formatPatientNumber = (value) => {
   const num = Number(value)
@@ -210,56 +212,103 @@ export default function QueuePage() {
   const activeStatuses = ['waiting', 'next', 'called', 'skipped']
   const doneStatuses = ['done', 'cancelled', 'completed']
 
-  const activeQueue = queueItems.filter((i) => activeStatuses.includes((i.status ?? '').toLowerCase()))
+  const activeQueue = [
+    ...QUEUE_DEMO_ROWS,
+    ...queueItems.filter((i) => activeStatuses.includes((i.status ?? '').toLowerCase())),
+  ]
+    .slice()
+    .sort((a, b) => {
+      const aDemo = isDemoQueueRow(a)
+      const bDemo = isDemoQueueRow(b)
+      if (aDemo !== bDemo) return aDemo ? -1 : 1
+      return compareByPriorityThenArrival(a, b)
+    })
   const doneQueue = queueItems.filter((i) => doneStatuses.includes((i.status ?? '').toLowerCase()))
 
-  const renderItem = (item) => {
+  const renderItem = (item, index = 0, { showPosition = false } = {}) => {
     const status = (item.status ?? 'waiting').toString().toLowerCase()
     const isBusy = actionLoadingId === item.id
     const isDone = doneStatuses.includes(status)
     const queueLabel = queueLabelOf(item)
+    const priority = resolvePatientPriority(item)
+    const isDemo = isDemoQueueRow(item)
+    const position = showPosition ? linePositionLabel(index) : ''
+    const isNext = showPosition && index === 0
 
     return (
-      <article key={item.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+      <article
+        key={item.id}
+        className={`rounded-2xl border p-4 ${
+          isDemo
+            ? 'border-dashed border-violet-300 bg-violet-50/40'
+            : isNext
+              ? 'border-teal-400 bg-teal-50/40 ring-2 ring-teal-200'
+              : priority.isPriority
+                ? 'border-violet-300 bg-violet-50/50'
+                : 'border-slate-200 bg-slate-50'
+        }`}
+      >
         <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-          <div className="min-w-0">
-            {item.patient?.patient_number ? (
-              <p className="chip mb-2">Patient ID - {formatPatientNumber(item.patient.patient_number)}</p>
+          <div className="flex min-w-0 flex-1 gap-3">
+            {showPosition ? (
+              <div
+                className={`flex h-14 w-16 shrink-0 flex-col items-center justify-center rounded-xl text-center ${
+                  isNext ? 'bg-teal-700 text-white' : priority.isPriority ? 'bg-violet-100 text-violet-900' : 'bg-slate-200 text-slate-700'
+                }`}
+              >
+                <span className="text-xs font-extrabold leading-tight">{position}</span>
+              </div>
             ) : null}
-            <h3 className="text-lg font-semibold text-slate-900">
-              {queueLabel ? <span className="mr-2 text-teal-700">{queueLabel}</span> : null}
-              {item.patient_name}
-            </h3>
-            <p className="text-sm text-slate-600">{item.reason || 'No reason provided'}</p>
-            {item.counter_room ? (
-              <p className="mt-1 text-xs text-slate-500">Counter / Room: {item.counter_room}</p>
-            ) : null}
-            {item.estimated_waiting_time ? (
-              <p className="text-xs text-slate-500">Est. wait: {item.estimated_waiting_time} min</p>
-            ) : null}
-            {item.phone_number ? <p className="text-xs text-slate-400">{item.phone_number}</p> : null}
-            {item.pending_create || !item.synced ? (
-              <p className="mt-1 text-xs font-semibold text-amber-700">Pending sync</p>
-            ) : null}
+            <div className="min-w-0">
+              {isDemo ? (
+                <p className="chip mb-2 bg-violet-100 text-violet-800">Demo example</p>
+              ) : item.patient?.patient_number ? (
+                <p className="chip mb-2">Patient ID - {formatPatientNumber(item.patient.patient_number)}</p>
+              ) : null}
+              <h3 className="text-lg font-semibold text-slate-900">
+                {queueLabel ? <span className="mr-2 text-teal-700">{queueLabel}</span> : null}
+                {item.patient_name}
+              </h3>
+              <p className="text-sm text-slate-600">{item.reason || 'No reason provided'}</p>
+              {priority.isPriority ? (
+                <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-violet-800">
+                  Priority · {priority.label}
+                </p>
+              ) : (
+                <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-slate-500">Regular</p>
+              )}
+              {item.counter_room ? (
+                <p className="mt-1 text-xs text-slate-500">Counter / Room: {item.counter_room}</p>
+              ) : null}
+              {item.estimated_waiting_time ? (
+                <p className="text-xs text-slate-500">Est. wait: {item.estimated_waiting_time} min</p>
+              ) : null}
+              {item.phone_number ? <p className="text-xs text-slate-400">{item.phone_number}</p> : null}
+              {item.pending_create || !item.synced ? (
+                <p className="mt-1 text-xs font-semibold text-amber-700">Pending sync</p>
+              ) : null}
+            </div>
           </div>
           <div className="flex shrink-0 flex-col items-end gap-2">
             <span className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${queueStatusClasses(status)}`}>
               {queueStatusLabel(status)}
             </span>
-            <button
-              type="button"
-              className="px-3 py-2 text-xs font-medium rounded-lg bg-rose-600 text-white hover:bg-rose-500 disabled:opacity-50"
-              onClick={() => handleArchive(item)}
-              disabled={!isDone}
-              aria-label="Archive"
-              title={isDone ? 'Archive' : 'Archive only after completion'}
-            >
-              <ArchiveIcon className="h-4 w-4" />
-            </button>
+            {!isDemo ? (
+              <button
+                type="button"
+                className="px-3 py-2 text-xs font-medium rounded-lg bg-rose-600 text-white hover:bg-rose-500 disabled:opacity-50"
+                onClick={() => handleArchive(item)}
+                disabled={!isDone}
+                aria-label="Archive"
+                title={isDone ? 'Archive' : 'Archive only after completion'}
+              >
+                <ArchiveIcon className="h-4 w-4" />
+              </button>
+            ) : null}
           </div>
         </div>
 
-        {!isDone ? (
+        {!isDone && !isDemo ? (
           <div className="mt-3 flex flex-wrap gap-2">
             <button
               type="button"
@@ -405,7 +454,7 @@ export default function QueuePage() {
       {loading && <p className="info-banner mb-4">Loading queue data...</p>}
       {error && <p className="error-banner mb-4">Queue error: {error}</p>}
 
-      {!loading && queueItems.length === 0 ? (
+      {!loading && activeQueue.length === 0 && doneQueue.length === 0 ? (
         <ModuleEmptyState
           title="No queue entries yet"
           description="Add a walk-in patient or wait for patients who join the queue from the patient portal."
@@ -415,9 +464,11 @@ export default function QueuePage() {
           {activeQueue.length > 0 ? (
             <div>
               <p className="mb-3 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
-                Active Queue ({activeQueue.length})
+                Active Queue — top is Next ({activeQueue.length})
               </p>
-              <div className="space-y-3">{activeQueue.map(renderItem)}</div>
+              <div className="space-y-3">
+                {activeQueue.map((item, index) => renderItem(item, index, { showPosition: true }))}
+              </div>
             </div>
           ) : null}
 

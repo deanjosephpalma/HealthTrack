@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { applySupabaseSession, ensureStaffOfflineNamespace, PORTAL, secureSignOut, supabase } from '../lib/supabaseClient'
 import { fetchAuthMe, refreshAuthSession } from '../lib/apiClient'
+import { isStaffPortalRole } from '../config/rbac'
 import { AuthContext } from './AuthContextObject'
 
 export function AuthProvider({ children }) {
@@ -91,12 +92,14 @@ export function AuthProvider({ children }) {
       }
 
       const nextProfile = data ?? null
-      const validRole = nextProfile && ['Doctor', 'Nurse'].includes(nextProfile.role)
+      const validRole = nextProfile && isStaffPortalRole(nextProfile.role)
       if (!validRole) {
         await secureSignOut()
         setSession(null)
         setProfile(null)
-        setProfileError('This account is not allowed here. Use an approved doctor or nurse account, or the Patient Portal.')
+        setProfileError(
+          'This account is not allowed here. Use an approved Doctor, Nurse, BHW, or Volunteer account, or the Patient Portal.',
+        )
         setProfileLoading(false)
         return
       }

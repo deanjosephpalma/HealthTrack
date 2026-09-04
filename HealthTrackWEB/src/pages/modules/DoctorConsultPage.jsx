@@ -9,6 +9,7 @@ import { logAuditEvent, supabase } from '../../lib/supabaseClient'
 import { listLocalQueue, updateQueueStatusLocal, countPendingOutbox } from '../../lib/offline/queueService'
 import { startAutoSync, syncNow } from '../../lib/offline/syncEngine'
 import { useOnlineStatus } from '../../lib/offline/connectivity'
+import { getPatientCacheById, getPatientCacheByAuthId, upsertPatientsCache } from '../../lib/offline/patientsCacheService'
 import {
   buildAnimalBiteDoseDates,
   buildTbWeeklySchedule,
@@ -16,12 +17,16 @@ import {
 import { sendSms, msgVaccineSchedule, msgFollowUpReminder } from '../../lib/smsService'
 import { savePatientRecordLocal, saveScheduleLocal, enqueueServiceRequestUpdate } from '../../lib/offline/paperlessService'
 import PatientProfileView from '../../components/PatientProfileView'
+import Icd10DiagnosisField from '../../components/Icd10DiagnosisField'
 import {
   isDoctorBoundQueueItem,
   mergeIntakeResponses,
   queueLabelOf,
   resolveDoctorServiceKind,
 } from '../../lib/doctorServices'
+import { resolvePatientPriority, compareByPriorityThenArrival } from '../../lib/patientPriority'
+import { QUEUE_DEMO_ROWS, isDemoQueueRow, linePositionLabel } from '../../lib/queueDemoExamples'
+import { formatIcd10Diagnosis, parseIcd10Diagnosis, ICD10_OTHER } from '../../lib/icd10Codes'
 import {
   documentTitleFromRow,
   fetchIssuedDocForServiceRequest,
@@ -73,7 +78,8 @@ export default function DoctorConsultPage() {
   const [formData, setFormData] = useState({})
   const [serviceRequest, setServiceRequest] = useState(null)
   const [existingRecord, setExistingRecord] = useState(null)
-  const [diagnosis, setDiagnosis] = useState('')
+  const [diagnosisCode, setDiagnosisCode] = useState('')
+  const [diagnosisOther, setDiagnosisOther] = useState('')
   const [notes, setNotes] = useState('')
   const [prescription, setPrescription] = useState('')
   const [saving, setSaving] = useState(false)
@@ -87,6 +93,7 @@ export default function DoctorConsultPage() {
   const [patientProfile, setPatientProfile] = useState(null)
   const [showPatientInfo, setShowPatientInfo] = useState(false)
   const [issuedDoc, setIssuedDoc] = useState(null)
+  const [bhwEncoded, setBhwEncoded] = useState(false)
 
   const refreshQueue = useCallback(async () => {
     setLoading(true)
@@ -127,11 +134,17 @@ export default function DoctorConsultPage() {
   }, [])
 
   const doctorQueue = useMemo(() => {
-    return queueItems
+    const live = queueItems
       .filter((item) => ACTIVE.has((item.status ?? '').toLowerCase()))
       .filter((item) => isDoctorBoundQueueItem(item, serviceNameById))
+    const demos = QUEUE_DEMO_ROWS.filter((item) => isDoctorBoundQueueItem(item, serviceNameById))
+
+    return [...demos, ...live]
       .slice()
       .sort((a, b) => {
+        const aDemo = isDemoQueueRow(a)
+        const bDemo = isDemoQueueRow(b)
+        if (aDemo !== bDemo) return aDemo ? -1 : 1
         const rank = (s) => {
           const v = (s ?? '').toLowerCase()
           if (v === 'called') return 0
@@ -141,7 +154,7 @@ export default function DoctorConsultPage() {
         }
         const d = rank(a.status) - rank(b.status)
         if (d !== 0) return d
-        return String(a.created_at).localeCompare(String(b.created_at))
+        return compareByPriorityThenArrival(a, b)
       })
   }, [queueItems, serviceNameById])
 
@@ -161,7 +174,8 @@ export default function DoctorConsultPage() {
     setPanelLoading(true)
     setSaveMessage('')
     setError('')
-    setDiagnosis('')
+    setDiagnosisCode('')
+    setDiagnosisOther('')
     setNotes('')
     setPrescription('')
     setFormData({ patient_name: item.patient_name })
@@ -172,6 +186,7 @@ export default function DoctorConsultPage() {
     setPatientProfile(null)
     setShowPatientInfo(false)
     setIssuedDoc(null)
+    setBhwEncoded(false)
     setScheduleEnabled(true)
     setScheduleStartDate(new Date().toISOString().slice(0, 10))
     setTbWeeks(24)
@@ -191,6 +206,7 @@ export default function DoctorConsultPage() {
             setPatientProfile(patientRow)
             setPatientAuthId(patientRow.patient_auth_id ?? null)
             setPatientEmail(patientRow.email || null)
+            void upsertPatientsCache([patientRow])
           }
         } else if (item.patient_auth_id) {
           const { data: patientRow } = await supabase
@@ -202,6 +218,7 @@ export default function DoctorConsultPage() {
             setPatientProfile(patientRow)
             setPatientAuthId(patientRow.patient_auth_id ?? item.patient_auth_id)
             setPatientEmail(patientRow.email || null)
+            void upsertPatientsCache([patientRow])
           } else {
             setPatientAuthId(item.patient_auth_id)
           }
@@ -209,7 +226,7 @@ export default function DoctorConsultPage() {
 
         const { data: byQueue } = await supabase
           .from('service_requests')
-          .select('id, status, patient_id, service_id, service_type_id, queue_id, reference_number, patient_auth_id')
+          .select('id, status, patient_id, service_id, service_type_id, queue_id, reference_number, patient_auth_id, intake_data')
           .eq('queue_id', item.id)
           .order('updated_at', { ascending: false })
           .limit(1)
@@ -219,7 +236,7 @@ export default function DoctorConsultPage() {
         if (!sr && item.patient_id) {
           const { data: byPatient } = await supabase
             .from('service_requests')
-            .select('id, status, patient_id, service_id, service_type_id, queue_id, reference_number, patient_auth_id')
+            .select('id, status, patient_id, service_id, service_type_id, queue_id, reference_number, patient_auth_id, intake_data')
             .eq('patient_id', item.patient_id)
             .not('status', 'in', '(Cancelled,Rejected,Completed)')
             .order('updated_at', { ascending: false })
@@ -231,18 +248,36 @@ export default function DoctorConsultPage() {
         if (sr) {
           setServiceRequest(sr)
           if (sr.patient_auth_id) setPatientAuthId(sr.patient_auth_id)
+
+          const intake =
+            sr.intake_data && typeof sr.intake_data === 'object' && !Array.isArray(sr.intake_data)
+              ? sr.intake_data
+              : {}
+          const staffEncode =
+            intake.staff_encode && typeof intake.staff_encode === 'object' ? intake.staff_encode : {}
+          const hasBhwEncode = Object.keys(staffEncode).length > 0
+          setBhwEncoded(hasBhwEncode)
+
           const { data: responses } = await supabase
             .from('form_responses')
             .select('response_data, workflow_step_id')
             .eq('service_request_id', sr.id)
           const merged = mergeIntakeResponses(responses ?? [])
+
           setFormData((prev) => ({
             ...prev,
+            ...staffEncode,
             ...merged,
+            join_reason: intake.join_reason || staffEncode.join_reason || '',
             patient_name: item.patient_name,
           }))
-          if (merged.bite_date) setScheduleStartDate(String(merged.bite_date).slice(0, 10))
-          else if (merged.date_of_consultation) setScheduleStartDate(String(merged.date_of_consultation).slice(0, 10))
+          if (merged.bite_date || staffEncode.bite_date) {
+            setScheduleStartDate(String(merged.bite_date || staffEncode.bite_date).slice(0, 10))
+          } else if (merged.date_of_consultation || staffEncode.date_of_consultation) {
+            setScheduleStartDate(
+              String(merged.date_of_consultation || staffEncode.date_of_consultation).slice(0, 10),
+            )
+          }
 
           if (sr.service_id) {
             const { data: svc } = await supabase.from('services').select('name, queue_prefix').eq('id', sr.service_id).maybeSingle()
@@ -266,10 +301,12 @@ export default function DoctorConsultPage() {
 
         if (record) {
           setExistingRecord(record)
-          setDiagnosis(record.diagnosis ?? '')
+          const parsed = parseIcd10Diagnosis(record.diagnosis ?? '')
+          setDiagnosisCode(parsed.code)
+          setDiagnosisOther(parsed.otherText)
           setNotes(record.notes ?? '')
           setPrescription(record.prescription ?? '')
-          setFormData((prev) => ({ ...prev, ...record, patient_name: item.patient_name }))
+          setFormData((prev) => ({ ...record, ...prev, patient_name: item.patient_name }))
           await supabase
             .from('patient_records')
             .update({
@@ -288,10 +325,12 @@ export default function DoctorConsultPage() {
             .maybeSingle()
           if (byPatientRecord) {
             setExistingRecord(byPatientRecord)
-            setDiagnosis(byPatientRecord.diagnosis ?? '')
+            const parsed = parseIcd10Diagnosis(byPatientRecord.diagnosis ?? '')
+            setDiagnosisCode(parsed.code)
+            setDiagnosisOther(parsed.otherText)
             setNotes(byPatientRecord.notes ?? '')
             setPrescription(byPatientRecord.prescription ?? '')
-            setFormData((prev) => ({ ...prev, ...byPatientRecord, patient_name: item.patient_name }))
+            setFormData((prev) => ({ ...byPatientRecord, ...prev, patient_name: item.patient_name }))
             await supabase
               .from('patient_records')
               .update({
@@ -306,6 +345,24 @@ export default function DoctorConsultPage() {
           const existing = await fetchIssuedDocForServiceRequest(sr.id)
           if (existing) setIssuedDoc(existing)
         }
+      } else {
+        // Offline: hydrate profile from IndexedDB patient cache when possible
+        if (item.patient_id) {
+          const cached = await getPatientCacheById(item.patient_id)
+          if (cached) {
+            setPatientProfile(cached)
+            setPatientAuthId(cached.patient_auth_id ?? null)
+          }
+        } else if (item.patient_auth_id) {
+          const cached = await getPatientCacheByAuthId(item.patient_auth_id)
+          if (cached) {
+            setPatientProfile(cached)
+            setPatientAuthId(cached.patient_auth_id ?? item.patient_auth_id)
+          } else {
+            setPatientAuthId(item.patient_auth_id)
+          }
+        }
+        setFormData((prev) => ({ ...prev, patient_name: item.patient_name }))
       }
     } catch (e) {
       setError(e?.message || 'Failed to load patient forms.')
@@ -331,9 +388,9 @@ export default function DoctorConsultPage() {
   const handleComplete = async (event) => {
     event.preventDefault()
     if (!selected) return
-    const diagnosisText = diagnosis.trim()
+    const diagnosisText = formatIcd10Diagnosis(diagnosisCode, diagnosisOther).trim()
     if (!diagnosisText) {
-      setError('Diagnosis is required.')
+      setError('Diagnosis is required. Select an ICD-10 code or choose Others and specify.')
       return
     }
 
@@ -583,7 +640,8 @@ export default function DoctorConsultPage() {
       setExistingRecord(null)
       setServiceRequest(null)
       setIssuedDoc(null)
-      setDiagnosis('')
+      setDiagnosisCode('')
+      setDiagnosisOther('')
       setNotes('')
       setPrescription('')
       await refreshQueue()
@@ -664,7 +722,7 @@ export default function DoctorConsultPage() {
       <div className="grid gap-4 xl:grid-cols-[minmax(0,340px)_minmax(0,1fr)]">
         <div className="space-y-3">
           <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
-            Doctor line ({doctorQueue.length})
+            Doctor line — top is Next ({doctorQueue.length})
           </p>
           {!loading && doctorQueue.length === 0 ? (
             <ModuleEmptyState
@@ -672,27 +730,60 @@ export default function DoctorConsultPage() {
               description="Only Animal Bite, Outpatient Consultation, Medical Certificate, and TB appear here when they are waiting, next, or called."
             />
           ) : (
-            doctorQueue.map((item) => {
+            doctorQueue.map((item, index) => {
               const name = item.service_name || serviceNameById.get(item.service_id) || item.service_code || 'Service'
               const kind = resolveDoctorServiceKind({ serviceCode: item.service_code, serviceName: name })
               const active = item.id === selectedId
+              const priority = resolvePatientPriority(item)
+              const isDemo = isDemoQueueRow(item)
+              const position = linePositionLabel(index)
+              const isNext = index === 0
               return (
                 <button
                   key={item.id}
                   type="button"
-                  onClick={() => void openConsult(item)}
-                  className={`w-full rounded-2xl border p-4 text-left transition ${
+                  onClick={() => {
+                    if (isDemo) {
+                      setSaveMessage('Demo example only — not a real patient ticket.')
+                      return
+                    }
+                    void openConsult(item)
+                  }}
+                  className={`flex w-full items-stretch gap-3 rounded-2xl border p-3 text-left transition sm:p-4 ${
                     active
                       ? 'border-teal-400 bg-teal-50 shadow-sm'
-                      : 'border-slate-200 bg-white hover:border-teal-200 hover:bg-slate-50'
+                      : isDemo
+                        ? 'border-dashed border-violet-300 bg-violet-50/40 hover:border-violet-400'
+                        : isNext
+                          ? 'border-teal-400 bg-teal-50/40 ring-2 ring-teal-200'
+                          : priority.isPriority
+                            ? 'border-violet-300 bg-violet-50/40 hover:border-violet-400'
+                            : 'border-slate-200 bg-white hover:border-teal-200 hover:bg-slate-50'
                   }`}
                 >
-                  <div className="flex items-start justify-between gap-2">
+                  <div
+                    className={`flex w-16 shrink-0 flex-col items-center justify-center rounded-xl px-1 py-2 text-center ${
+                      isNext ? 'bg-teal-700 text-white' : priority.isPriority ? 'bg-violet-100 text-violet-900' : 'bg-slate-100 text-slate-700'
+                    }`}
+                  >
+                    <span className="text-xs font-extrabold leading-tight">{position}</span>
+                  </div>
+                  <div className="flex min-w-0 flex-1 items-start justify-between gap-2">
                     <div>
                       <p className="text-lg font-bold text-teal-800">{queueLabelOf(item)}</p>
                       <p className="font-semibold text-slate-900">{item.patient_name}</p>
                       <p className="text-xs text-slate-600">{serviceKindLabel(kind)}</p>
                       <p className="mt-1 text-xs text-slate-500">{item.reason || 'No reason'}</p>
+                      {isDemo ? (
+                        <p className="mt-2 text-[11px] font-semibold uppercase tracking-wide text-violet-700">Demo</p>
+                      ) : null}
+                      {priority.isPriority ? (
+                        <p className="mt-2 text-[11px] font-semibold uppercase tracking-wide text-violet-800">
+                          Priority · {priority.label}
+                        </p>
+                      ) : (
+                        <p className="mt-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">Regular</p>
+                      )}
                     </div>
                     <span className={`shrink-0 rounded-full border px-2 py-1 text-[11px] font-semibold ${statusClasses(item.status)}`}>
                       {statusLabel(item.status)}
@@ -736,49 +827,39 @@ export default function DoctorConsultPage() {
                       Download PDF — {documentTitleFromRow(issuedDoc.row)}
                     </button>
                   ) : null}
-                  <button
-                    type="button"
-                    className="secondary-btn !mt-0 text-xs"
-                    onClick={() => setShowPatientInfo(true)}
-                  >
-                    View patient information
-                  </button>
                   <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${statusClasses(selected.status)}`}>
                     {statusLabel(selected.status)}
                   </span>
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-3">
-                <p className="mb-3 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
-                  Patient intake / service form
+              <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
+                <p className="text-sm font-semibold text-slate-800">Patient information</p>
+                <p className="mt-1 text-sm text-slate-600">
+                  {bhwEncoded
+                    ? 'BHW / Volunteer encoding is ready. Open it only when you need demographics or visit details.'
+                    : 'Open the patient profile when you need demographics or visit details.'}
                 </p>
-                <div className="max-h-[55vh] overflow-y-auto rounded-xl bg-white p-2">
-                  {Object.keys(formData).length <= 1 ? (
-                    <p className="p-4 text-sm text-slate-600">
-                      No detailed intake form found yet for this ticket. You can still enter diagnosis and notes below.
-                    </p>
-                  ) : (
-                    renderPatientForm()
-                  )}
-                </div>
+                <button
+                  type="button"
+                  className="secondary-btn mt-3 !mt-3 text-xs"
+                  onClick={() => setShowPatientInfo(true)}
+                >
+                  View patient information
+                </button>
               </div>
 
               <form onSubmit={handleComplete} className="space-y-4 rounded-2xl border border-teal-200 bg-teal-50/30 p-4">
                 <p className="text-sm font-semibold text-teal-900">Doctor diagnosis & notes</p>
-                <div>
-                  <label className="field-label" htmlFor="doc-diagnosis">
-                    Diagnosis *
-                  </label>
-                  <textarea
-                    id="doc-diagnosis"
-                    className="field-input min-h-24"
-                    value={diagnosis}
-                    onChange={(e) => setDiagnosis(e.target.value)}
-                    placeholder="Enter diagnosis"
-                    required
-                  />
-                </div>
+                <Icd10DiagnosisField
+                  code={diagnosisCode}
+                  otherText={diagnosisOther}
+                  onCodeChange={(value) => {
+                    setDiagnosisCode(value)
+                    if (value !== ICD10_OTHER) setDiagnosisOther('')
+                  }}
+                  onOtherTextChange={setDiagnosisOther}
+                />
                 <div>
                   <label className="field-label" htmlFor="doc-notes">
                     Notes
@@ -914,16 +995,21 @@ export default function DoctorConsultPage() {
               </form>
 
               {showPatientInfo ? (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm">
-                  <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-2xl bg-white shadow-xl">
+                <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-900/50 p-4 pt-10 backdrop-blur-sm">
+                  <div className="max-h-[90vh] w-full max-w-5xl overflow-y-auto rounded-2xl bg-white shadow-xl">
                     <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-200 bg-white p-5">
                       <div>
                         <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
-                          Master patient profile
+                          Patient information
                         </p>
                         <h3 className="text-lg font-bold text-slate-900">
                           {patientProfile?.name || selected.patient_name}
                         </h3>
+                        <p className="mt-1 text-xs text-slate-500">
+                          {bhwEncoded
+                            ? 'Includes master profile and BHW / Volunteer encoding for this visit.'
+                            : 'Master patient profile on file.'}
+                        </p>
                       </div>
                       <button
                         type="button"
@@ -933,8 +1019,25 @@ export default function DoctorConsultPage() {
                         Close
                       </button>
                     </div>
-                    <div className="p-5 sm:p-6">
-                      <PatientProfileView patient={patientProfile} email={patientEmail} />
+                    <div className="space-y-6 p-5 sm:p-6">
+                      <div>
+                        <p className="mb-3 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+                          Master patient profile
+                        </p>
+                        <PatientProfileView patient={patientProfile} email={patientEmail} />
+                      </div>
+                      <div>
+                        <p className="mb-3 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+                          {bhwEncoded ? 'BHW / Volunteer encoded details' : 'Visit / intake form'}
+                        </p>
+                        {Object.keys(formData).length <= 1 ? (
+                          <p className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
+                            No encoded visit form is linked to this queue ticket yet.
+                          </p>
+                        ) : (
+                          <div className="rounded-xl border border-slate-200 bg-white p-3">{renderPatientForm()}</div>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>

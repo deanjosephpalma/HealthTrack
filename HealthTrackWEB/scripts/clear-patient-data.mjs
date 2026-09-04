@@ -10,7 +10,7 @@ import { createClient } from '@supabase/supabase-js'
 import dotenv from 'dotenv'
 import { resolve } from 'node:path'
 
-const STAFF_ROLES = new Set(['Admin', 'Doctor', 'Nurse'])
+const STAFF_ROLES = new Set(['Admin', 'Doctor', 'Nurse', 'BHW', 'Volunteer'])
 const dryRun = process.argv.includes('--dry-run')
 
 const envPath = resolve(process.cwd(), '.env.seed')

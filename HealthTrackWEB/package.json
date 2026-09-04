@@ -9,6 +9,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "seed:accounts": "node scripts/seed-default-accounts.mjs",
+    "seed:staff": "node scripts/seed-staff-from-csv.mjs",
     "clear:patient-data": "node scripts/clear-patient-data.mjs",
     "apply:charter-migration": "node scripts/apply-charter-migration.mjs",
     "verification:email-api": "node scripts/verification-email-api.mjs",

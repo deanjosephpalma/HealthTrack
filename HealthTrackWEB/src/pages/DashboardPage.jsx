@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/useAuth'
 import { supabase } from '../lib/supabaseClient'
 import { ROLES } from '../config/rbac'
+import { isHeatMapClinicalRecord } from '../lib/heatmapClinicalFilter'
 import { AnimatePresence, motion as Motion } from 'framer-motion'
 import {
   Area,
@@ -359,7 +360,6 @@ export default function DashboardPage() {
   const [pulseKey, setPulseKey] = useState(0)
   const [quickOpen, setQuickOpen] = useState(false)
 
-  const [serviceTypes, setServiceTypes] = useState([])
   const [appointments, setAppointments] = useState([])
   const [queueItems, setQueueItems] = useState([])
   const [records, setRecords] = useState([])
@@ -403,7 +403,7 @@ export default function DashboardPage() {
       items.push({
         id: `appt-${row.id}`,
         at: at && !Number.isNaN(at.getTime()) ? at : new Date(0),
-        label: 'Appointment updated',
+        label: 'Visit / schedule update',
         detail: normalizeLabel(row.patient_name, 'Patient'),
         tone: 'slate',
       })
@@ -443,14 +443,16 @@ export default function DashboardPage() {
         : Promise.resolve({ data: [], error: null }),
       supabase
         .from('queue')
-        .select('id, queue_number, patient_name, reason, status, created_at, appointment_id, patient_id')
+        .select('id, queue_number, patient_name, reason, status, created_at, appointment_id, patient_id, counter_room, service_code')
         .is('archived_at', null)
         .gte('created_at', startOfToday.toISOString())
         .order('created_at', { ascending: false })
         .limit(400),
       supabase
         .from('patient_records')
-        .select('id, diagnosis, notes, barangay, sex, age, temp, spo2, bp, created_at, date_of_consultation, latitude, longitude, tb_classification')
+        .select(
+          'id, diagnosis, notes, barangay, sex, age, temp, spo2, bp, created_at, date_of_consultation, latitude, longitude, tb_classification, nurse_completed_at, doctor_completed_at, medcert_pwd, medcert_work, medcert_financial, medcert_4ps, medcert_school, medcert_others',
+        )
         .is('archived_at', null)
         .gte('created_at', recordsSince.toISOString())
         .order('created_at', { ascending: false })
@@ -485,13 +487,11 @@ export default function DashboardPage() {
     const nextQueue = Array.isArray(queueRes.data) ? queueRes.data : []
     const nextRecords = Array.isArray(recordsRes.data) ? recordsRes.data : []
     const nextInventory = Array.isArray(inventoryRes.data) ? inventoryRes.data : []
-    const nextServiceTypes = Array.isArray(serviceTypesRes.data) ? serviceTypesRes.data : []
     const activeRequests = Array.isArray(activeRequestsRes.data) ? activeRequestsRes.data : []
 
     setAppointments(nextAppointments)
     setQueueItems(nextQueue)
     setRecords(nextRecords)
-    setServiceTypes(nextServiceTypes)
     setLowStockItems(nextInventory.filter((row) => Number(row.stock_quantity) <= 5).slice(0, 10))
     // We can store active requests count directly or add a new state, let's use a state.
     setActiveWorkflowCount(activeRequests.length)
@@ -567,7 +567,7 @@ export default function DashboardPage() {
             {
               id: `evt-appt-${payload.commit_timestamp ?? Date.now()}-${Math.random().toString(16).slice(2)}`,
               at: payload.commit_timestamp ? new Date(payload.commit_timestamp) : new Date(),
-              label: 'Appointment update',
+              label: 'Visit update',
               detail: who,
               tone: 'slate',
             },
@@ -631,8 +631,6 @@ export default function DashboardPage() {
 
   const today = useMemo(() => new Date(now.getFullYear(), now.getMonth(), now.getDate()), [now])
 
-  const serviceTypeById = useMemo(() => new Map(serviceTypes.map((r) => [r.id, r.name])), [serviceTypes])
-
   const todayAppointments = useMemo(() => {
     if (!Array.isArray(appointments)) return []
     return appointments.filter((row) => {
@@ -641,13 +639,6 @@ export default function DashboardPage() {
       return d.getTime() === today.getTime()
     })
   }, [appointments, today])
-
-  const upcomingAppointments = useMemo(() => {
-    return todayAppointments
-      .slice()
-      .sort((a, b) => (Date.parse(a.appointment_date ?? '') || 0) - (Date.parse(b.appointment_date ?? '') || 0))
-      .slice(0, 10)
-  }, [todayAppointments])
 
   const activeQueue = useMemo(() => {
     if (!Array.isArray(queueItems)) return []
@@ -757,10 +748,12 @@ export default function DashboardPage() {
     return out.slice(0, 20)
   }, [now, records])
 
+  const clinicalRecords = useMemo(() => records.filter(isHeatMapClinicalRecord), [records])
+
   const outbreakSummary = useMemo(() => {
     const byDx = new Map()
     const byDxBrgy = new Map()
-    for (const row of records) {
+    for (const row of clinicalRecords) {
       const d = safeDateOnly(row.date_of_consultation) ?? safeDateOnly(row.created_at)
       if (!d) continue
       if (d < weekWindows.startPrev) continue
@@ -789,12 +782,12 @@ export default function DashboardPage() {
       .slice(0, 6)
 
     return { dxList, hotspots }
-  }, [records, today, weekWindows])
+  }, [clinicalRecords, today, weekWindows])
 
   const heatmapPoints = useMemo(() => {
     const cutoff = new Date(today)
     cutoff.setDate(cutoff.getDate() - 13)
-    return records
+    return clinicalRecords
       .filter((row) => {
         const d = safeDateOnly(row.date_of_consultation) ?? safeDateOnly(row.created_at)
         if (!d || d < cutoff) return false
@@ -802,11 +795,11 @@ export default function DashboardPage() {
       })
       .slice(0, 800)
       .map((row) => ({ latitude: row.latitude, longitude: row.longitude }))
-  }, [records, today])
+  }, [clinicalRecords, today])
 
   const topDiagnosesForDonut = useMemo(() => {
     const map = new Map()
-    for (const row of records) {
+    for (const row of clinicalRecords) {
       const d = safeDateOnly(row.date_of_consultation) ?? safeDateOnly(row.created_at)
       if (!d) continue
       if (d < weekWindows.startCurrent) continue
@@ -817,11 +810,11 @@ export default function DashboardPage() {
       .map(([label, value]) => ({ label, value }))
       .sort((a, b) => b.value - a.value)
       .slice(0, 6)
-  }, [records, weekWindows])
+  }, [clinicalRecords, weekWindows])
 
   const topBarangays = useMemo(() => {
     const map = new Map()
-    for (const row of records) {
+    for (const row of clinicalRecords) {
       const d = safeDateOnly(row.date_of_consultation) ?? safeDateOnly(row.created_at)
       if (!d) continue
       if (d < weekWindows.startCurrent) continue
@@ -832,7 +825,7 @@ export default function DashboardPage() {
       .map(([label, value]) => ({ label, value }))
       .sort((a, b) => b.value - a.value)
       .slice(0, 6)
-  }, [records, weekWindows])
+  }, [clinicalRecords, weekWindows])
 
   const dashboardAlerts = useMemo(() => {
     const alerts = []
@@ -911,7 +904,7 @@ export default function DashboardPage() {
     insights.push({
       id: 'ins-pace',
       title: 'Workload pulse',
-      message: `Consultations ${recordsDelta >= 0 ? 'up' : 'down'} ${Math.abs(recordsDelta)}% this week. Appointments ${apptDelta >= 0 ? 'up' : 'down'} ${Math.abs(apptDelta)}%.`,
+      message: `Consultations ${recordsDelta >= 0 ? 'up' : 'down'} ${Math.abs(recordsDelta)}% this week. Scheduled visits ${apptDelta >= 0 ? 'up' : 'down'} ${Math.abs(apptDelta)}%.`,
     })
 
     const hotspot = outbreakSummary.hotspots[0]
@@ -1212,18 +1205,18 @@ export default function DashboardPage() {
           >
             <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div className="min-w-0">
-                <h3 className="m-0 text-base font-bold text-slate-900 sm:text-lg">Today’s Appointments</h3>
-                <p className="mt-1 text-sm text-slate-600">Timeline view with quick context and priority indicators.</p>
+                <h3 className="m-0 text-base font-bold text-slate-900 sm:text-lg">Waiting in Queue</h3>
+                <p className="mt-1 text-sm text-slate-600">Patients ready to be called — open Queue for full controls.</p>
               </div>
               <Link className="secondary-btn mt-0! bg-slate-900 hover:bg-slate-800" to="/dashboard/queue">
-                Open Schedule
+                Open Queue
               </Link>
             </div>
 
-            {upcomingAppointments.length === 0 ? (
+            {waitingQueue.length === 0 ? (
               <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-5">
-                <p className="text-sm font-semibold text-slate-900">No appointments scheduled for today.</p>
-                <p className="mt-1 text-sm text-slate-600">Start by checking the queue or reviewing consultation records.</p>
+                <p className="text-sm font-semibold text-slate-900">No one waiting in queue right now.</p>
+                <p className="mt-1 text-sm text-slate-600">Patients appear here after encoding and queue number issuance.</p>
                 <div className="mt-3 flex flex-wrap gap-2">
                   <Link className="secondary-btn mt-0!" to="/dashboard/queue">
                     Open Queue
@@ -1235,25 +1228,21 @@ export default function DashboardPage() {
               </div>
             ) : (
               <div className="space-y-3">
-                {upcomingAppointments.map((appt) => {
-                  const status = (appt.status ?? 'scheduled').toString().toLowerCase()
+                {waitingQueue.slice(0, 8).map((ticket) => {
+                  const status = (ticket.status ?? 'waiting').toString().toLowerCase()
                   const statusClasses =
-                    status === 'completed'
-                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                      : status === 'in_queue'
-                        ? 'bg-amber-50 text-amber-700 border-amber-200'
-                        : status === 'checked_in'
-                          ? 'bg-sky-50 text-sky-700 border-sky-200'
-                          : status === 'cancelled' || status === 'no_show'
-                            ? 'bg-rose-50 text-rose-700 border-rose-200'
-                            : 'bg-slate-50 text-slate-700 border-slate-200'
+                    status === 'serving'
+                      ? 'bg-sky-50 text-sky-700 border-sky-200'
+                      : status === 'completed'
+                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                        : 'bg-amber-50 text-amber-700 border-amber-200'
 
-                  const priority = computePriority({ reason: appt.reason || appt.notes, patientName: appt.patient_name })
-                  const service = appt.service_type_id ? serviceTypeById.get(appt.service_type_id) : null
+                  const priority = computePriority({ reason: ticket.reason, patientName: ticket.patient_name })
+                  const label = ticket.queue_number || '—'
 
                   return (
                     <Motion.article
-                      key={appt.id}
+                      key={ticket.id}
                       className="rounded-2xl border border-slate-200 bg-slate-50 p-4"
                       whileHover={{ y: -2 }}
                       transition={{ type: 'spring', stiffness: 260, damping: 18 }}
@@ -1261,13 +1250,10 @@ export default function DashboardPage() {
                       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                         <div className="min-w-0">
                           <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
-                            {formatTime(appt.appointment_date)} · {service ? service : 'Consultation'}
+                            #{label} · {ticket.counter_room || ticket.service_code || 'Clinic'}
                           </p>
-                          <p className="mt-1 truncate text-base font-bold text-slate-900">{normalizeLabel(appt.patient_name, 'Patient')}</p>
-                          <p className="mt-1 line-clamp-2 text-sm text-slate-600">{normalizeLabel(appt.reason || appt.notes, 'No reason provided')}</p>
-                          {appt.preferred_schedule ? (
-                            <p className="mt-1 text-xs text-slate-500">Preferred: {appt.preferred_schedule}</p>
-                          ) : null}
+                          <p className="mt-1 truncate text-base font-bold text-slate-900">{normalizeLabel(ticket.patient_name, 'Patient')}</p>
+                          <p className="mt-1 line-clamp-2 text-sm text-slate-600">{normalizeLabel(ticket.reason, 'No reason provided')}</p>
                         </div>
 
                         <div className="flex flex-wrap items-center justify-end gap-2">
@@ -1701,7 +1687,7 @@ export default function DashboardPage() {
             <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div className="min-w-0">
                 <h3 className="m-0 text-base font-bold text-slate-900 sm:text-lg">Recent Activity</h3>
-                <p className="mt-1 text-sm text-slate-600">Realtime feed from queue, appointments, and consultations.</p>
+                <p className="mt-1 text-sm text-slate-600">Realtime feed from queue and consultations.</p>
               </div>
               <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700">
                 Live
@@ -1711,7 +1697,7 @@ export default function DashboardPage() {
             {activity.length === 0 ? (
               <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-5">
                 <p className="text-sm font-semibold text-slate-900">No activity yet.</p>
-                <p className="mt-1 text-sm text-slate-600">New check-ins, appointments, and records will stream here automatically.</p>
+                <p className="mt-1 text-sm text-slate-600">New check-ins, queue tickets, and records will stream here automatically.</p>
               </div>
             ) : (
               <div className="space-y-2">

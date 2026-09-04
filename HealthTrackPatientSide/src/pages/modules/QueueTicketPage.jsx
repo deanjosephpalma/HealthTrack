@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
+import CancelEncodeConfirmModal from '../../components/CancelEncodeConfirmModal'
 import ModuleEmptyState from '../../components/ModuleEmptyState'
 import { useAuth } from '../../context/useAuth'
-import { enrollPatientInService } from '../../lib/patientServiceEnrollment'
+import { cancelEncodeLine, enrollPatientInService, joinStaffLine } from '../../lib/patientServiceEnrollment'
+import { resolvePatientPriority } from '../../lib/patientPriority'
 import { supabase } from '../../lib/supabaseClient'
 import { useOnlineStatus } from '../../lib/offline/connectivity'
-import { joinQueue, listMyLocalTickets, countPendingOutbox } from '../../lib/offline/joinQueue'
-import { startPatientAutoSync, syncPatientQueue } from '../../lib/offline/syncEngine'
+import { listMyLocalTickets, countPendingOutbox } from '../../lib/offline/joinQueue'
+import { startPatientAutoSync } from '../../lib/offline/syncEngine'
 
 function queueStatusLabel(status) {
   const v = (status ?? 'waiting').toString().toLowerCase()
@@ -44,12 +46,13 @@ export default function QueueTicketPage() {
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
   const [joining, setJoining] = useState(false)
+  const [cancelling, setCancelling] = useState(false)
+  const [cancelModalOpen, setCancelModalOpen] = useState(false)
   const [pendingSync, setPendingSync] = useState(0)
   const [services, setServices] = useState([])
   const [servicesLoading, setServicesLoading] = useState(true)
   const [enrolling, setEnrolling] = useState(false)
   const [reason, setReason] = useState('')
-
   const [resolvedPatientId, setResolvedPatientId] = useState(enrollment?.patient_id ?? null)
 
   useEffect(() => {
@@ -75,8 +78,8 @@ export default function QueueTicketPage() {
 
   const patientId = resolvedPatientId
   const serviceName = enrollment?.service_types?.name ?? null
-  const serviceCode = enrollment?.service_types?.queue_prefix ?? 'RHU'
-  const needsIntake = enrollment?.status === 'Draft'
+  const enrollmentStatus = (enrollment?.status ?? '').toString()
+  const enrollmentPriority = resolvePatientPriority(enrollment?.intake_data || {})
 
   const activeTicket = useMemo(
     () =>
@@ -85,50 +88,41 @@ export default function QueueTicketPage() {
       ) ?? null,
     [tickets],
   )
+  const ticketPriority = resolvePatientPriority(activeTicket || {})
 
-  const canJoinQueue = Boolean(enrollment) && !activeTicket
+  const awaitingStaff = enrollmentStatus === 'Awaiting Encoding'
+  const encodedWaitingNumber = enrollmentStatus === 'Encoded'
+  const canJoinStaffLine =
+    Boolean(enrollment) &&
+    !activeTicket &&
+    !awaitingStaff &&
+    !encodedWaitingNumber &&
+    enrollmentStatus !== 'In Queue'
 
-  const refresh = useCallback(async ({ soft = false } = {}) => {
-    if (!user) return
-    if (!soft) setLoading(true)
-    setError('')
-    try {
-      const local = await listMyLocalTickets({
-        patientId,
-        patientAuthId: user.id,
-      })
-      setTickets(local)
-      setPendingSync(await countPendingOutbox())
-    } catch (e) {
-      setError(e?.message || 'Failed to load tickets.')
-    } finally {
-      if (!soft) setLoading(false)
-    }
-  }, [patientId, user])
+  const refresh = useCallback(
+    async ({ soft = false } = {}) => {
+      if (!user) return
+      if (!soft) setLoading(true)
+      setError('')
+      try {
+        const local = await listMyLocalTickets({
+          patientId,
+          patientAuthId: user.id,
+        })
+        setTickets(local)
+        setPendingSync(await countPendingOutbox())
+      } catch (e) {
+        setError(e?.message || 'Failed to load tickets.')
+      } finally {
+        if (!soft) setLoading(false)
+      }
+    },
+    [patientId, user],
+  )
 
   useEffect(() => {
     void refresh()
   }, [refresh])
-
-  // Auto-unlock stuck Draft enrollments when master profile is already complete
-  useEffect(() => {
-    let cancelled = false
-    const promote = async () => {
-      if (!user?.id || !enrollment?.id || enrollment.status !== 'Draft' || !online) return
-      const { hasUsablePatientProfile } = await import('../../lib/patientServiceEnrollment')
-      const ready = await hasUsablePatientProfile(enrollment.patient_id || patientId)
-      if (!ready || cancelled) return
-      await supabase
-        .from('service_requests')
-        .update({ status: 'Ready', updated_at: new Date().toISOString() })
-        .eq('id', enrollment.id)
-      if (!cancelled) await refreshEnrollment(user.id)
-    }
-    void promote()
-    return () => {
-      cancelled = true
-    }
-  }, [enrollment?.id, enrollment?.status, enrollment?.patient_id, patientId, online, user?.id, refreshEnrollment])
 
   useEffect(() => {
     if (!user) return undefined
@@ -138,19 +132,36 @@ export default function QueueTicketPage() {
       intervalMs: 15000,
       onAfterSync: () => {
         void refresh({ soft: true })
+        void refreshEnrollment(user.id)
       },
     })
-  }, [patientId, user, refresh])
+  }, [patientId, user, refresh, refreshEnrollment])
 
   useEffect(() => {
+    let cancelled = false
     supabase
       .from('service_types')
       .select('id, name, queue_prefix')
       .order('name')
-      .then(({ data }) => {
-        setServices(data ?? [])
+      .then(({ data, error: servicesError }) => {
+        if (cancelled) return
+        if (servicesError) {
+          setError(servicesError.message || 'Failed to load services.')
+          setServices([])
+        } else {
+          setServices(data ?? [])
+        }
         setServicesLoading(false)
       })
+      .catch((e) => {
+        if (cancelled) return
+        setError(e?.message || 'Failed to load services.')
+        setServices([])
+        setServicesLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   async function handleServiceChange(e) {
@@ -158,24 +169,32 @@ export default function QueueTicketPage() {
     if (!serviceId || !user) return
     setEnrolling(true)
     setError('')
-    const result = await enrollPatientInService(user.id, serviceId)
-    if (!result.ok) {
-      setError(result.error || 'Could not select service.')
-    } else {
+    setMessage('')
+    try {
+      const result = await enrollPatientInService(user.id, serviceId, {
+        first_name: patient?.firstName || user?.user_metadata?.first_name,
+        last_name: patient?.lastName || user?.user_metadata?.last_name,
+        phone: patient?.phone || user?.user_metadata?.phone,
+        email: user?.email,
+      })
+      if (!result.ok) {
+        setError(result.error || 'Could not select service.')
+        return
+      }
       await refreshEnrollment(user.id)
+      if (result.message) setMessage(result.message)
+    } catch (err) {
+      setError(err?.message || 'Could not select service.')
+    } finally {
+      setEnrolling(false)
     }
-    setEnrolling(false)
   }
 
-  async function handleJoinQueue(event) {
+  async function handleGetInLine(event) {
     event.preventDefault()
     if (!user) return
-    if (!enrollment) {
+    if (!enrollment?.id) {
       setError('Select a service first.')
-      return
-    }
-    if (!online && !user) {
-      setError('Sign in while online first, then you can join offline.')
       return
     }
 
@@ -183,50 +202,47 @@ export default function QueueTicketPage() {
     setError('')
     setMessage('')
     try {
-      // Promote Draft → Ready when joining (master profile is enough for paperless queue)
-      if (enrollment.status === 'Draft' && enrollment.id && online) {
-        await supabase
-          .from('service_requests')
-          .update({ status: 'Ready', updated_at: new Date().toISOString() })
-          .eq('id', enrollment.id)
-        await refreshEnrollment(user.id)
-      }
-
-      const { label, alreadyJoined, syncWarning } = await joinQueue({
-        patientName: patient?.name || user.email || 'Patient',
-        patientId,
-        patientAuthId: user.id,
-        phoneNumber: patient?.phone || null,
-        patientEmail: user.email || null,
-        reason: reason || serviceName || 'Walk-in / self-join',
-        serviceCode,
-        serviceId: enrollment?.service_type_id || enrollment?.service_types?.id || null,
-        serviceRequestId: enrollment?.id || null,
+      const result = await joinStaffLine({
+        serviceRequestId: enrollment.id,
+        reason: reason.trim() || null,
       })
-
-      if (enrollment?.id && online) {
-        await supabase
-          .from('service_requests')
-          .update({ status: 'In Queue', updated_at: new Date().toISOString() })
-          .eq('id', enrollment.id)
-        await refreshEnrollment(user.id)
+      if (!result.ok) {
+        setError(result.error || 'Could not join the staff line.')
+        return
       }
-
-      setMessage(alreadyJoined ? `You already have ticket ${label}.` : `Joined queue — ticket ${label}.`)
-      if (syncWarning) setError(syncWarning)
+      await refreshEnrollment(user.id)
+      setMessage(result.message || 'You are now in line for BHW / Volunteer encoding.')
       setReason('')
-      await refresh()
-      if (online) {
-        const syncResult = await syncPatientQueue({ patientId, patientAuthId: user.id })
-        await refresh()
-        if (!syncWarning && syncResult?.error && syncResult?.pending > 0) {
-          setError(`Ticket saved locally but sync pending: ${syncResult.error}`)
-        }
-      }
     } catch (e) {
-      setError(e?.message || 'Failed to join queue.')
+      setError(e?.message || 'Failed to get in line.')
     } finally {
       setJoining(false)
+    }
+  }
+
+  async function handleConfirmCancelEncodeLine() {
+    if (!user || !enrollment?.id) return
+
+    setCancelling(true)
+    setError('')
+    setMessage('')
+    try {
+      const result = await cancelEncodeLine({
+        serviceRequestId: enrollment.id,
+        patientAuthId: user.id,
+      })
+      if (!result.ok) {
+        setError(result.error || 'Could not cancel.')
+        await refreshEnrollment(user.id)
+        return
+      }
+      setCancelModalOpen(false)
+      await refreshEnrollment(user.id)
+      setMessage(result.message || 'Encode line cancelled.')
+    } catch (e) {
+      setError(e?.message || 'Failed to cancel encode line.')
+    } finally {
+      setCancelling(false)
     }
   }
 
@@ -248,105 +264,155 @@ export default function QueueTicketPage() {
       </div>
 
       <div className="patient-panel space-y-4">
-      {needsIntake ? (
         <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
-          Optional: you can add more details in{' '}
-          <Link className="font-semibold text-teal-800 underline" to="/dashboard/service-intake">
-            Service Info
-          </Link>
-          . Your profile is enough to get a queue number.
+          Flow today: choose a service → <strong>Get in line</strong> for BHW / Volunteer encoding → they encode your
+          visit → they issue your queue number for the doctor or service counter.
         </div>
-      ) : null}
 
-      <div className="rounded-2xl border border-slate-200 bg-white p-4">
-        <label className="field-label" htmlFor="queue-service">
-          Service
-        </label>
-        <select
-          id="queue-service"
-          className="field-input"
-          disabled={servicesLoading || enrolling || Boolean(activeTicket)}
-          value={enrollment?.service_type_id || enrollment?.service_types?.id || ''}
-          onChange={handleServiceChange}
-        >
-          <option value="">{servicesLoading ? 'Loading…' : 'Select a service'}</option>
-          {services.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.name}
-            </option>
-          ))}
-        </select>
-        {serviceName ? <p className="mt-2 text-xs text-slate-500">Selected: {serviceName}</p> : null}
-        {enrolling ? <p className="mt-2 text-xs text-slate-500">Switching service…</p> : null}
-      </div>
-
-      {activeTicket ? (
-        <div className={`rounded-2xl border p-5 ${queueStatusClasses(activeTicket.status)}`}>
-          <p className="text-xs font-semibold uppercase tracking-[0.16em]">Your ticket</p>
-          <p className="mt-2 text-4xl font-bold">{labelOf(activeTicket)}</p>
-          <p className="mt-2 text-sm font-semibold">{queueStatusLabel(activeTicket.status)}</p>
-          <p className="mt-1 text-sm opacity-80">{activeTicket.reason}</p>
-          {activeTicket.counter_room ? (
-            <p className="mt-2 text-xs">Counter / Room: {activeTicket.counter_room}</p>
-          ) : null}
-          {activeTicket.pending_create || !activeTicket.synced ? (
-            <p className="mt-2 text-xs font-semibold">Pending sync to RHU system</p>
-          ) : null}
-        </div>
-      ) : (
-        <form onSubmit={handleJoinQueue} className="space-y-3 rounded-2xl border border-teal-200 bg-teal-50/40 p-4">
-          <p className="text-sm font-semibold text-teal-900">Join today&apos;s queue</p>
-          <div>
-            <label className="field-label" htmlFor="queue-reason">
-              Reason / complaint (optional)
-            </label>
-            <input
-              id="queue-reason"
-              className="field-input"
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-              placeholder="e.g. Fever, follow-up"
-              disabled={!canJoinQueue}
-            />
-          </div>
-          <button
-            type="submit"
-            className="patient-dash-btn-primary"
-            disabled={joining || !canJoinQueue}
+        <div className="rounded-2xl border border-slate-200 bg-white p-4">
+          <label className="field-label" htmlFor="queue-service">
+            Service
+          </label>
+          <select
+            id="queue-service"
+            className="field-input"
+            disabled={servicesLoading || enrolling || Boolean(activeTicket) || awaitingStaff || encodedWaitingNumber}
+            value={enrollment?.service_type_id || enrollment?.service_types?.id || ''}
+            onChange={handleServiceChange}
           >
-            {joining ? 'Joining…' : 'Get queue number'}
-          </button>
-        </form>
-      )}
-
-      {message ? <p className="info-banner">{message}</p> : null}
-      {error ? <p className="error-banner">{error}</p> : null}
-      {loading ? <p className="info-banner">Loading your tickets…</p> : null}
-
-      {!loading && tickets.length === 0 && !activeTicket ? (
-        <ModuleEmptyState
-          title="No queue tickets yet"
-          description="Select a service and join the queue when you arrive at the RHU."
-        />
-      ) : null}
-
-      {tickets.length > 0 ? (
-        <div className="space-y-2">
-          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Recent tickets</p>
-          {tickets.map((t) => (
-            <div key={t.id} className="rounded-xl border border-slate-200 bg-white px-4 py-3">
-              <div className="flex items-center justify-between gap-2">
-                <p className="font-semibold text-slate-900">{labelOf(t)}</p>
-                <span className={`rounded-full border px-2 py-0.5 text-xs font-semibold ${queueStatusClasses(t.status)}`}>
-                  {queueStatusLabel(t.status)}
-                </span>
-              </div>
-              <p className="text-xs text-slate-500">{t.reason}</p>
-            </div>
-          ))}
+            <option value="">{servicesLoading ? 'Loading…' : 'Select a service'}</option>
+            {services.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name}
+              </option>
+            ))}
+          </select>
+          {serviceName ? <p className="mt-2 text-xs text-slate-500">Selected: {serviceName}</p> : null}
+          {enrolling ? <p className="mt-2 text-xs text-slate-500">Switching service…</p> : null}
         </div>
-      ) : null}
+
+        {activeTicket ? (
+          <div className={`rounded-2xl border p-5 ${queueStatusClasses(activeTicket.status)}`}>
+            <p className="text-xs font-semibold uppercase tracking-[0.16em]">Your ticket</p>
+            <p className="mt-2 text-4xl font-bold">{labelOf(activeTicket)}</p>
+            <p className="mt-2 text-sm font-semibold">{queueStatusLabel(activeTicket.status)}</p>
+            {ticketPriority.isPriority ? (
+              <p className="mt-2 text-sm font-semibold text-violet-800">Priority · {ticketPriority.label}</p>
+            ) : null}
+            <p className="mt-1 text-sm opacity-80">{activeTicket.reason}</p>
+            {activeTicket.counter_room ? (
+              <p className="mt-2 text-xs">Counter / Room: {activeTicket.counter_room}</p>
+            ) : null}
+          </div>
+        ) : awaitingStaff ? (
+          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-amber-950">
+            <p className="text-xs font-semibold uppercase tracking-[0.16em]">In encode line</p>
+            <p className="mt-2 text-lg font-bold">Waiting for BHW / Volunteer encoding</p>
+            {enrollmentPriority.isPriority ? (
+              <p className="mt-2 rounded-lg bg-violet-100 px-3 py-2 text-sm font-semibold text-violet-900">
+                Priority patient · {enrollmentPriority.label} — you will be encoded ahead of regular line.
+              </p>
+            ) : null}
+            <p className="mt-2 text-sm">
+              Please wait near the encode desk. After encoding, they will issue your queue number for{' '}
+              {serviceName || 'your service'}.
+            </p>
+            <p className="mt-3 text-xs text-amber-800">
+              Optional details:{' '}
+              <Link className="font-semibold underline" to="/dashboard/service-intake">
+                Service Info
+              </Link>
+            </p>
+            <button
+              type="button"
+              className="mt-4 w-full rounded-xl border border-rose-300 bg-white px-4 py-2.5 text-sm font-semibold text-rose-700 hover:bg-rose-50 disabled:opacity-50"
+              disabled={cancelling}
+              onClick={() => setCancelModalOpen(true)}
+            >
+              Cancel encode line
+            </button>
+            <p className="mt-2 text-xs text-amber-800">
+              You can cancel only while waiting for encoding. After staff encodes your visit, cancel is no longer
+              available.
+            </p>
+          </div>
+        ) : encodedWaitingNumber ? (
+          <div className="rounded-2xl border border-teal-200 bg-teal-50 p-5 text-teal-950">
+            <p className="text-xs font-semibold uppercase tracking-[0.16em]">Encoded</p>
+            <p className="mt-2 text-lg font-bold">Encoding finished</p>
+            {enrollmentPriority.isPriority ? (
+              <p className="mt-2 text-sm font-semibold text-violet-800">Priority · {enrollmentPriority.label}</p>
+            ) : null}
+            <p className="mt-2 text-sm">
+              Please wait — BHW / Volunteer will press <strong>Get Queue Number</strong> and your ticket will appear
+              here.
+            </p>
+          </div>
+        ) : (
+          <form onSubmit={handleGetInLine} className="space-y-3 rounded-2xl border border-teal-200 bg-teal-50/40 p-4">
+            <p className="text-sm font-semibold text-teal-900">Get in line for encoding</p>
+            <p className="text-xs text-teal-800">
+              You will not receive a queue number yet. A BHW or Volunteer encodes your visit first, then issues your
+              number.
+            </p>
+            <div>
+              <label className="field-label" htmlFor="queue-reason">
+                Reason / complaint (optional)
+              </label>
+              <input
+                id="queue-reason"
+                className="field-input"
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+                placeholder="e.g. Fever, follow-up"
+                disabled={!canJoinStaffLine}
+              />
+            </div>
+            <button type="submit" className="patient-dash-btn-primary" disabled={joining || !canJoinStaffLine}>
+              {joining ? 'Joining…' : 'Get in line'}
+            </button>
+          </form>
+        )}
+
+        {message ? <p className="info-banner">{message}</p> : null}
+        {error ? <p className="error-banner">{error}</p> : null}
+        {loading ? <p className="info-banner">Loading your tickets…</p> : null}
+
+        {!loading && tickets.length === 0 && !activeTicket && !awaitingStaff && !encodedWaitingNumber ? (
+          <ModuleEmptyState
+            title="Not in line yet"
+            description="Select a service and tap Get in line when you arrive at the RHU."
+          />
+        ) : null}
+
+        {tickets.length > 0 ? (
+          <div className="space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Recent tickets</p>
+            {tickets.map((t) => (
+              <div key={t.id} className="rounded-xl border border-slate-200 bg-white px-4 py-3">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="font-semibold text-slate-900">{labelOf(t)}</p>
+                  <span className={`rounded-full border px-2 py-0.5 text-xs font-semibold ${queueStatusClasses(t.status)}`}>
+                    {queueStatusLabel(t.status)}
+                  </span>
+                </div>
+                <p className="text-xs text-slate-500">{t.reason}</p>
+              </div>
+            ))}
+          </div>
+        ) : null}
       </div>
+
+      <CancelEncodeConfirmModal
+        open={cancelModalOpen}
+        serviceName={serviceName || 'this service'}
+        variant="encode"
+        busy={cancelling}
+        onCancel={() => {
+          if (!cancelling) setCancelModalOpen(false)
+        }}
+        onConfirm={() => void handleConfirmCancelEncodeLine()}
+      />
     </section>
   )
 }

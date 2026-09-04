@@ -1,12 +1,68 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useAuth } from '../../context/useAuth'
 import { supabase } from '../../lib/supabaseClient'
+import LogoutConfirmModal from '../../components/LogoutConfirmModal'
+import { isKnownPwdType, PWD_DISABILITY_TYPES } from '../../lib/pwdDisabilityTypes'
+
+function splitPwdFields(disability) {
+  const raw = String(disability || '').trim()
+  if (!raw || ['none', 'n/a', 'na', 'no'].includes(raw.toLowerCase())) {
+    return { pwd_status: 'No', pwd_specify: '', pwd_other_detail: '' }
+  }
+  if (isKnownPwdType(raw) && raw !== 'Other') {
+    return { pwd_status: 'Yes', pwd_specify: raw, pwd_other_detail: '' }
+  }
+  if (/^other:\s*/i.test(raw)) {
+    return { pwd_status: 'Yes', pwd_specify: 'Other', pwd_other_detail: raw.replace(/^other:\s*/i, '').trim() }
+  }
+  if (raw.toLowerCase() === 'other') {
+    return { pwd_status: 'Yes', pwd_specify: 'Other', pwd_other_detail: '' }
+  }
+  return { pwd_status: 'Yes', pwd_specify: 'Other', pwd_other_detail: raw }
+}
+
+function composeDisability(pwdStatus, pwdSpecify, pwdOtherDetail) {
+  if (pwdStatus !== 'Yes') return null
+  if (!pwdSpecify) return null
+  if (pwdSpecify === 'Other') {
+    const detail = String(pwdOtherDetail || '').trim()
+    return detail ? `Other: ${detail}` : null
+  }
+  return pwdSpecify
+}
+
+function splitFullName(name) {
+  const parts = (name ?? '').toString().trim().split(/\s+/).filter(Boolean)
+  if (parts.length === 0) return { first_name: '', last_name: '' }
+  if (parts.length === 1) return { first_name: parts[0], last_name: '' }
+  return { first_name: parts[0], last_name: parts.slice(1).join(' ') }
+}
+
+function resolveProfileNames(data, user) {
+  let firstName = (data?.first_name ?? '').toString().trim()
+  let lastName = (data?.last_name ?? '').toString().trim()
+
+  if (!firstName && !lastName && data?.name) {
+    const split = splitFullName(data.name)
+    firstName = split.first_name
+    lastName = split.last_name
+  }
+
+  if (!firstName && !lastName && user?.user_metadata) {
+    firstName = (user.user_metadata.first_name ?? '').toString().trim()
+    lastName = (user.user_metadata.last_name ?? '').toString().trim()
+  }
+
+  return { firstName, lastName }
+}
 
 export default function ProfilePage() {
   const { user, signOut } = useAuth()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
+  const [logoutOpen, setLogoutOpen] = useState(false)
+  const [logoutBusy, setLogoutBusy] = useState(false)
   const [error, setError] = useState('')
   const [info, setInfo] = useState('')
   const [formData, setFormData] = useState({
@@ -24,10 +80,14 @@ export default function ProfilePage() {
     education: '',
     occupation: '',
     disability: '',
+    pwd_status: 'No',
+    pwd_specify: '',
+    pwd_other_detail: '',
     house_no_purok: '',
     barangay: '',
     municipality: 'Pila',
     province: 'Laguna',
+    portal_username: '',
   })
 
   useEffect(() => {
@@ -44,10 +104,13 @@ export default function ProfilePage() {
       if (error && error.code !== 'PGRST116') {
         setError('Failed to load profile.')
       } else if (data && isMounted) {
+        const { firstName, lastName } = resolveProfileNames(data, user)
+        const metaPhone = (user?.user_metadata?.phone ?? '').toString().trim()
+        const pwdFields = splitPwdFields(data.disability)
         setFormData({
-          first_name: data.first_name || '',
+          first_name: firstName,
           middle_name: data.middle_name || '',
-          last_name: data.last_name || '',
+          last_name: lastName,
           philhealth_number: data.philhealth_number || '',
           birthdate: data.birthdate || '',
           sex: data.sex || '',
@@ -55,24 +118,39 @@ export default function ProfilePage() {
           civil_status: data.civil_status || '',
           religion: data.religion || '',
           blood_type: data.blood_type || '',
-          mobile_phone: data.mobile_phone || data.phone || '',
+          mobile_phone: data.mobile_phone || data.phone || metaPhone || '',
           education: data.education || '',
           occupation: data.occupation || '',
           disability: data.disability || '',
+          pwd_status: pwdFields.pwd_status,
+          pwd_specify: pwdFields.pwd_specify,
+          pwd_other_detail: pwdFields.pwd_other_detail,
           house_no_purok: data.house_no_purok || '',
           barangay: data.barangay || '',
           municipality: data.municipality || 'Pila',
           province: data.province || 'Laguna',
+          portal_username: data.portal_username || user?.user_metadata?.portal_username || '',
         })
-        
-        // If they already have a first_name saved, default to View Mode
-        if (data.first_name) {
+
+        if (firstName) {
           setIsEditing(false)
         } else {
           setIsEditing(true)
         }
       } else if (isMounted) {
-        setIsEditing(true)
+        const { firstName, lastName } = resolveProfileNames(null, user)
+        const metaPhone = (user?.user_metadata?.phone ?? '').toString().trim()
+        if (firstName || lastName || metaPhone) {
+          setFormData((prev) => ({
+            ...prev,
+            first_name: firstName || prev.first_name,
+            last_name: lastName || prev.last_name,
+            mobile_phone: metaPhone || prev.mobile_phone,
+          }))
+          setIsEditing(!firstName)
+        } else {
+          setIsEditing(true)
+        }
       }
       if (isMounted) setLoading(false)
     }
@@ -108,6 +186,21 @@ export default function ProfilePage() {
 
     const fullName = [formData.first_name, formData.middle_name, formData.last_name].filter(Boolean).join(' ').trim()
 
+    if (formData.pwd_status === 'Yes') {
+      if (!(formData.pwd_specify || '').trim()) {
+        setError('Please select a PWD / disability type.')
+        setSaving(false)
+        return
+      }
+      if (formData.pwd_specify === 'Other' && !(formData.pwd_other_detail || '').trim()) {
+        setError('Please specify the disability details.')
+        setSaving(false)
+        return
+      }
+    }
+
+    const disabilityValue = composeDisability(formData.pwd_status, formData.pwd_specify, formData.pwd_other_detail)
+
     const { error: updateError } = await supabase
       .from('patients')
       .update({
@@ -124,7 +217,7 @@ export default function ProfilePage() {
         mobile_phone: formData.mobile_phone,
         education: formData.education,
         occupation: formData.occupation,
-        disability: formData.disability,
+        disability: disabilityValue,
         house_no_purok: formData.house_no_purok,
         barangay: formData.barangay,
         municipality: formData.municipality || 'Pila',
@@ -143,9 +236,19 @@ export default function ProfilePage() {
     }
   }
 
-  const handleLogout = async () => {
-    await signOut()
-    window.location.href = '/login'
+  const handleLogoutRequest = () => {
+    setLogoutOpen(true)
+  }
+
+  const handleLogoutConfirm = async () => {
+    setLogoutBusy(true)
+    try {
+      await signOut()
+      window.location.href = '/login'
+    } finally {
+      setLogoutBusy(false)
+      setLogoutOpen(false)
+    }
   }
 
   if (loading) return <div className="p-8 text-center text-slate-500">Loading profile...</div>
@@ -190,6 +293,9 @@ export default function ProfilePage() {
           <div>
             <label className="field-label">Age</label>
             <input type="text" className="field-input bg-slate-50 text-slate-500 cursor-not-allowed" value={ageValue} readOnly />
+            {Number(ageValue) >= 60 ? (
+              <p className="mt-1 text-xs font-semibold text-violet-700">Senior Citizen — priority line (first-come, first-served)</p>
+            ) : null}
           </div>
           <div>
             <label className="field-label" htmlFor="sex">Sex *</label>
@@ -242,47 +348,91 @@ export default function ProfilePage() {
             <label className="field-label" htmlFor="mobile_phone">Mobile Phone *</label>
             <input required type="text" id="mobile_phone" name="mobile_phone" className="field-input" value={formData.mobile_phone} onChange={handleChange} />
           </div>
-          <div>
-            <label className="field-label">Email Address</label>
-            <input type="text" className="field-input bg-slate-50 text-slate-500 cursor-not-allowed" value={user?.email || ''} readOnly />
-          </div>
-          <div className="hidden lg:block"></div>
+            <div>
+              <label className="field-label">Username</label>
+              <input
+                type="text"
+                className="field-input bg-slate-50 text-slate-500 cursor-not-allowed font-mono tracking-wider"
+                value={formData.portal_username || patient?.portal_username || user?.user_metadata?.portal_username || '—'}
+                readOnly
+              />
+            </div>
+            <div className="hidden lg:block"></div>
 
           <div className="md:col-span-3">
             <label className="field-label" htmlFor="house_no_purok">House No. / Street / Purok *</label>
             <input required type="text" id="house_no_purok" name="house_no_purok" className="field-input" value={formData.house_no_purok} onChange={handleChange} />
           </div>
-          <div>
-            <label className="field-label" htmlFor="barangay">Barangay *</label>
-            <select required id="barangay" name="barangay" className="field-input" value={formData.barangay} onChange={handleChange}>
-              <option value="">Select Barangay</option>
-              <option value="Aplaya">Aplaya</option>
-              <option value="Bagong Pook">Bagong Pook</option>
-              <option value="Bukal">Bukal</option>
-              <option value="Bulilan Norte">Bulilan Norte</option>
-              <option value="Bulilan Sur">Bulilan Sur</option>
-              <option value="Concepcion">Concepcion</option>
-              <option value="Labuin">Labuin</option>
-              <option value="Linga">Linga</option>
-              <option value="Masico">Masico</option>
-              <option value="Mojon">Mojon</option>
-              <option value="Pansol">Pansol</option>
-              <option value="Pinagbayanan">Pinagbayanan</option>
-              <option value="San Antonio">San Antonio</option>
-              <option value="San Miguel">San Miguel</option>
-              <option value="Santa Clara Norte">Santa Clara Norte</option>
-              <option value="Santa Clara Sur">Santa Clara Sur</option>
-              <option value="Tubuan">Tubuan</option>
-            </select>
-          </div>
-          <div>
-            <label className="field-label" htmlFor="municipality">Municipality</label>
-            <input type="text" id="municipality" name="municipality" className="field-input bg-slate-50 text-slate-500" value={formData.municipality} readOnly />
-          </div>
-          <div>
-            <label className="field-label" htmlFor="province">Province</label>
-            <input type="text" id="province" name="province" className="field-input bg-slate-50 text-slate-500" value={formData.province} readOnly />
-          </div>
+            <div>
+              <label className="field-label" htmlFor="municipality">Municipality</label>
+              <select
+                id="municipality"
+                name="municipality"
+                className="field-input"
+                value={formData.municipality === 'Pila' ? 'Pila' : 'Others'}
+                onChange={(e) => {
+                  if (e.target.value === 'Pila') {
+                    setFormData((prev) => ({ ...prev, municipality: 'Pila', barangay: '' }))
+                  } else {
+                    setFormData((prev) => ({
+                      ...prev,
+                      municipality: prev.municipality === 'Pila' ? '' : prev.municipality,
+                      barangay: prev.municipality === 'Pila' ? '' : prev.barangay,
+                    }))
+                  }
+                }}
+                disabled={!isEditing}
+              >
+                <option value="Pila">Pila</option>
+                <option value="Others">Others (not from Pila)</option>
+              </select>
+            </div>
+            {formData.municipality !== 'Pila' ? (
+              <div>
+                <label className="field-label" htmlFor="municipalityOther">Municipality / City name</label>
+                <input
+                  type="text"
+                  id="municipalityOther"
+                  name="municipality"
+                  className="field-input"
+                  value={formData.municipality}
+                  onChange={handleChange}
+                  disabled={!isEditing}
+                  placeholder="e.g. Santa Cruz"
+                />
+              </div>
+            ) : null}
+            <div>
+              <label className="field-label" htmlFor="barangay">Barangay *</label>
+              {formData.municipality === 'Pila' ? (
+                <select required id="barangay" name="barangay" className="field-input" value={formData.barangay} onChange={handleChange} disabled={!isEditing}>
+                  <option value="">Select Barangay</option>
+                  <option value="Aplaya">Aplaya</option>
+                  <option value="Bagong Pook">Bagong Pook</option>
+                  <option value="Bukal">Bukal</option>
+                  <option value="Bulilan Norte">Bulilan Norte</option>
+                  <option value="Bulilan Sur">Bulilan Sur</option>
+                  <option value="Concepcion">Concepcion</option>
+                  <option value="Labuin">Labuin</option>
+                  <option value="Linga">Linga</option>
+                  <option value="Masico">Masico</option>
+                  <option value="Mojon">Mojon</option>
+                  <option value="Pansol">Pansol</option>
+                  <option value="Pinagbayanan">Pinagbayanan</option>
+                  <option value="San Antonio">San Antonio</option>
+                  <option value="San Miguel">San Miguel</option>
+                  <option value="Santa Clara Norte">Santa Clara Norte</option>
+                  <option value="Santa Clara Sur">Santa Clara Sur</option>
+                  <option value="Tubuan">Tubuan</option>
+                </select>
+              ) : (
+                <input required type="text" id="barangay" name="barangay" className="field-input" value={formData.barangay} onChange={handleChange} disabled={!isEditing} />
+              )}
+            </div>
+            <div>
+              <label className="field-label" htmlFor="province">Province</label>
+              <input type="text" id="province" name="province" className="field-input bg-slate-50 text-slate-500" value={formData.province || 'Laguna'} readOnly />
+            </div>
 
           <div className="md:col-span-3 mt-4">
             <h3 className="patient-panel-title border-b border-slate-100 pb-2 mb-4">Other Details</h3>
@@ -332,10 +482,83 @@ export default function ProfilePage() {
             </select>
           </div>
           
-          <div className="md:col-span-3">
-            <label className="field-label" htmlFor="disability">PWD / Disability (If applicable)</label>
-            <input type="text" id="disability" name="disability" className="field-input" value={formData.disability} onChange={handleChange} />
+          <div>
+            <label className="field-label" htmlFor="pwd_status">PWD?</label>
+            <select
+              id="pwd_status"
+              name="pwd_status"
+              className="field-input"
+              value={formData.pwd_status}
+              onChange={(e) => {
+                const value = e.target.value
+                setFormData((prev) => ({
+                  ...prev,
+                  pwd_status: value,
+                  pwd_specify: value === 'Yes' ? prev.pwd_specify : '',
+                  pwd_other_detail: value === 'Yes' ? prev.pwd_other_detail : '',
+                  disability: value === 'Yes' ? prev.disability : '',
+                }))
+              }}
+            >
+              <option value="No">No</option>
+              <option value="Yes">Yes</option>
+            </select>
           </div>
+          {formData.pwd_status === 'Yes' ? (
+            <div className="md:col-span-2 space-y-3">
+              <div>
+                <label className="field-label" htmlFor="pwd_specify">PWD / Disability specification *</label>
+                <select
+                  required
+                  id="pwd_specify"
+                  name="pwd_specify"
+                  className="field-input"
+                  value={formData.pwd_specify}
+                  onChange={(e) => {
+                    const value = e.target.value
+                    setFormData((prev) => ({
+                      ...prev,
+                      pwd_specify: value,
+                      pwd_other_detail: value === 'Other' ? prev.pwd_other_detail : '',
+                      disability: composeDisability('Yes', value, value === 'Other' ? prev.pwd_other_detail : ''),
+                    }))
+                  }}
+                >
+                  <option value="" disabled>
+                    Select disability type
+                  </option>
+                  {PWD_DISABILITY_TYPES.map((type) => (
+                    <option key={type} value={type}>
+                      {type}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              {formData.pwd_specify === 'Other' ? (
+                <div>
+                  <label className="field-label" htmlFor="pwd_other_detail">Please specify *</label>
+                  <input
+                    required
+                    type="text"
+                    id="pwd_other_detail"
+                    name="pwd_other_detail"
+                    className="field-input"
+                    value={formData.pwd_other_detail}
+                    onChange={(e) => {
+                      const value = e.target.value
+                      setFormData((prev) => ({
+                        ...prev,
+                        pwd_other_detail: value,
+                        disability: composeDisability('Yes', 'Other', value),
+                      }))
+                    }}
+                    placeholder="Describe the disability"
+                  />
+                </div>
+              ) : null}
+              <p className="mt-1 text-xs text-slate-500">PWD patients join the priority line with Senior 60+ (first-come, first-served within that line).</p>
+            </div>
+          ) : null}
         </fieldset>
 
         {error && <p className="error-banner mt-6">{error}</p>}
@@ -354,12 +577,21 @@ export default function ProfilePage() {
               )}
             </>
           ) : (
-            <button type="button" className="secondary-btn mt-0! bg-rose-100! text-rose-700 hover:bg-rose-200!" onClick={handleLogout}>
+            <button type="button" className="secondary-btn mt-0! bg-rose-100! text-rose-700 hover:bg-rose-200!" onClick={handleLogoutRequest}>
               Logout Account
             </button>
           )}
         </div>
       </form>
+
+      <LogoutConfirmModal
+        open={logoutOpen}
+        busy={logoutBusy}
+        onCancel={() => {
+          if (!logoutBusy) setLogoutOpen(false)
+        }}
+        onConfirm={handleLogoutConfirm}
+      />
     </section>
   )
 }

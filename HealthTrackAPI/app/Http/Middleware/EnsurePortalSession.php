@@ -19,6 +19,10 @@ class EnsurePortalSession
 
     public function handle(Request $request, Closure $next, ?string $portal = null): Response
     {
+        if (!$request->hasSession()) {
+            return response()->json(['ok' => false, 'error' => 'Unauthenticated'], 401);
+        }
+
         $auth = $request->session()->get('ht_auth');
         if (!is_array($auth) || empty($auth['user_id']) || empty($auth['access_token'])) {
             return response()->json(['ok' => false, 'error' => 'Unauthenticated'], 401);

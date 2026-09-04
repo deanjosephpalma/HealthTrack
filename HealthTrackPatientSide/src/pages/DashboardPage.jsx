@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import ModuleEmptyState from '../components/ModuleEmptyState'
 import { useAuth } from '../context/useAuth'
 import { supabase } from '../lib/supabaseClient'
 import { useOnlineStatus } from '../lib/offline/connectivity'
@@ -46,6 +45,23 @@ function DashIcon({ name }) {
       </svg>
     )
   }
+  if (name === 'form') {
+    return (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={common} aria-hidden="true">
+        <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2" />
+        <path d="M9 5a2 2 0 012-2h2a2 2 0 012 2v0a2 2 0 01-2 2h-2a2 2 0 01-2-2v0z" />
+        <path d="M9 12h6M9 16h4" />
+      </svg>
+    )
+  }
+  if (name === 'user') {
+    return (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={common} aria-hidden="true">
+        <circle cx="12" cy="8" r="3.5" />
+        <path d="M5 20a7 7 0 0114 0" />
+      </svg>
+    )
+  }
   return null
 }
 
@@ -71,7 +87,7 @@ export default function DashboardPage() {
   const { user, patient, enrollment } = useAuth()
   const location = useLocation()
   const online = useOnlineStatus()
-  const joinedQueue = Boolean(location.state?.joinedQueue || location.state?.appointmentBooked)
+  const joinedQueue = Boolean(location.state?.joinedQueue)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [activeTicket, setActiveTicket] = useState(null)
@@ -180,7 +196,51 @@ export default function DashboardPage() {
   const displayName = patient?.firstName || patient?.name?.split(' ')?.[0] || 'Patient'
   const serviceName = enrollment?.service_types?.name ?? null
   const needsIntake = enrollment?.status === 'Draft'
-  const readyForQueue = enrollment && !needsIntake
+  const activeLabel = labelOf(activeTicket)
+  const menuItems = [
+    {
+      to: '/dashboard/service-intake',
+      title: 'Service Info',
+      desc: 'Complete and review required service details.',
+      icon: 'form',
+      badge: needsIntake ? 'Needs update' : 'Updated',
+    },
+    {
+      to: '/dashboard/queue',
+      title: 'My Queue',
+      desc: 'Get queue number and track your turn.',
+      icon: 'queue',
+      badge: activeLabel ? `Active ${activeLabel}` : `${counts.tickets} ticket${counts.tickets === 1 ? '' : 's'}`,
+    },
+    {
+      to: '/dashboard/service-status',
+      title: 'Service Status',
+      desc: 'Check progress and document availability.',
+      icon: 'status',
+      badge: serviceName ? serviceName : 'No service selected',
+    },
+    {
+      to: '/dashboard/medical-records',
+      title: 'Medical Records',
+      desc: 'View records, permits, and PDFs.',
+      icon: 'records',
+      badge: `${counts.records} record${counts.records === 1 ? '' : 's'}`,
+    },
+    {
+      to: '/dashboard/follow-ups',
+      title: 'Follow-ups',
+      desc: 'See vaccine and treatment reminders.',
+      icon: 'calendar',
+      badge: 'Schedules',
+    },
+    {
+      to: '/dashboard/profile',
+      title: 'Profile',
+      desc: 'Update contact and address details.',
+      icon: 'user',
+      badge: 'Account',
+    },
+  ]
 
   return (
     <section className="patient-dash">
@@ -221,109 +281,27 @@ export default function DashboardPage() {
       {loading ? <p className="info-banner">Loading your dashboard…</p> : null}
       {error ? <p className="error-banner">Dashboard error: {error}</p> : null}
 
-      {serviceName ? (
-        <section className="patient-charter-card">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-            <div className="min-w-0">
-              <p className="patient-panel-eyebrow">Current service</p>
-              <h3 className="patient-panel-title mt-1">{serviceName}</h3>
-              {enrollment?.service_types?.description ? (
-                <p className="mt-2 text-sm leading-relaxed text-slate-600">{enrollment.service_types.description}</p>
-              ) : null}
-            </div>
-            <span
-              className={`inline-flex shrink-0 rounded-full px-3 py-1 text-xs font-semibold ring-1 ${
-                needsIntake
-                  ? 'bg-amber-50 text-amber-900 ring-amber-200'
-                  : 'bg-emerald-50 text-emerald-900 ring-emerald-200'
-              }`}
+      <section className="patient-panel">
+        <h3 className="patient-panel-title mb-4">Main menu</h3>
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          {menuItems.map((item) => (
+            <Link
+              key={item.to}
+              to={item.to}
+              className="rounded-2xl border border-slate-200 bg-white p-4 no-underline shadow-sm transition hover:border-teal-200 hover:bg-teal-50/40 hover:shadow-md"
             >
-              {needsIntake ? 'Info form needed' : readyForQueue ? 'Ready to queue' : 'Active'}
-            </span>
-          </div>
-          <div className="mt-4 flex flex-wrap gap-2">
-            {needsIntake ? (
-              <Link to="/dashboard/service-intake" className="primary-btn !mt-0 !w-auto !bg-teal-700 hover:!bg-teal-600">
-                Complete service info
-              </Link>
-            ) : (
-              <Link to="/dashboard/queue" className="primary-btn !mt-0 !w-auto !bg-teal-700 hover:!bg-teal-600">
-                Get queue number
-              </Link>
-            )}
-            {!needsIntake ? (
-              <Link to="/dashboard/service-intake" className="secondary-btn !mt-0">
-                Review intake
-              </Link>
-            ) : null}
-          </div>
-        </section>
-      ) : null}
-
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Link to="/dashboard/queue" className="patient-stat-card no-underline">
-          <div className="patient-stat-icon">
-            <DashIcon name="queue" />
-          </div>
-          <div>
-            <p className="patient-stat-label">Queue tickets</p>
-            <p className="patient-stat-value">{counts.tickets}</p>
-          </div>
-        </Link>
-        <Link to="/dashboard/medical-records" className="patient-stat-card no-underline">
-          <div className="patient-stat-icon !bg-emerald-50 !text-emerald-700">
-            <DashIcon name="records" />
-          </div>
-          <div>
-            <p className="patient-stat-label">Medical records</p>
-            <p className="patient-stat-value">{counts.records}</p>
-          </div>
-        </Link>
-      </div>
-
-      <section className="patient-panel">
-        <div className="mb-4 flex items-center justify-between gap-2">
-          <h3 className="patient-panel-title">Active ticket</h3>
-          <Link to="/dashboard/queue" className="text-sm font-semibold text-teal-700 hover:text-teal-600">
-            Open My Queue
-          </Link>
-        </div>
-        {activeTicket ? (
-          <div className="patient-ticket-card">
-            <p className="text-xs font-bold uppercase tracking-[0.16em] text-teal-700">Your number</p>
-            <p className="patient-ticket-number">{labelOf(activeTicket)}</p>
-            <p className="mt-2 text-sm font-semibold text-teal-900">{ticketStatusText(activeTicket.status)}</p>
-            {activeTicket.reason ? <p className="mt-1 text-sm text-teal-800/80">{activeTicket.reason}</p> : null}
-          </div>
-        ) : (
-          <ModuleEmptyState
-            title="No active ticket"
-            description="When you arrive at the RHU, join the queue and your number will show here."
-          />
-        )}
-      </section>
-
-      <section className="patient-panel">
-        <h3 className="patient-panel-title mb-4">Quick links</h3>
-        <div className="grid gap-2 sm:grid-cols-3">
-          <Link to="/dashboard/follow-ups" className="patient-quick-link">
-            <span className="patient-quick-link-icon">
-              <DashIcon name="calendar" />
-            </span>
-            Follow-ups
-          </Link>
-          <Link to="/dashboard/service-status" className="patient-quick-link">
-            <span className="patient-quick-link-icon">
-              <DashIcon name="status" />
-            </span>
-            Service status
-          </Link>
-          <Link to="/dashboard/medical-records" className="patient-quick-link">
-            <span className="patient-quick-link-icon">
-              <DashIcon name="records" />
-            </span>
-            Records & PDFs
-          </Link>
+              <div className="mb-3 flex items-center justify-between gap-2">
+                <span className="patient-quick-link-icon">
+                  <DashIcon name={item.icon} />
+                </span>
+                <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-600">
+                  {item.badge}
+                </span>
+              </div>
+              <p className="m-0 text-base font-bold text-slate-900">{item.title}</p>
+              <p className="mt-1 text-sm text-slate-600">{item.desc}</p>
+            </Link>
+          ))}
         </div>
       </section>
     </section>

@@ -1,88 +1,128 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/useAuth'
-
+import { AuthBrandMark } from '../components/GoogleContinueButton'
+import { isPatientEmailVerified } from '../lib/patientEmailVerified'
 import { STORAGE_SERVICE_ID, STORAGE_SERVICE_NAME } from '../lib/patientServiceEnrollment'
+import {
+  clearLoginLockout,
+  getLockoutSecondsRemaining,
+  readLoginLockout,
+  registerLoginFailure,
+  writeLoginLockout,
+} from '../lib/loginLockout'
+
+const LOCKOUT_KEY = 'ht_patient_login_lock'
+const MAX_FAILURES = 3
+const LOCKOUT_MS = 30_000
 
 export default function LoginPage() {
   const navigate = useNavigate()
   const location = useLocation()
-  const { user, signIn, resetPassword } = useAuth()
-  const [email, setEmail] = useState('')
+  const { user, signIn } = useAuth()
+  const [username, setUsername] = useState(() => location.state?.username || '')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
-  const [info, setInfo] = useState(() => (location.state?.verified ? 'Account verified. You can now sign in.' : ''))
+  const [info, setInfo] = useState(() => {
+    if (location.state?.message) return location.state.message
+    if (location.state?.registered) return 'Account created. Sign in with your username and password.'
+    return ''
+  })
   const [loading, setLoading] = useState(false)
+  const [lockRemaining, setLockRemaining] = useState(() => getLockoutSecondsRemaining(readLoginLockout(LOCKOUT_KEY).until))
 
   useEffect(() => {
-    if (user) {
-      const hasSelectedService =
-        Boolean(sessionStorage.getItem(STORAGE_SERVICE_ID)) || Boolean(sessionStorage.getItem(STORAGE_SERVICE_NAME))
-      navigate(hasSelectedService ? '/dashboard/queue' : '/dashboard', { replace: true })
+    if (!user) return
+    if (!isPatientEmailVerified(user)) {
+      navigate('/verify', {
+        replace: true,
+        state: { userId: user.id, email: user.email },
+      })
+      return
     }
+    const hasSelectedService =
+      Boolean(sessionStorage.getItem(STORAGE_SERVICE_ID)) || Boolean(sessionStorage.getItem(STORAGE_SERVICE_NAME))
+    navigate(hasSelectedService ? '/dashboard/queue' : '/dashboard', { replace: true })
   }, [navigate, user])
 
-  const canReset = useMemo(() => email.trim().length > 3, [email])
+  useEffect(() => {
+    const tick = () => {
+      const until = readLoginLockout(LOCKOUT_KEY).until
+      const secs = getLockoutSecondsRemaining(until)
+      setLockRemaining(secs)
+      if (secs <= 0 && until) clearLoginLockout(LOCKOUT_KEY)
+    }
+    tick()
+    const id = setInterval(tick, 500)
+    return () => clearInterval(id)
+  }, [])
+
+  const lockedOut = lockRemaining > 0
 
   const handleSubmit = async (event) => {
     event.preventDefault()
     setLoading(true)
     setError('')
     setInfo('')
+
+    const secsLeft = getLockoutSecondsRemaining(readLoginLockout(LOCKOUT_KEY).until)
+    if (secsLeft > 0) {
+      setError(`Too many failed attempts. Try again in ${secsLeft}s.`)
+      setLockRemaining(secsLeft)
+      setLoading(false)
+      return
+    }
+
     try {
-      const result = await signIn({ email: email.trim(), password })
+      const result = await signIn({ username: username.trim(), password })
       if (!result.ok) {
         if (result.needsVerification) {
-          const verifyPayload = {
-            userId: result.userId || null,
-            email: result.email || email.trim(),
-            phone: '',
-          }
-          sessionStorage.setItem('healthtrack_pending_verify', JSON.stringify(verifyPayload))
-          navigate('/verify', { state: verifyPayload })
+          clearLoginLockout(LOCKOUT_KEY)
+          setLockRemaining(0)
+          navigate('/verify', {
+            replace: true,
+            state: { userId: result.userId || null, email: result.email },
+          })
           return
         }
+
         const message = result.error || 'Failed to sign in'
-        const needsVerify =
-          /email not confirmed/i.test(message) ||
-          /email_not_confirmed/i.test(message) ||
-          /not verified/i.test(message)
-        if (needsVerify) {
-          sessionStorage.setItem(
-            'healthtrack_pending_verify',
-            JSON.stringify({ userId: null, email: email.trim(), phone: '' }),
-          )
-          navigate('/verify', { state: { email: email.trim() } })
+        if (/too many|429|rate limit/i.test(message)) {
+          const forced = { failures: MAX_FAILURES, until: Date.now() + LOCKOUT_MS }
+          writeLoginLockout(LOCKOUT_KEY, forced)
+          setLockRemaining(getLockoutSecondsRemaining(forced.until))
+          setError(`Too many failed attempts. Locked for ${LOCKOUT_MS / 1000}s.`)
+          setPassword('')
           return
         }
-        setError(message)
+
+        const next = registerLoginFailure(LOCKOUT_KEY, { maxFailures: MAX_FAILURES, lockoutMs: LOCKOUT_MS })
+        setLockRemaining(getLockoutSecondsRemaining(next.until))
+        setPassword('')
+        if (next.locked) {
+          setError(`Too many failed attempts. Locked for ${LOCKOUT_MS / 1000}s.`)
+        } else {
+          const left = next.remainingAttempts
+          setError(`${message} ${left} attempt${left === 1 ? '' : 's'} left before a ${LOCKOUT_MS / 1000}s lock.`)
+        }
         return
       }
-      return
+      clearLoginLockout(LOCKOUT_KEY)
+      setLockRemaining(0)
     } catch (e) {
-      setError(e?.message || 'Failed to sign in')
+      const next = registerLoginFailure(LOCKOUT_KEY, { maxFailures: MAX_FAILURES, lockoutMs: LOCKOUT_MS })
+      setLockRemaining(getLockoutSecondsRemaining(next.until))
+      setPassword('')
+      if (next.locked) {
+        setError(`Too many failed attempts. Locked for ${LOCKOUT_MS / 1000}s.`)
+      } else {
+        const left = next.remainingAttempts
+        setError(`${e?.message || 'Failed to sign in'} ${left} attempt${left === 1 ? '' : 's'} left before a ${LOCKOUT_MS / 1000}s lock.`)
+      }
     } finally {
       setLoading(false)
     }
-  }
-
-  const handleResetPassword = async () => {
-    setError('')
-    setInfo('')
-    if (!canReset) {
-      setError('Enter your email first to reset your password.')
-      return
-    }
-    setLoading(true)
-    const result = await resetPassword(email.trim())
-    if (!result.ok) {
-      setError(result.error || 'Failed to send reset email.')
-      setLoading(false)
-      return
-    }
-    setInfo('Password reset email sent. Please check your inbox.')
-    setLoading(false)
   }
 
   return (
@@ -98,31 +138,34 @@ export default function LoginPage() {
         </Link>
 
         <section className="auth-card login-card">
-          <p className="chip">HealthTrack Rural Health Unit of Pila</p>
-          <h1 className="auth-title">Welcome back</h1>
-          <p className="auth-subtitle">Sign in to access your patient portal.</p>
+          <header className="auth-card-header">
+            <div className="auth-brand-row">
+              <AuthBrandMark />
+              <p className="chip mb-0!">Patient Portal</p>
+            </div>
+            <h1 className="auth-title">Welcome back</h1>
+            <p className="auth-subtitle">Sign in with your username (e.g. 0001) and password.</p>
+          </header>
 
-          <form className="space-y-4" onSubmit={handleSubmit}>
+          <form className="auth-form" onSubmit={(e) => void handleSubmit(e)}>
             <div>
-              <label className="field-label" htmlFor="email">
-                Email
-              </label>
+              <label className="field-label" htmlFor="username">Username</label>
               <input
-                id="email"
-                type="email"
+                id="username"
+                type="text"
                 required
-                className="field-input"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                placeholder="you@example.com"
-                autoComplete="email"
+                inputMode="numeric"
+                className="field-input font-mono tracking-wider"
+                value={username}
+                onChange={(event) => setUsername(event.target.value)}
+                placeholder="0001"
+                autoComplete="username"
+                disabled={lockedOut || loading}
               />
             </div>
 
             <div>
-              <label className="field-label" htmlFor="password">
-                Password
-              </label>
+              <label className="field-label" htmlFor="password">Password</label>
               <div className="password-input-wrap">
                 <input
                   id="password"
@@ -133,49 +176,42 @@ export default function LoginPage() {
                   onChange={(event) => setPassword(event.target.value)}
                   placeholder="Enter your password"
                   autoComplete="current-password"
+                  disabled={lockedOut || loading}
                 />
                 <button
                   type="button"
                   className="password-toggle-btn"
                   aria-label={showPassword ? 'Hide password' : 'Show password'}
                   onClick={() => setShowPassword((prev) => !prev)}
+                  disabled={lockedOut || loading}
                 >
                   <svg viewBox="0 0 24 24" className="password-toggle-icon" fill="none" stroke="currentColor" strokeWidth="2">
-                    {showPassword ? (
-                      <>
-                        <path d="M3 3l18 18" />
-                        <path d="M10.58 10.58A2 2 0 0012 14a2 2 0 001.42-.58" />
-                        <path d="M9.88 5.09A9.53 9.53 0 0112 5c7 0 10 7 10 7a18.44 18.44 0 01-5.17 5.94" />
-                        <path d="M6.61 6.61A18.44 18.44 0 002 12s3 7 10 7a9.53 9.53 0 004.11-.88" />
-                      </>
-                    ) : (
-                      <>
-                        <path d="M1.5 12s3.5-7.5 10.5-7.5S22.5 12 22.5 12s-3.5 7.5-10.5 7.5S1.5 12 1.5 12z" />
-                        <path d="M12 15a3 3 0 100-6 3 3 0 000 6z" />
-                      </>
-                    )}
+                    <path d="M1.5 12s3.5-7.5 10.5-7.5S22.5 12 22.5 12s-3.5 7.5-10.5 7.5S1.5 12 1.5 12z" />
+                    <path d="M12 15a3 3 0 100-6 3 3 0 000 6z" />
                   </svg>
                 </button>
               </div>
             </div>
 
-            {error && <p className="error-banner">{error}</p>}
-            {info && <p className="info-banner">{info}</p>}
+            {lockedOut ? (
+              <p className="error-banner" role="alert">
+                Account temporarily locked after {MAX_FAILURES} failed attempts. Try again in{' '}
+                <strong>{lockRemaining}s</strong>.
+              </p>
+            ) : null}
+            {error && !lockedOut ? <p className="error-banner">{error}</p> : null}
+            {info ? <p className="info-banner">{info}</p> : null}
 
-            <button type="submit" className="primary-btn" disabled={loading}>
-              {loading ? 'Signing in...' : 'Sign in'}
-            </button>
-
-            <button type="button" className="secondary-btn" disabled={loading} onClick={handleResetPassword}>
-              Forgot password?
-            </button>
+            <div className="auth-actions">
+              <button type="submit" className="primary-btn" disabled={loading || lockedOut}>
+                {loading ? 'Signing in…' : lockedOut ? `Wait ${lockRemaining}s` : 'Sign in'}
+              </button>
+            </div>
           </form>
 
-          <p className="auth-footer">
+          <p className="auth-footer text-center">
             Don&apos;t have an account?{' '}
-            <Link to="/register" className="auth-link">
-              Register here
-            </Link>
+            <Link to="/register" className="auth-link">Create one</Link>
           </p>
         </section>
       </div>

@@ -9,6 +9,12 @@ import ReactMarkdown from 'react-markdown'
 import OutpatientLegacyForm from '../../components/OutpatientLegacyForm'
 import AnimalBiteLegacyForm from '../../components/AnimalBiteLegacyForm'
 import TbLegacyForm from '../../components/TbLegacyForm'
+import { isOnline } from '../../lib/offline/connectivity'
+import {
+  listPatientsCache,
+  upsertPatientsCache,
+  PATIENTS_CACHE_SELECT,
+} from '../../lib/offline/patientsCacheService'
 
 const PILA_BARANGAYS = [
   'Aplaya',
@@ -205,12 +211,48 @@ export default function PatientsPage() {
   const [loadingMore, setLoadingMore] = useState(false)
 
   const fetchPatientPage = useCallback(async (from = 0) => {
-    return supabase
+    if (!isOnline()) {
+      const rows = await listPatientsCache({ limit: PATIENTS_PAGE_SIZE, offset: from })
+      return {
+        data: rows.map((r) => ({
+          id: r.id,
+          name: r.name,
+          queue_id: r.queue_id,
+          created_at: r.created_at,
+          archived_at: r.archived_at,
+          patient_number: r.patient_number,
+          barangay: r.barangay,
+        })),
+        error: null,
+        fromCache: true,
+      }
+    }
+
+    const result = await supabase
       .from('patients')
-      .select('id, name, queue_id, created_at, archived_at')
+      .select(PATIENTS_CACHE_SELECT)
       .is('archived_at', null)
       .order('created_at', { ascending: false })
       .range(from, from + PATIENTS_PAGE_SIZE - 1)
+
+    if (!result.error && Array.isArray(result.data)) {
+      void upsertPatientsCache(result.data)
+    }
+
+    // Map to list shape used by the page UI
+    if (result.data) {
+      result.data = result.data.map((r) => ({
+        id: r.id,
+        name: r.name || [r.first_name, r.middle_name, r.last_name].filter(Boolean).join(' ').trim() || 'Patient',
+        queue_id: r.queue_id,
+        created_at: r.created_at,
+        archived_at: r.archived_at,
+        patient_number: r.patient_number,
+        barangay: r.barangay,
+      }))
+    }
+
+    return result
   }, [])
 
   const fetchRecordsPage = useCallback(async (from = 0) => {
@@ -263,7 +305,12 @@ export default function PatientsPage() {
     const loadOnMount = async () => {
       const [patientsResult, recordsResult] = await Promise.all([
         fetchPatientPage(0),
-        fetchRecordsPage(0),
+        isOnline()
+          ? fetchRecordsPage(0)
+          : Promise.resolve({
+              data: [],
+              error: { message: 'Offline — showing cached patients. Consultation records need a connection.' },
+            }),
       ])
 
       const patientsError = patientsResult.error?.message ?? ''
@@ -282,7 +329,7 @@ export default function PatientsPage() {
       setPatientsOffset(nextPatients.length)
       setRecordsOffset(nextRecords.length)
       setHasMorePatients(nextPatients.length >= PATIENTS_PAGE_SIZE)
-      setHasMoreRecords(nextRecords.length >= RECORDS_PAGE_SIZE)
+      setHasMoreRecords(isOnline() && nextRecords.length >= RECORDS_PAGE_SIZE)
       setLoading(false)
     }
 
@@ -295,7 +342,12 @@ export default function PatientsPage() {
 
     const [patientsResult, recordsResult] = await Promise.all([
       fetchPatientPage(0),
-      fetchRecordsPage(0),
+      isOnline()
+        ? fetchRecordsPage(0)
+        : Promise.resolve({
+            data: [],
+            error: { message: 'Offline — showing cached patients. Consultation records need a connection.' },
+          }),
     ])
 
     const patientsError = patientsResult.error?.message ?? ''
@@ -313,7 +365,7 @@ export default function PatientsPage() {
     setPatientsOffset(nextPatients.length)
     setRecordsOffset(nextRecords.length)
     setHasMorePatients(nextPatients.length >= PATIENTS_PAGE_SIZE)
-    setHasMoreRecords(nextRecords.length >= RECORDS_PAGE_SIZE)
+    setHasMoreRecords(isOnline() && nextRecords.length >= RECORDS_PAGE_SIZE)
     setLoading(false)
   }
 

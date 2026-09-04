@@ -173,6 +173,24 @@ const defaultAccounts = [
     role: 'Nurse',
     name: 'Sherryl Suero, RM',
   },
+  {
+    email: 'alma.divinagracia@healthtrack.com',
+    password: 'rhupila',
+    role: 'Nurse',
+    name: 'Alma Divinagracia',
+  },
+  {
+    email: 'bhw.pila@healthtrack.com',
+    password: 'rhupila',
+    role: 'BHW',
+    name: 'Sample BHW Encoder',
+  },
+  {
+    email: 'volunteer.pila@healthtrack.com',
+    password: 'rhupila',
+    role: 'Volunteer',
+    name: 'Sample Volunteer Encoder',
+  },
 ]
 
 async function findExistingUserByEmail(email) {
@@ -235,6 +253,19 @@ async function seedAccount(account) {
 
   if (profileError) {
     throw new Error(`Failed to seed profile for ${account.email}: ${profileError.message}`)
+  }
+
+  const { error: vaultError } = await supabase.from('account_password_vault').upsert(
+    {
+      user_id: userId,
+      password_plain: account.password,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: 'user_id' },
+  )
+
+  if (vaultError) {
+    console.warn(`Password vault sync skipped for ${account.email}: ${vaultError.message}`)
   }
 
   console.log(`Synced profile: ${account.email} (${account.role})`)

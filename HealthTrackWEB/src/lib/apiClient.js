@@ -9,17 +9,23 @@ function readCookie(name) {
 
 let csrfReady = false
 
-export async function ensureCsrf() {
+export async function ensureCsrf(portal = PORTAL) {
   if (csrfReady && readCookie('XSRF-TOKEN')) return
   csrfReady = false
+  const portalHeaders = {
+    Accept: 'application/json',
+    'X-HealthTrack-Portal': portal,
+  }
   const res = await fetch('/sanctum/csrf-cookie', {
     method: 'GET',
     credentials: 'include',
+    headers: portalHeaders,
   })
   if (!res.ok) {
     await fetch(`${API_BASE.replace(/\/api$/, '')}/sanctum/csrf-cookie`, {
       method: 'GET',
       credentials: 'include',
+      headers: portalHeaders,
     }).catch(() => null)
   }
   // Only mark ready when the XSRF cookie is actually present.
@@ -31,8 +37,7 @@ export async function ensureCsrf() {
 }
 
 export async function apiFetch(path, { method = 'GET', body = undefined, portal = PORTAL } = {}) {
-  await ensureCsrf()
-
+  await ensureCsrf(portal)
   const headers = {
     Accept: 'application/json',
     'Content-Type': 'application/json',
@@ -58,6 +63,34 @@ export async function apiFetch(path, { method = 'GET', body = undefined, portal 
   }
 
   if (!res.ok) {
+    // Session/XSRF cookies can get out of sync; refresh CSRF once and retry.
+    if (res.status === 419) {
+      csrfReady = false
+      await ensureCsrf(portal)
+      headers['X-XSRF-TOKEN'] = readCookie('XSRF-TOKEN') || ''
+      const retry = await fetch(`${API_BASE}${path.startsWith('/') ? path : `/${path}`}`, {
+        method,
+        headers,
+        credentials: 'include',
+        body: body === undefined ? undefined : JSON.stringify(body),
+      })
+      const retryText = await retry.text().catch(() => '')
+      let retryJson = null
+      try {
+        retryJson = retryText ? JSON.parse(retryText) : null
+      } catch {
+        retryJson = null
+      }
+      if (!retry.ok) {
+        const message = retryJson?.error || retryJson?.message || retryText || `HTTP ${retry.status}`
+        const err = new Error(message)
+        err.status = retry.status
+        err.payload = retryJson
+        throw err
+      }
+      return retryJson
+    }
+
     const message = json?.error || json?.message || text || `HTTP ${res.status}`
     const err = new Error(message)
     err.status = res.status

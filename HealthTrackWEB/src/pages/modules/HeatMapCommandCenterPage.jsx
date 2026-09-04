@@ -29,6 +29,7 @@ import {
   normalizeBarangayName,
   PILA_BARANGAYS,
 } from '../../lib/gis/barangayHeat'
+import { isHeatMapClinicalRecord } from '../../lib/heatmapClinicalFilter'
 
 const DEFAULT_CENTER = [14.2338, 121.3644]
 const REFRESH_MS = 30000
@@ -314,14 +315,16 @@ export default function HeatMapCommandCenterPage() {
 
       const next = []
 
-      // 1) Patient clinical records (residence barangay in Pila) — primary heat source
+      // 1) Doctor consults with ICD-10 diagnosis (residence barangay in Pila)
       let patientQuery = supabase
         .from('patient_records')
         .select(
-          'id, barangay, municipality, province, diagnosis, latitude, longitude, date_of_consultation, created_at',
+          'id, barangay, municipality, province, diagnosis, notes, latitude, longitude, date_of_consultation, created_at, nurse_completed_at, doctor_completed_at, medcert_pwd, medcert_work, medcert_financial, medcert_4ps, medcert_school, medcert_others',
         )
         .or('municipality.ilike.Pila,municipality.is.null')
         .not('barangay', 'is', null)
+        .not('doctor_completed_at', 'is', null)
+        .not('diagnosis', 'is', null)
         .order('created_at', { ascending: false })
         .limit(2000)
 
@@ -337,6 +340,7 @@ export default function HeatMapCommandCenterPage() {
         console.warn('[heatmap] patient_records:', patientError.message)
       } else {
         for (const row of patientData ?? []) {
+          if (!isHeatMapClinicalRecord(row)) continue
           const diseaseRaw = (row.diagnosis ?? '').toString().trim()
           if (!diseaseRaw) continue
           const municipality = (row.municipality ?? 'Pila').toString().trim()
@@ -362,14 +366,15 @@ export default function HeatMapCommandCenterPage() {
         }
       }
 
-      // 2) TB cases from patient_records (filter client-side; no twin tb table)
+      // 2) TB doctor consults (ICD / classification) — still require doctor completion
       let query = supabase
         .from('patient_records')
         .select(
-          'id, barangay, municipality, province, diagnosis, notes, tb_classification, latitude, longitude, date_of_consultation, created_at',
+          'id, barangay, municipality, province, diagnosis, notes, tb_classification, latitude, longitude, date_of_consultation, created_at, nurse_completed_at, doctor_completed_at, medcert_pwd, medcert_work, medcert_financial, medcert_4ps, medcert_school, medcert_others',
         )
         .or('municipality.ilike.Pila,municipality.is.null')
         .not('barangay', 'is', null)
+        .not('doctor_completed_at', 'is', null)
         .order('created_at', { ascending: false })
         .limit(2000)
 
@@ -382,6 +387,7 @@ export default function HeatMapCommandCenterPage() {
         console.warn('[heatmap] tb patient_records:', queryError.message)
       } else {
         for (const row of data ?? []) {
+          if (!isHeatMapClinicalRecord(row)) continue
           const diseaseRaw = (row.diagnosis ?? '').toString().trim()
           const notes = (row.notes ?? '').toString()
           const isTb =
@@ -423,11 +429,11 @@ export default function HeatMapCommandCenterPage() {
         }
       }
 
-      // 3) Reported / estimated case clusters by barangay
+      // 3) Reported Cases (BHW / surveillance clusters) — separate from doctor ICD-10 consults
       let estQuery = supabase
         .from('estimated_cases')
         .select(
-          'id, disease, barangay, estimated_count, status, latitude, longitude, report_date, created_at, municipality, province',
+          'id, disease, barangay, estimated_count, status, latitude, longitude, report_date, created_at',
         )
         .order('created_at', { ascending: false })
         .limit(2000)
@@ -961,7 +967,7 @@ export default function HeatMapCommandCenterPage() {
           <div className="min-w-0">
             <p className="m-0 text-base font-bold text-slate-900 sm:text-lg">Disease Heat Map · Pila</p>
             <p className="m-0 mt-0.5 text-xs text-slate-500 sm:text-sm">
-              Hover a barangay to see cases. Red = more patients.
+              Doctor ICD-10 consults + Reported Cases only. Red = more cases.
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">

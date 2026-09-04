@@ -21,11 +21,25 @@ class AppServiceProvider extends ServiceProvider
         });
 
         RateLimiter::for('login', function (Request $request) {
-            return Limit::perMinute(8)->by(strtolower((string) $request->input('email', '')).'|'.$request->ip());
+            // Align with SPA lockout: 3 attempts / 30 seconds per email+IP.
+            return Limit::perSecond(3, 30)
+                ->by(strtolower((string) $request->input('email', '')).'|'.$request->ip())
+                ->response(function () {
+                    return response()->json([
+                        'ok' => false,
+                        'error' => 'Too many failed attempts. Please wait 30 seconds and try again.',
+                    ], 429);
+                });
         });
 
         RateLimiter::for('verification-send', function (Request $request) {
             $email = (string) $request->input('email', '');
+
+            return Limit::perMinute(5)->by($request->ip().'|'.$email);
+        });
+
+        RateLimiter::for('password-reset', function (Request $request) {
+            $email = strtolower((string) $request->input('email', ''));
 
             return Limit::perMinute(5)->by($request->ip().'|'.$email);
         });

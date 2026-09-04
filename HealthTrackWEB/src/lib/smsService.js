@@ -32,11 +32,6 @@ export function computeEstimatedWait(queueAheadCount, serviceTypeName) {
   return Math.max(1, queueAheadCount) * perPatient
 }
 
-export function validateEmail(email) {
-  const e = (email ?? '').toString().trim()
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e) ? e : null
-}
-
 export function normalizePhilPhone(phone) {
   const raw = (phone ?? '').toString().trim()
   if (!raw) return null
@@ -78,39 +73,60 @@ async function logNotification({ appointmentId, queueId, patientId, to, message,
   }
 }
 
-export async function sendSms({ to, message, subject, appointmentId, queueId, patientId }) {
-  const email = validateEmail(to)
+async function resolvePhoneRecipient(to, patientId) {
+  const direct = normalizePhilPhone(to)
+  if (direct) return direct
+  const raw = (to ?? '').toString().trim()
+  if (!raw || !raw.includes('@')) return null
 
-  if (!email) {
-    const reason = `No valid email address: "${to}"`
-    console.warn('[Email]', reason)
+  if (patientId) {
+    const { data } = await supabase
+      .from('patients')
+      .select('phone,mobile_phone')
+      .eq('id', patientId)
+      .maybeSingle()
+    const byPatient = normalizePhilPhone(data?.mobile_phone || data?.phone || '')
+    if (byPatient) return byPatient
+  }
+
+  const { data: contact } = await supabase
+    .from('patient_contacts')
+    .select('phone')
+    .ilike('email', raw)
+    .limit(1)
+    .maybeSingle()
+  return normalizePhilPhone(contact?.phone || '')
+}
+
+export async function sendSms({ to, message, subject, appointmentId, queueId, patientId }) {
+  const phone = await resolvePhoneRecipient(to, patientId)
+
+  if (!phone) {
+    const reason = `No valid phone number: "${to}"`
+    console.warn('[SMS]', reason)
     await logNotification({ appointmentId, queueId, patientId, to: to ?? '', message, status: 'failed', providerResponse: reason })
     return { ok: false, error: reason }
   }
 
-  const emailSubject = subject || subjectFromMessage(message)
+  const smsText = message
+  const smsSubject = subject || subjectFromMessage(message)
 
   try {
-    await apiFetch('/notify/email', {
+    await apiFetch('/notify/sms', {
       method: 'POST',
       body: {
-        to: email,
-        subject: emailSubject,
-        text: message,
-        html: `<pre style="font-family:sans-serif;white-space:pre-wrap">${message.replace(/</g, '&lt;')}</pre>`,
-        logData: { appointmentId, queueId, patientId, to: email, message },
+        to: phone.startsWith('+63') ? `0${phone.slice(3)}` : phone,
+        text: smsText,
+        logData: { appointmentId, queueId, patientId, to: phone, subject: smsSubject, message: smsText },
       },
     })
+    await logNotification({ appointmentId, queueId, patientId, to: phone, message: smsText, status: 'sent', providerResponse: 'sms' })
     return { ok: true }
   } catch (err) {
     const errMsg = err?.message ?? 'Unknown error'
-    await logNotification({ appointmentId, queueId, patientId, to: email, message, status: 'failed', providerResponse: errMsg })
+    await logNotification({ appointmentId, queueId, patientId, to: phone, message: smsText, status: 'failed', providerResponse: errMsg })
     return { ok: false, error: errMsg }
   }
-}
-
-export function msgAppointmentAccepted({ patientName, appointmentDate, appointmentTime }) {
-  return `Hello ${patientName},\n\nYour appointment has been accepted.\nSchedule: ${appointmentDate} at ${appointmentTime}.\n\nPlease arrive on time.\n\n— Rural Health Unit of Pila`
 }
 
 export function msgAddedToQueue({ patientName, queueNumber, estimatedWait }) {
@@ -131,10 +147,6 @@ export function msgSkipped({ patientName, queueNumber }) {
 
 export function msgCompleted({ patientName }) {
   return `Hello ${patientName},\n\nYour visit/transaction has been completed. Thank you for visiting the Rural Health Unit of Pila.\n\nStay healthy!\n\n— Rural Health Unit of Pila`
-}
-
-export function msgAppointmentBooked({ patientName, referenceNumber, appointmentDate, appointmentTime }) {
-  return `Hello ${patientName},\n\nYour RHU appointment has been booked.\n\nReference Number: ${referenceNumber}\nDate: ${appointmentDate}\nTime: ${appointmentTime}\n\nPlease bring this reference number on the day of your visit.\n\n— Rural Health Unit of Pila`
 }
 
 export function msgDocumentReady({ patientName, documentType }) {

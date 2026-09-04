@@ -1,9 +1,12 @@
 <?php
 
 use App\Http\Controllers\Api\AiController;
+use App\Http\Controllers\Api\AccountAdminController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\HeatMapController;
 use App\Http\Controllers\Api\NotifyController;
+use App\Http\Controllers\Api\PasswordResetController;
+use App\Http\Controllers\Api\PatientRegisterController;
 use App\Http\Controllers\Api\VerificationController;
 use App\Http\Middleware\EnsurePortalSession;
 use Illuminate\Support\Facades\Route;
@@ -12,6 +15,16 @@ Route::middleware(['throttle:api'])->group(function () {
     // Cookie session auth (Sanctum SPA)
     Route::post('/auth/login', [AuthController::class, 'login'])
         ->middleware('throttle:login');
+    Route::post('/auth/bridge-session', [AuthController::class, 'bridgeSession'])
+        ->middleware('throttle:login');
+    Route::post('/auth/patient-register', [PatientRegisterController::class, 'register'])
+        ->middleware('throttle:login');
+    Route::get('/geo/patient-address', [PatientRegisterController::class, 'addressOptions']);
+
+    Route::post('/auth/password-reset/request', [PasswordResetController::class, 'request'])
+        ->middleware('throttle:password-reset');
+    Route::post('/auth/password-reset/confirm', [PasswordResetController::class, 'confirm'])
+        ->middleware('throttle:password-reset');
 
     Route::middleware([EnsurePortalSession::class])->group(function () {
         Route::get('/auth/me', [AuthController::class, 'me']);
@@ -35,5 +48,11 @@ Route::middleware(['throttle:api'])->group(function () {
 
         Route::post('/notify/email', [NotifyController::class, 'email'])
             ->middleware('throttle:notify');
+        Route::post('/notify/sms', [NotifyController::class, 'sms'])
+            ->middleware('throttle:notify');
+        Route::get('/accounts', [AccountAdminController::class, 'index'])
+            ->middleware('throttle:api');
+        Route::post('/accounts/reset-password', [AccountAdminController::class, 'resetPassword'])
+            ->middleware('throttle:password-reset');
     });
 });

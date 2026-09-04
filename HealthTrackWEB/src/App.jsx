@@ -4,14 +4,16 @@ import { useAuth } from './context/useAuth'
 import ProtectedRoute from './components/ProtectedRoute'
 import RoleProtectedRoute from './components/RoleProtectedRoute'
 import DashboardLayout from './components/DashboardLayout'
-import { ROLES } from './config/rbac'
+import { ENCODER_ROLES, isEncoderRole, ROLES } from './config/rbac'
 import LoginPage from './pages/LoginPage'
 import DashboardPage from './pages/DashboardPage'
 import NurseDashboardPage from './pages/NurseDashboardPage'
+import BhwDashboardPage from './pages/BhwDashboardPage'
 import PatientsPage from './pages/modules/PatientsPage'
 import QueuePage from './pages/modules/QueuePage'
 import DoctorConsultPage from './pages/modules/DoctorConsultPage'
 import NurseServiceDeskPage from './pages/modules/NurseServiceDeskPage'
+import StaffEncodeDeskPage from './pages/modules/StaffEncodeDeskPage'
 import InventoryPage from './pages/modules/InventoryPage'
 import ReportsPage from './pages/modules/ReportsPage'
 import ArchivePage from './pages/modules/ArchivePage'
@@ -19,6 +21,7 @@ import WorkflowPage from './pages/modules/WorkflowPage'
 import ServiceWorkflowPage from './pages/modules/ServiceWorkflowPage'
 import FollowUpsPage from './pages/modules/FollowUpsPage'
 import ReportedCasesPage from './pages/modules/ReportedCasesPage'
+import AccountsPage from './pages/modules/AccountsPage'
 
 import HistoricalDataEncoder from './pages/modules/HistoricalDataEncoder'
 
@@ -51,10 +54,19 @@ function RootRedirect() {
 }
 
 function DashboardIndexRoute() {
-  const { loading, profileLoading, role } = useAuth()
+  const { loading, profileLoading, role, profile, user } = useAuth()
+  const managerName = (import.meta.env.VITE_ACCOUNT_MANAGER_NAME || 'Alma Divinagracia').trim().toLowerCase()
+  const managerEmail = (import.meta.env.VITE_ACCOUNT_MANAGER_EMAIL || '').trim().toLowerCase()
+  const isAccountManager =
+    (profile?.name || '').trim().toLowerCase() === managerName ||
+    (managerEmail && (profile?.email || user?.email || '').trim().toLowerCase() === managerEmail)
 
   if (loading || profileLoading) {
     return <RouteFallback />
+  }
+
+  if (isAccountManager) {
+    return <Navigate to="/dashboard/accounts" replace />
   }
 
   if (role === ROLES.DOCTOR) {
@@ -65,8 +77,11 @@ function DashboardIndexRoute() {
     return <NurseDashboardPage />
   }
 
-  // If role doesn't match, redirect to login with error
-  console.error('Invalid role:', role, 'Expected "Doctor" or "Nurse"')
+  if (isEncoderRole(role)) {
+    return <BhwDashboardPage />
+  }
+
+  console.error('Invalid role:', role, 'Expected Doctor, Nurse, BHW, or Volunteer')
   return <Navigate to="/login" replace />
 }
 
@@ -95,6 +110,14 @@ function App() {
           element={
             <RoleProtectedRoute allowRoles={[ROLES.DOCTOR, ROLES.NURSE]}>
               <QueuePage />
+            </RoleProtectedRoute>
+          }
+        />
+        <Route
+          path="staff-encode"
+          element={
+            <RoleProtectedRoute allowRoles={ENCODER_ROLES}>
+              <StaffEncodeDeskPage />
             </RoleProtectedRoute>
           }
         />
@@ -188,6 +211,14 @@ function App() {
           }
         />
 
+        <Route
+          path="accounts"
+          element={
+            <RoleProtectedRoute allowRoles={[ROLES.DOCTOR, ROLES.NURSE]}>
+              <AccountsPage />
+            </RoleProtectedRoute>
+          }
+        />
         <Route
           path="heat-map"
           element={

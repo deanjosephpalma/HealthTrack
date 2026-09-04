@@ -15,7 +15,8 @@ export const buildPatient = (user) => {
     firstName,
     lastName,
     phone,
-    name: fullName || user.email || 'Patient',
+    portal_username: (meta.portal_username ?? '').toString().trim() || null,
+    name: fullName || meta.portal_username || user.email || 'Patient',
   }
 }
 

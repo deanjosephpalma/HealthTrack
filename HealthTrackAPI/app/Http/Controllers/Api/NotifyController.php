@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Services\PatientSmsService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -15,6 +16,10 @@ class NotifyController extends Controller
         'NOW SERVING',
         'REMINDER',
     ];
+
+    public function __construct(private PatientSmsService $sms)
+    {
+    }
 
     public function email(Request $request)
     {
@@ -48,14 +53,10 @@ class NotifyController extends Controller
         $apiKey = (string) config('services.resend.key');
 
         if ($apiKey === '') {
-            Log::info('[notify] MOCK email', [
-                'to' => $data['to'],
-                'subject' => $data['subject'],
-            ]);
-
-            $this->writeEmailLog($data, 'sent', 'mock');
-
-            return response()->json(['ok' => true, 'mock' => true]);
+            return response()->json([
+                'ok' => false,
+                'error' => 'RESEND_API_KEY is not configured.',
+            ], 503);
         }
 
         try {
@@ -90,6 +91,43 @@ class NotifyController extends Controller
 
             return response()->json(['ok' => false, 'error' => 'Failed to send email.'], 500);
         }
+    }
+
+    public function sms(Request $request)
+    {
+        $data = $request->validate([
+            'to' => ['required', 'string', 'max:20', 'regex:/^(09\d{9}|\+639\d{9})$/'],
+            'text' => 'required|string|max:1000',
+            'logData' => 'nullable|array',
+        ]);
+
+        if (!$this->isAllowedBody($data['text'])) {
+            return response()->json([
+                'ok' => false,
+                'error' => 'SMS content is not an approved RHU notification template.',
+            ], 422);
+        }
+
+        $log = $data['logData'] ?? [];
+        if (!empty($log['patientId']) && !$this->patientPhoneMatches((string) $log['patientId'], $data['to'])) {
+            return response()->json([
+                'ok' => false,
+                'error' => 'Recipient phone does not match the linked patient record.',
+            ], 422);
+        }
+
+        $result = $this->sms->send($data['to'], $data['text']);
+        if (!$result['ok']) {
+            return response()->json([
+                'ok' => false,
+                'error' => $result['error'] ?? 'Failed to send SMS.',
+            ], 502);
+        }
+
+        return response()->json([
+            'ok' => true,
+            'mock' => (bool) ($result['mocked'] ?? false),
+        ]);
     }
 
     private function isAllowedSubject(string $subject): bool
@@ -135,6 +173,52 @@ class NotifyController extends Controller
             $email = is_array($rows) && isset($rows[0]['email']) ? strtolower(trim((string) $rows[0]['email'])) : '';
 
             return $email !== '' && $email === strtolower(trim($to));
+        } catch (\Throwable) {
+            return false;
+        }
+    }
+
+    private function patientPhoneMatches(string $patientId, string $to): bool
+    {
+        $url = rtrim((string) config('services.supabase.url'), '/');
+        $serviceKey = (string) config('services.supabase.service_role_key');
+        if ($url === '' || $serviceKey === '') {
+            return true;
+        }
+
+        $target = preg_replace('/\s+/', '', $to) ?? '';
+        $targetE164 = str_starts_with($target, '09') ? '+63'.substr($target, 1) : $target;
+
+        try {
+            $response = Http::withHeaders([
+                'apikey' => $serviceKey,
+                'Authorization' => 'Bearer '.$serviceKey,
+            ])->timeout(10)->get("{$url}/rest/v1/patients", [
+                'id' => 'eq.'.$patientId,
+                'select' => 'phone,mobile_phone',
+            ]);
+
+            if (!$response->successful()) {
+                return false;
+            }
+
+            $rows = $response->json();
+            if (!is_array($rows) || !isset($rows[0])) {
+                return false;
+            }
+
+            $phone = preg_replace('/\s+/', '', (string) ($rows[0]['phone'] ?? '')) ?: '';
+            $mobile = preg_replace('/\s+/', '', (string) ($rows[0]['mobile_phone'] ?? '')) ?: '';
+            $candidates = array_filter([$phone, $mobile]);
+
+            foreach ($candidates as $candidate) {
+                $candidateE164 = str_starts_with($candidate, '09') ? '+63'.substr($candidate, 1) : $candidate;
+                if ($candidate === $target || $candidateE164 === $targetE164) {
+                    return true;
+                }
+            }
+
+            return false;
         } catch (\Throwable) {
             return false;
         }

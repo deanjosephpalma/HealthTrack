@@ -38,6 +38,11 @@ return [
         'jwt_secret' => env('SUPABASE_JWT_SECRET'),
     ],
 
+    'apps' => [
+        'staff_url' => env('STAFF_APP_URL', 'http://localhost:5173'),
+        'patient_url' => env('PATIENT_APP_URL', 'http://localhost:5174'),
+    ],
+
     'gemini' => [
         'key' => env('GEMINI_API_KEY'),
         'model' => env('GEMINI_MODEL', 'gemini-2.5-flash'),
@@ -46,6 +51,17 @@ return [
     'resend' => [
         'key' => env('RESEND_API_KEY'),
         'from' => env('RESEND_FROM', 'HealthTrack RHU <onboarding@resend.dev>'),
+    ],
+
+    'semaphore' => [
+        'key' => env('SEMAPHORE_API_KEY'),
+        'sender' => env('SEMAPHORE_SENDER', 'HealthTrack'),
+        'required' => filter_var(env('SMS_REQUIRED', false), FILTER_VALIDATE_BOOLEAN),
+    ],
+
+    'accounts' => [
+        'manager_name' => env('ACCOUNT_MANAGER_NAME', 'Alma Divinagracia'),
+        'manager_email' => env('ACCOUNT_MANAGER_EMAIL', ''),
     ],
 
 ];

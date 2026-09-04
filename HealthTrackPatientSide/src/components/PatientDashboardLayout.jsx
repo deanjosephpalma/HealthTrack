@@ -1,10 +1,11 @@
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useState, useEffect, useRef } from 'react'
 import { useAuth } from '../context/useAuth'
+import LogoutConfirmModal from './LogoutConfirmModal'
 import { supabase } from '../lib/supabaseClient'
 
 const MODULES = [
-  { key: 'dashboard', label: 'Dashboard', path: '/dashboard', icon: 'home' },
+  { key: 'dashboard', label: 'Main Menu', path: '/dashboard', icon: 'home' },
   { key: 'service-intake', label: 'Service Info', path: '/dashboard/service-intake', icon: 'form' },
   { key: 'queue', label: 'My Queue', path: '/dashboard/queue', icon: 'queue' },
   { key: 'follow-ups', label: 'Follow-ups', path: '/dashboard/follow-ups', icon: 'calendar' },
@@ -115,14 +116,14 @@ function SidebarContent({ patientName, onLogout, onNavigate }) {
 
 const PAGE_COPY = {
   '/dashboard': {
-    kicker: 'Overview',
+    kicker: 'Main Menu',
     title: null,
     subtitle: null,
   },
   '/dashboard/queue': {
     kicker: 'Visit today',
     title: 'My Queue',
-    subtitle: 'Get a number and track your place in line.',
+    subtitle: 'Get in line for staff, then track your queue number.',
   },
   '/dashboard/service-intake': {
     kicker: 'Service',
@@ -156,6 +157,8 @@ export default function PatientDashboardLayout() {
   const location = useLocation()
   const { patient, signOut } = useAuth()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [logoutOpen, setLogoutOpen] = useState(false)
+  const [logoutBusy, setLogoutBusy] = useState(false)
   const [notifications, setNotifications] = useState([])
   const [unreadCount, setUnreadCount] = useState(0)
   const [showNotifications, setShowNotifications] = useState(false)
@@ -168,9 +171,19 @@ export default function PatientDashboardLayout() {
   }
   const hidePageHeader = location.pathname === '/dashboard'
 
-  const handleLogout = async () => {
-    await signOut()
-    navigate('/login', { replace: true })
+  const handleLogoutRequest = () => {
+    setLogoutOpen(true)
+  }
+
+  const handleLogoutConfirm = async () => {
+    setLogoutBusy(true)
+    try {
+      await signOut()
+      navigate('/login', { replace: true })
+    } finally {
+      setLogoutBusy(false)
+      setLogoutOpen(false)
+    }
   }
 
   const handleNavigate = () => {
@@ -242,7 +255,7 @@ export default function PatientDashboardLayout() {
   return (
     <main className="app-shell">
       <aside className="app-sidebar">
-        <SidebarContent patientName={patient?.name} onLogout={handleLogout} onNavigate={handleNavigate} />
+        <SidebarContent patientName={patient?.name} onLogout={handleLogoutRequest} onNavigate={handleNavigate} />
       </aside>
 
       {mobileMenuOpen ? (
@@ -264,7 +277,7 @@ export default function PatientDashboardLayout() {
                 Close
               </button>
             </div>
-            <SidebarContent patientName={patient?.name} onLogout={handleLogout} onNavigate={handleNavigate} />
+            <SidebarContent patientName={patient?.name} onLogout={handleLogoutRequest} onNavigate={handleNavigate} />
           </div>
         </div>
       ) : null}
@@ -344,6 +357,15 @@ export default function PatientDashboardLayout() {
           <Outlet />
         </div>
       </section>
+
+      <LogoutConfirmModal
+        open={logoutOpen}
+        busy={logoutBusy}
+        onCancel={() => {
+          if (!logoutBusy) setLogoutOpen(false)
+        }}
+        onConfirm={handleLogoutConfirm}
+      />
     </main>
   )
 }

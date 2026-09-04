@@ -152,12 +152,28 @@ export default function PatientMedicalRecordsPage() {
     })
   }
 
-  const downloadDoc = (item) => {
+  const downloadDoc = async (item) => {
     const name = patient?.name || summary.fullName || 'Patient'
+    let row = item.row
+    const existingDetails = row?.details && typeof row.details === 'object' ? row.details : {}
+    if (
+      item.kind === 'certificate' &&
+      Object.keys(existingDetails).length === 0 &&
+      row?.service_request_id
+    ) {
+      const { data: sr } = await supabase
+        .from('service_requests')
+        .select('intake_data')
+        .eq('id', row.service_request_id)
+        .maybeSingle()
+      if (sr?.intake_data && typeof sr.intake_data === 'object') {
+        row = { ...row, details: sr.intake_data }
+      }
+    }
     const payload =
       item.kind === 'permit'
-        ? pdfPayloadFromPermit(item.row, name)
-        : pdfPayloadFromCertificate(item.row, name)
+        ? pdfPayloadFromPermit(row, name)
+        : pdfPayloadFromCertificate(row, name)
     downloadIssuedDocumentPdf({
       ...payload,
       patientDetails: {

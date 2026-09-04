@@ -1,6 +1,22 @@
 export const ROLES = {
   DOCTOR: 'Doctor',
   NURSE: 'Nurse',
+  BHW: 'BHW',
+  VOLUNTEER: 'Volunteer',
+}
+
+/** Roles allowed on the staff (HealthTrackWEB) portal login. */
+export const STAFF_PORTAL_ROLES = [ROLES.DOCTOR, ROLES.NURSE, ROLES.BHW, ROLES.VOLUNTEER]
+
+/** BHW / Volunteer — encode patient visits then issue queue numbers. */
+export const ENCODER_ROLES = [ROLES.BHW, ROLES.VOLUNTEER]
+
+export function isEncoderRole(role) {
+  return ENCODER_ROLES.includes(role)
+}
+
+export function isStaffPortalRole(role) {
+  return STAFF_PORTAL_ROLES.includes(role)
 }
 
 export const MODULES = {
@@ -8,15 +24,16 @@ export const MODULES = {
   PATIENTS: 'patients',
   INVENTORY: 'inventory',
   QUEUE: 'queue',
+  STAFF_ENCODE: 'staff-encode',
   DOCTOR_CONSULT: 'doctor-consult',
   NURSE_SERVICE_DESK: 'nurse-service-desk',
   ARCHIVE: 'archive',
   HEAT_MAP: 'heat-map',
   REPORTS: 'reports',
-  // New workflow modules
   WORKFLOW: 'workflow',
   FOLLOW_UPS: 'follow-ups',
   REPORTED_CASES: 'reported-cases',
+  ACCOUNTS: 'accounts',
 }
 
 export const ROLE_PERMISSIONS = {
@@ -28,6 +45,7 @@ export const ROLE_PERMISSIONS = {
     MODULES.FOLLOW_UPS,
     MODULES.REPORTED_CASES,
     MODULES.HEAT_MAP,
+    MODULES.ACCOUNTS,
   ],
   [ROLES.NURSE]: [
     MODULES.OVERVIEW,
@@ -40,7 +58,10 @@ export const ROLE_PERMISSIONS = {
     MODULES.WORKFLOW,
     MODULES.FOLLOW_UPS,
     MODULES.REPORTED_CASES,
+    MODULES.ACCOUNTS,
   ],
+  [ROLES.BHW]: [MODULES.OVERVIEW, MODULES.STAFF_ENCODE],
+  [ROLES.VOLUNTEER]: [MODULES.OVERVIEW, MODULES.STAFF_ENCODE],
 }
 
 export const MODULE_META = {
@@ -69,10 +90,20 @@ export const MODULE_META = {
     path: '/dashboard/reported-cases',
     icon: 'clipboard',
   },
+  [MODULES.ACCOUNTS]: {
+    label: 'Accounts',
+    path: '/dashboard/accounts',
+    icon: 'users',
+  },
   [MODULES.QUEUE]: {
     label: 'Queue',
     path: '/dashboard/queue',
     icon: 'queue',
+  },
+  [MODULES.STAFF_ENCODE]: {
+    label: 'Encode Desk',
+    path: '/dashboard/staff-encode',
+    icon: 'clipboard',
   },
   [MODULES.PATIENTS]: {
     label: 'Patient Records',

@@ -1,6 +1,6 @@
 import { Navigate } from 'react-router-dom'
 import { useAuth } from '../context/useAuth'
-import { ROLES } from '../config/rbac'
+import { isStaffPortalRole } from '../config/rbac'
 
 function LoadingState() {
   return (
@@ -23,8 +23,7 @@ export default function ProtectedRoute({ children }) {
     return <Navigate to="/login" replace />
   }
 
-  const validRole = [ROLES.DOCTOR, ROLES.NURSE].includes(role)
-  if (!validRole) {
+  if (!isStaffPortalRole(role)) {
     return <Navigate to="/login" replace />
   }
 

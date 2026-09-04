@@ -39,11 +39,25 @@ body {
 }
 
 .login-page {
-  @apply flex min-h-screen items-start justify-center px-4 py-6 sm:py-8;
+  @apply relative flex min-h-screen items-start justify-center overflow-hidden px-4 py-6 sm:py-10;
+}
+
+.login-page::before {
+  content: '';
+  @apply pointer-events-none absolute -left-24 top-0 h-72 w-72 rounded-full bg-teal-400/15 blur-3xl;
+}
+
+.login-page::after {
+  content: '';
+  @apply pointer-events-none absolute -right-16 bottom-10 h-80 w-80 rounded-full bg-emerald-300/15 blur-3xl;
 }
 
 .login-page-inner {
-  @apply w-full max-w-md pt-1 sm:pt-2;
+  @apply relative z-10 w-full max-w-md pt-1 sm:pt-2;
+}
+
+.login-page-inner-wide {
+  @apply max-w-lg;
 }
 
 .back-home-link {
@@ -56,6 +70,67 @@ body {
 
 .login-card {
   @apply mt-4;
+}
+
+.auth-card-header {
+  @apply mb-6;
+}
+
+.auth-brand-row {
+  @apply mb-4 flex items-center gap-3;
+}
+
+.auth-brand-mark {
+  @apply flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-teal-600 to-emerald-700 text-white shadow-lg shadow-teal-900/20;
+}
+
+.auth-brand-mark svg {
+  @apply h-6 w-6;
+}
+
+.auth-hint {
+  @apply mt-2 text-sm leading-relaxed text-slate-500;
+}
+
+.auth-form {
+  @apply space-y-4;
+}
+
+.auth-card .primary-btn,
+.auth-card .secondary-btn.auth-full-btn {
+  @apply mt-1 w-full;
+}
+
+.auth-actions {
+  @apply flex flex-col gap-2 pt-1;
+}
+
+.auth-divider {
+  @apply my-5 flex items-center gap-3;
+}
+
+.auth-divider-line {
+  @apply h-px flex-1 bg-gradient-to-r from-transparent via-slate-200 to-transparent;
+}
+
+.auth-divider-text {
+  @apply shrink-0 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400;
+}
+
+.auth-google-wrap {
+  @apply mt-0;
+}
+
+.google-continue-btn {
+  @apply !mt-0 flex w-full items-center justify-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-800 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-70;
+}
+
+.auth-section-label {
+  @apply mb-3 text-[11px] font-bold uppercase tracking-[0.14em] text-teal-700;
+}
+
+.auth-field-group {
+  @apply space-y-4 rounded-2xl border border-slate-100 bg-slate-50/50 p-4;
 }
 
 /* ——— Shell ——— */
@@ -114,7 +189,11 @@ body {
 
 .auth-card,
 .dashboard-card {
-  @apply w-full max-w-md rounded-3xl border border-slate-200/80 bg-white/90 p-8 shadow-xl shadow-slate-900/10 backdrop-blur;
+  @apply w-full max-w-md rounded-3xl border border-white/80 bg-white/95 p-7 shadow-[0_24px_60px_-28px_rgba(15,42,42,0.35)] backdrop-blur-xl sm:p-8;
+}
+
+.auth-card {
+  @apply max-w-none ring-1 ring-teal-900/5;
 }
 
 .dashboard-card {

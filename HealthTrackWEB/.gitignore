@@ -17,6 +17,7 @@ dist-ssr
 .env.*
 !.env.example
 !.env.seed.example
+scripts/staff-accounts.csv
 
 # Editor directories and files
 .vscode/*

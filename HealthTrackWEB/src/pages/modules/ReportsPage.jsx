@@ -4,6 +4,8 @@ import { useAuth } from '../../context/useAuth'
 import { supabase } from '../../lib/supabaseClient'
 import { generateHealthPlanReport } from '../../lib/ai'
 import ReactMarkdown from 'react-markdown'
+import { ICD10_CODES, ICD10_OTHER, parseIcd10Diagnosis } from '../../lib/icd10Codes'
+import { downloadCsv, rowsToCsv } from '../../lib/csvExport'
 
 const AGE_BUCKETS = [
   { key: '0-9', min: 0, max: 9 },
@@ -33,6 +35,28 @@ function formatDateKey(date) {
   const mm = String(date.getMonth() + 1).padStart(2, '0')
   const dd = String(date.getDate()).padStart(2, '0')
   return `${yyyy}-${mm}-${dd}`
+}
+
+function todayInputValue() {
+  return formatDateKey(new Date())
+}
+
+function resolveIcdExportFields(diagnosis) {
+  const parsed = parseIcd10Diagnosis(diagnosis)
+  if (!parsed.code) {
+    return { icd_code: '', diagnosis_label: normalizeLabel(diagnosis, 'Unspecified') }
+  }
+  if (parsed.code === ICD10_OTHER) {
+    return {
+      icd_code: 'OTHER',
+      diagnosis_label: parsed.otherText || normalizeLabel(diagnosis, 'Other'),
+    }
+  }
+  const row = ICD10_CODES.find((c) => c.id === parsed.code)
+  return {
+    icd_code: row?.code || parsed.code,
+    diagnosis_label: row?.label || normalizeLabel(diagnosis, 'Unspecified'),
+  }
 }
 
 function buildSeries(days) {
@@ -72,6 +96,10 @@ export default function ReportsPage() {
 
   const [aiReport, setAiReport] = useState('')
   const [generatingReport, setGeneratingReport] = useState(false)
+  const [morbidityFrom, setMorbidityFrom] = useState(todayInputValue)
+  const [morbidityTo, setMorbidityTo] = useState(todayInputValue)
+  const [exportingMorbidity, setExportingMorbidity] = useState(false)
+  const [exportMessage, setExportMessage] = useState('')
 
   const handleGenerateAIReport = async () => {
     setGeneratingReport(true)
@@ -83,6 +111,76 @@ export default function ReportsPage() {
       setAiReport('Failed to generate report.')
     } finally {
       setGeneratingReport(false)
+    }
+  }
+
+  const handleExportMorbidityCsv = async () => {
+    const from = (morbidityFrom || '').trim()
+    const to = (morbidityTo || '').trim()
+    if (!from || !to) {
+      setExportMessage('Pick a From and To date.')
+      return
+    }
+    if (from > to) {
+      setExportMessage('From date must be on or before To date.')
+      return
+    }
+
+    setExportingMorbidity(true)
+    setExportMessage('')
+    try {
+      // Prefer consultation date range; also pull nearby rows by created_at as fallback filter client-side
+      let { data, error: queryError } = await supabase
+        .from('patient_records')
+        .select(
+          'diagnosis, barangay, sex, age, created_at, date_of_consultation, queue_id, queue:queue_id ( service_code )',
+        )
+        .is('archived_at', null)
+        .order('date_of_consultation', { ascending: true })
+        .limit(5000)
+
+      if (queryError) {
+        // Fallback without join / archived filter if schema differs
+        const fallback = await supabase
+          .from('patient_records')
+          .select('diagnosis, barangay, sex, age, created_at, date_of_consultation, queue_id')
+          .order('created_at', { ascending: false })
+          .limit(5000)
+        if (fallback.error) throw fallback.error
+        data = fallback.data
+      }
+
+      const rows = (Array.isArray(data) ? data : []).filter((row) => {
+        const d = safeDateOnly(row.date_of_consultation) ?? safeDateOnly(row.created_at)
+        if (!d) return false
+        const key = formatDateKey(d)
+        return key >= from && key <= to
+      })
+
+      const exportRows = rows.map((row) => {
+        const d = safeDateOnly(row.date_of_consultation) ?? safeDateOnly(row.created_at)
+        const { icd_code, diagnosis_label } = resolveIcdExportFields(row.diagnosis)
+        const queue = row.queue && typeof row.queue === 'object' ? row.queue : null
+        return {
+          date: d ? formatDateKey(d) : '',
+          icd_code,
+          diagnosis: diagnosis_label,
+          diagnosis_full: normalizeLabel(row.diagnosis, ''),
+          barangay: normalizeLabel(row.barangay, ''),
+          sex: normalizeLabel(row.sex, ''),
+          age: row.age != null ? String(row.age) : '',
+          service: normalizeLabel(queue?.service_code, ''),
+        }
+      })
+
+      const headers = ['date', 'icd_code', 'diagnosis', 'diagnosis_full', 'barangay', 'sex', 'age', 'service']
+      const csv = rowsToCsv(headers, exportRows)
+      downloadCsv(`morbidity_${from}_to_${to}.csv`, csv)
+      setExportMessage(`Exported ${exportRows.length} consult row(s).`)
+    } catch (err) {
+      setExportMessage(err?.message || 'Failed to export morbidity CSV.')
+    } finally {
+      setExportingMorbidity(false)
     }
   }
 
@@ -257,6 +355,48 @@ export default function ReportsPage() {
         </button>
       </div>
 
+      <div className="mb-6 rounded-2xl border border-teal-200 bg-teal-50/40 p-4 sm:p-5">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+          <div className="min-w-0">
+            <h3 className="m-0 text-sm font-bold uppercase tracking-[0.14em] text-teal-800">
+              Morbidity / ICD export
+            </h3>
+            <p className="mt-1 text-sm text-slate-600">
+              Download consults in a date range as CSV (ICD code, diagnosis, barangay, sex, age, service).
+            </p>
+          </div>
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end">
+            <label className="block text-xs font-semibold text-slate-600">
+              From
+              <input
+                type="date"
+                className="field-input mt-1 w-full sm:w-auto"
+                value={morbidityFrom}
+                onChange={(e) => setMorbidityFrom(e.target.value)}
+              />
+            </label>
+            <label className="block text-xs font-semibold text-slate-600">
+              To
+              <input
+                type="date"
+                className="field-input mt-1 w-full sm:w-auto"
+                value={morbidityTo}
+                onChange={(e) => setMorbidityTo(e.target.value)}
+              />
+            </label>
+            <button
+              type="button"
+              className="primary-btn !mt-0 w-full sm:w-auto"
+              disabled={exportingMorbidity || loading}
+              onClick={() => void handleExportMorbidityCsv()}
+            >
+              {exportingMorbidity ? 'Exporting…' : 'Export CSV'}
+            </button>
+          </div>
+        </div>
+        {exportMessage ? <p className="mt-3 text-sm text-slate-700">{exportMessage}</p> : null}
+      </div>
+
       {aiReport && (
         <div className="mb-8 rounded-2xl border border-indigo-200 bg-indigo-50/50 p-6 shadow-sm">
           <h3 className="mb-4 text-lg font-bold text-indigo-900 flex items-center gap-2">
@@ -297,7 +437,7 @@ export default function ReportsPage() {
               <p className="stat-value">{metrics.queueWaiting}</p>
             </article>
             <article className="stat-card">
-              <p className="stat-label">Appointments</p>
+              <p className="stat-label">Legacy Visits</p>
               <p className="stat-value">{metrics.appointments}</p>
             </article>
             <article className="stat-card">

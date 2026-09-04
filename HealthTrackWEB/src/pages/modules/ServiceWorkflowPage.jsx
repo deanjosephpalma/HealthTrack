@@ -292,7 +292,7 @@ export default function ServiceWorkflowPage() {
         }
 
         setSaving(false)
-        navigate('/dashboard/queue')
+        navigate('/dashboard/workflow')
         return
       } catch (err) {
         setError('Failed to save record: ' + err.message)
@@ -337,7 +337,7 @@ export default function ServiceWorkflowPage() {
     }
 
     setSaving(false)
-    navigate('/dashboard/queue')
+    navigate('/dashboard/workflow')
   }
 
   if (loading) return <div className="p-8 text-center text-slate-500">Loading Workflow...</div>
@@ -426,8 +426,8 @@ export default function ServiceWorkflowPage() {
           <h2 className="module-title">{serviceRequest.services?.name}</h2>
           <p className="text-sm text-slate-600">Ref: {serviceRequest.reference_number} • Status: <span className="font-bold">{serviceRequest.status}</span></p>
         </div>
-        <button onClick={() => navigate('/dashboard/queue')} className="secondary-btn text-sm">
-           &larr; Back to Queue
+        <button onClick={() => navigate('/dashboard/workflow')} className="secondary-btn text-sm">
+           &larr; Back to Workflow
         </button>
       </div>
 

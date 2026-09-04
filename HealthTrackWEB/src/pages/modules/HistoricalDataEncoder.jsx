@@ -5,6 +5,12 @@ import { useNavigate } from 'react-router-dom'
 import OutpatientLegacyForm from '../../components/OutpatientLegacyForm'
 import AnimalBiteLegacyForm from '../../components/AnimalBiteLegacyForm'
 import TbLegacyForm from '../../components/TbLegacyForm'
+import EncodeServiceFormModal from '../../components/EncodeServiceFormModal'
+import { isOnline } from '../../lib/offline/connectivity'
+import {
+  listPatientsCache,
+  upsertPatientsCache,
+} from '../../lib/offline/patientsCacheService'
 
 export default function HistoricalDataEncoder() {
   const { user } = useAuth()
@@ -55,8 +61,26 @@ export default function HistoricalDataEncoder() {
   const loadLookups = async () => {
     setLoading(true)
     try {
+      if (!isOnline()) {
+        const cached = await listPatientsCache({ limit: 2000 })
+        setPatients(
+          cached.map((p) => ({
+            id: p.id,
+            patient_number: p.patient_number,
+            first_name: p.first_name,
+            last_name: p.last_name,
+            middle_name: p.middle_name,
+            name: p.name,
+          })),
+        )
+        setServices([])
+        setDoctors([])
+        setError('Offline — patient list from local cache. Services/doctors need a connection to encode.')
+        return
+      }
+
       const [patientsRes, servicesRes, doctorsRes] = await Promise.all([
-        supabase.from('patients').select('id, patient_number, first_name, last_name, middle_name').order('last_name'),
+        supabase.from('patients').select('id, patient_number, first_name, last_name, middle_name, name').order('last_name'),
         supabase.from('services').select('id, name, queue_prefix').eq('is_active', true).order('name'),
         supabase.from('profiles').select('id, first_name, last_name').eq('role', 'Doctor')
       ])
@@ -65,12 +89,33 @@ export default function HistoricalDataEncoder() {
       if (servicesRes.error) throw servicesRes.error
 
       setPatients(patientsRes.data || [])
+      void upsertPatientsCache(patientsRes.data || [])
       
       const allowedServices = ['Tuberculosis Treatment Services', 'Outpatient Consultation', 'Animal Bite (Anti-Rabies Vaccination)']
       setServices((servicesRes.data || []).filter(s => allowedServices.includes(s.name)))
       
       setDoctors(doctorsRes.data || [])
     } catch (err) {
+      // Network/API failure: fall back to cached patients so staff can still find IDs
+      try {
+        const cached = await listPatientsCache({ limit: 2000 })
+        if (cached.length) {
+          setPatients(
+            cached.map((p) => ({
+              id: p.id,
+              patient_number: p.patient_number,
+              first_name: p.first_name,
+              last_name: p.last_name,
+              middle_name: p.middle_name,
+              name: p.name,
+            })),
+          )
+          setError(`${err.message} — showing cached patients.`)
+          return
+        }
+      } catch {
+        /* ignore cache errors */
+      }
       setError(err.message)
     } finally {
       setLoading(false)
@@ -546,75 +591,60 @@ export default function HistoricalDataEncoder() {
 
       </div>
 
-      {/* Form Modal */}
       {showFormModal && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center bg-slate-900/50 backdrop-blur-sm p-4 pt-12 overflow-y-auto">
-          <div className="bg-white rounded-2xl shadow-xl max-w-5xl w-full max-h-[90vh] overflow-y-auto flex flex-col">
-            <div className="p-6 border-b border-slate-200 flex justify-between items-center sticky top-0 bg-white z-10">
-              <h2 className="text-xl font-bold text-indigo-900">2. Encode Service Details</h2>
-              <button onClick={() => setShowFormModal(false)} className="text-slate-400 hover:text-slate-600 transition-colors">
-                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-              </button>
-            </div>
-            
-            <div className="p-6 flex-1">
-              {isAnimalBite ? (
-                <AnimalBiteLegacyForm data={opdForm} onChange={setOpdForm} />
-              ) : isTb ? (
-                <TbLegacyForm data={opdForm} onChange={setOpdForm} />
-              ) : isOpd ? (
-                <OutpatientLegacyForm data={opdForm} onChange={setOpdForm} />
-              ) : workflowSteps.length > 0 ? (
-                <div className="space-y-8">
-                  {workflowSteps.map(step => (
-                    <div key={step.id} className="bg-slate-50 p-5 rounded-xl border border-slate-100">
-                      <div className="mb-4">
-                        <h3 className="font-semibold text-slate-900">Step {step.step_order}: {step.step_name}</h3>
-                        <p className="text-xs text-slate-500">Originally filled by: <span className="font-medium text-slate-700">{step.target_role}</span></p>
-                      </div>
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {formFields[step.id]?.length > 0 ? (
-                          formFields[step.id].map(field => (
-                            <div key={field.id}>
-                              <label className="field-label">
-                                {field.field_label} {field.is_required && '*'}
-                              </label>
-                              {renderField(field)}
-                            </div>
-                          ))
-                        ) : (
-                          <p className="text-sm text-slate-400 italic">No fields configured for this step.</p>
-                        )}
-                      </div>
-                    </div>
-                  ))}
+        <EncodeServiceFormModal
+          open={showFormModal}
+          onClose={() => setShowFormModal(false)}
+          title="2. Encode Service Details"
+          serviceKind={isAnimalBite ? 'animal_bite' : isTb ? 'tb' : isOpd ? 'outpatient' : null}
+          serviceName={selectedService?.name || ''}
+          formData={opdForm}
+          onFormChange={setOpdForm}
+          saving={loading}
+          onSave={() => void handleSubmit()}
+          saveLabel="Save Historical Record"
+        >
+          {isAnimalBite ? (
+            <AnimalBiteLegacyForm data={opdForm} onChange={setOpdForm} />
+          ) : isTb ? (
+            <TbLegacyForm data={opdForm} onChange={setOpdForm} />
+          ) : isOpd ? (
+            <OutpatientLegacyForm data={opdForm} onChange={setOpdForm} />
+          ) : workflowSteps.length > 0 ? (
+            <div className="space-y-8">
+              {workflowSteps.map((step) => (
+                <div key={step.id} className="rounded-xl border border-slate-100 bg-slate-50 p-5">
+                  <div className="mb-4">
+                    <h3 className="font-semibold text-slate-900">
+                      Step {step.step_order}: {step.step_name}
+                    </h3>
+                    <p className="text-xs text-slate-500">
+                      Originally filled by:{' '}
+                      <span className="font-medium text-slate-700">{step.target_role}</span>
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                    {formFields[step.id]?.length > 0 ? (
+                      formFields[step.id].map((field) => (
+                        <div key={field.id}>
+                          <label className="field-label">
+                            {field.field_label} {field.is_required && '*'}
+                          </label>
+                          {renderField(field)}
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-sm italic text-slate-400">No fields configured for this step.</p>
+                    )}
+                  </div>
                 </div>
-              ) : (
-                <p className="text-sm text-slate-500 italic">Loading form schema...</p>
-              )}
+              ))}
             </div>
-            
-            <div className="p-6 border-t border-slate-200 flex justify-end gap-3 sticky bottom-0 bg-white z-10">
-              <button 
-                type="button" 
-                onClick={() => setShowFormModal(false)}
-                className="secondary-btn"
-                disabled={loading}
-              >
-                Cancel
-              </button>
-              <button 
-                type="button" 
-                onClick={handleSubmit}
-                className="primary-btn px-8"
-                disabled={loading}
-              >
-                {loading ? 'Saving...' : 'Save Historical Record'}
-              </button>
-            </div>
-          </div>
-        </div>
+          ) : (
+            <p className="text-sm italic text-slate-500">Loading form schema...</p>
+          )}
+        </EncodeServiceFormModal>
       )}
     </div>
   )

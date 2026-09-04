@@ -17,7 +17,12 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->append(SecurityHeaders::class);
 
-        // Portal-specific session cookie BEFORE Sanctum starts the session.
+        // Same portal session cookie for /sanctum/csrf-cookie (web) and /api/* —
+        // otherwise XSRF token is issued for laravel_session but login uses ht_*_session.
+        $middleware->web(prepend: [
+            ConfigurePortalSessionCookie::class,
+        ]);
+
         $middleware->api(prepend: [
             ConfigurePortalSessionCookie::class,
             EnsureFrontendRequestsAreStateful::class,

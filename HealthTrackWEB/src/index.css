@@ -26,9 +26,62 @@ body {
   min-height: 100vh;
 }
 
-.auth-screen,
+.auth-screen {
+  @apply relative flex min-h-screen items-center justify-center overflow-hidden px-4 py-10;
+}
+
 .dashboard-screen {
   @apply flex min-h-screen items-center justify-center px-4 py-10;
+}
+
+.auth-screen::before {
+  content: '';
+  @apply pointer-events-none absolute -left-24 top-0 h-72 w-72 rounded-full bg-teal-400/15 blur-3xl;
+}
+
+.auth-screen::after {
+  content: '';
+  @apply pointer-events-none absolute -right-16 bottom-10 h-80 w-80 rounded-full bg-emerald-300/15 blur-3xl;
+}
+
+.auth-screen-inner {
+  @apply relative z-10 w-full max-w-md;
+}
+
+.auth-card-header {
+  @apply mb-6;
+}
+
+.auth-brand-row {
+  @apply mb-4 flex items-center gap-3;
+}
+
+.auth-brand-mark {
+  @apply flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-teal-600 to-emerald-700 text-white shadow-lg shadow-teal-900/20;
+}
+
+.auth-brand-mark svg {
+  @apply h-6 w-6;
+}
+
+.auth-form {
+  @apply space-y-4;
+}
+
+.auth-card .primary-btn {
+  @apply mt-1 w-full;
+}
+
+.auth-actions {
+  @apply flex flex-col gap-2 pt-1;
+}
+
+.auth-role-pills {
+  @apply mt-3 flex flex-wrap gap-1.5;
+}
+
+.auth-role-pill {
+  @apply inline-flex rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-semibold text-slate-600;
 }
 
 .app-shell {
@@ -403,7 +456,11 @@ body {
 
 .auth-card,
 .dashboard-card {
-  @apply w-full max-w-md rounded-3xl border border-slate-200/80 bg-white/90 p-8 shadow-xl shadow-slate-900/10 backdrop-blur;
+  @apply w-full max-w-md rounded-3xl border border-white/80 bg-white/95 p-7 shadow-[0_24px_60px_-28px_rgba(15,42,42,0.35)] backdrop-blur-xl sm:p-8;
+}
+
+.auth-card {
+  @apply ring-1 ring-teal-900/5;
 }
 
 .dashboard-card {
@@ -540,4 +597,163 @@ body {
 
 .stat-value {
   @apply mt-2 mb-0 text-sm font-semibold text-slate-900;
+}
+
+/* Account Manager (Alma) */
+.accounts-panel {
+  @apply rounded-3xl border border-teal-900/10 bg-white/90 p-5 shadow-sm shadow-teal-900/5 backdrop-blur sm:p-6;
+}
+
+.accounts-toolbar {
+  @apply flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between;
+}
+
+.accounts-kicker {
+  @apply m-0 text-[11px] font-semibold uppercase tracking-[0.16em] text-teal-700;
+}
+
+.accounts-heading {
+  @apply mt-1 mb-0 text-xl font-bold tracking-tight text-slate-900 sm:text-2xl;
+}
+
+.accounts-sub {
+  @apply mt-1.5 mb-0 max-w-2xl text-sm leading-relaxed text-slate-600;
+}
+
+.accounts-primary-btn {
+  @apply inline-flex items-center justify-center rounded-xl bg-teal-700 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-teal-800 disabled:opacity-60;
+}
+
+.accounts-ghost-btn {
+  @apply inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-teal-200 hover:bg-teal-50 hover:text-teal-800;
+}
+
+.accounts-search-card {
+  @apply rounded-2xl border border-slate-200/80 bg-gradient-to-br from-slate-50 via-white to-teal-50/40 p-4 sm:p-5;
+}
+
+.accounts-search-row {
+  @apply mb-3;
+}
+
+.accounts-search-field {
+  @apply relative flex items-center;
+}
+
+.accounts-search-icon {
+  @apply pointer-events-none absolute left-3.5 text-slate-400;
+}
+
+.accounts-search-input {
+  @apply w-full rounded-2xl border border-slate-200 bg-white py-3.5 pl-11 pr-20 text-sm text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-teal-400 focus:ring-4 focus:ring-teal-100;
+}
+
+.accounts-clear-btn {
+  @apply absolute right-2 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-500 transition hover:bg-slate-100 hover:text-slate-800;
+}
+
+.accounts-filter-row {
+  @apply flex flex-wrap gap-2;
+}
+
+.accounts-chip {
+  @apply inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:border-teal-200 hover:text-teal-800;
+}
+
+.accounts-chip-active {
+  @apply border-teal-600 bg-teal-700 text-white hover:border-teal-600 hover:text-white;
+}
+
+.accounts-chip-count {
+  @apply rounded-full bg-black/10 px-1.5 py-0.5 text-[10px] font-bold tabular-nums;
+}
+
+.accounts-chip-active .accounts-chip-count {
+  @apply bg-white/20;
+}
+
+.accounts-result-meta {
+  @apply mt-3 mb-0 text-xs text-slate-500;
+}
+
+.accounts-error {
+  @apply rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700;
+}
+
+.accounts-table-shell {
+  @apply overflow-hidden rounded-2xl border border-slate-200 bg-white;
+}
+
+.accounts-table-scroll {
+  @apply overflow-x-auto;
+}
+
+.accounts-table {
+  @apply min-w-[1100px] w-full border-collapse text-left text-sm;
+}
+
+.accounts-table thead th {
+  @apply sticky top-0 border-b border-slate-200 bg-slate-50/95 px-3 py-3 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 backdrop-blur;
+}
+
+.accounts-table tbody td {
+  @apply border-b border-slate-100 px-3 py-3 align-middle text-slate-700;
+}
+
+.accounts-table tbody tr:hover td {
+  @apply bg-teal-50/40;
+}
+
+.accounts-name {
+  @apply font-semibold text-slate-900;
+}
+
+.accounts-muted {
+  @apply text-slate-500;
+}
+
+.accounts-badge {
+  @apply inline-flex rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide;
+}
+
+.accounts-badge-staff {
+  @apply bg-teal-100 text-teal-800;
+}
+
+.accounts-badge-patient {
+  @apply bg-sky-100 text-sky-800;
+}
+
+.accounts-cred {
+  @apply flex items-center gap-1.5;
+}
+
+.accounts-password,
+.accounts-cred code {
+  @apply rounded-md bg-slate-100 px-2 py-1 font-mono text-[12px] text-slate-800;
+}
+
+.accounts-mini-btn {
+  @apply rounded-lg px-2 py-1 text-[11px] font-semibold text-teal-700 transition hover:bg-teal-50;
+}
+
+.accounts-icon-btn {
+  @apply inline-flex h-7 w-7 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-slate-800;
+}
+
+.accounts-reset-row {
+  @apply flex min-w-[240px] items-center gap-2;
+}
+
+.accounts-reset-input {
+  @apply w-full min-w-0 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none transition placeholder:text-slate-400 focus:border-teal-400 focus:ring-2 focus:ring-teal-100;
+}
+
+.accounts-reset-btn {
+  @apply shrink-0 rounded-xl bg-slate-900 px-3 py-2 text-xs font-semibold text-white transition hover:bg-slate-800 disabled:opacity-40;
+}
+
+.accounts-empty,
+.accounts-empty-cell {
+  @apply px-4 py-10 text-center text-sm text-slate-500;
 }

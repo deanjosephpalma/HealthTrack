@@ -1,4 +1,4 @@
-import { Navigate } from 'react-router-dom'
+import { Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/useAuth'
 
 function LoadingState() {
@@ -12,7 +12,8 @@ function LoadingState() {
 }
 
 export default function RoleProtectedRoute({ allowRoles, children }) {
-  const { user, role, loading, profileLoading } = useAuth()
+  const { user, role, loading, profileLoading, profile } = useAuth()
+  const location = useLocation()
 
   if (loading || profileLoading) {
     return <LoadingState />
@@ -24,6 +25,16 @@ export default function RoleProtectedRoute({ allowRoles, children }) {
 
   if (!role || !allowRoles.includes(role)) {
     return <Navigate to="/login" replace />
+  }
+
+  const managerName = (import.meta.env.VITE_ACCOUNT_MANAGER_NAME || 'Alma Divinagracia').trim().toLowerCase()
+  const managerEmail = (import.meta.env.VITE_ACCOUNT_MANAGER_EMAIL || '').trim().toLowerCase()
+  const isAccountManager =
+    (profile?.name || '').trim().toLowerCase() === managerName ||
+    (managerEmail && (profile?.email || user?.email || '').trim().toLowerCase() === managerEmail)
+
+  if (isAccountManager && location.pathname !== '/dashboard/accounts') {
+    return <Navigate to="/dashboard/accounts" replace />
   }
 
   return children

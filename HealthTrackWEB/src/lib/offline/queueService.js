@@ -1,6 +1,7 @@
 import { generateQueueNumber } from '../workflowEngine'
 import { staffOfflineDb, getMeta, setMeta, getOrCreateDeviceId, todayKey } from './db'
 import { isOnline } from './connectivity'
+import { compareByPriorityThenArrival } from '../patientPriority'
 
 function newId() {
   return crypto.randomUUID()
@@ -53,7 +54,7 @@ export async function listLocalQueue() {
   const rows = await staffOfflineDb.queue
     .filter((row) => !row.archived_at)
     .toArray()
-  rows.sort((a, b) => String(a.created_at).localeCompare(String(b.created_at)))
+  rows.sort(compareByPriorityThenArrival)
   return rows
 }
 
@@ -72,8 +73,11 @@ export async function createWalkIn({
   serviceName = '',
   patientId = null,
   serviceId = null,
+  serviceRequestId = null,
   assignedStaffId = null,
   counterRoom = 'Counter 1',
+  isPriority = false,
+  priorityLabels = [],
 }) {
   const name = (patientName ?? '').toString().trim()
   if (!name) throw new Error('Patient name is required.')
@@ -84,6 +88,20 @@ export async function createWalkIn({
   ).length
   const estimatedWait = Math.max(5, waitingLocal * 8)
 
+  const labels = Array.isArray(priorityLabels)
+    ? priorityLabels.filter(Boolean)
+    : String(priorityLabels || '')
+        .split(/[,/|]/)
+        .map((x) => x.trim())
+        .filter(Boolean)
+  const priority = Boolean(isPriority || labels.length > 0)
+  const priorityLabel = labels.join(' / ')
+  const baseReason = reason || 'Walk-in'
+  const reasonWithPriority =
+    priority && priorityLabel && !/\[PRIORITY/i.test(baseReason)
+      ? `[PRIORITY: ${priorityLabel}] ${baseReason}`
+      : baseReason
+
   const id = newId()
   const now = new Date().toISOString()
   const row = {
@@ -91,21 +109,24 @@ export async function createWalkIn({
     queue_number: raw,
     queue_label: label,
     patient_name: name,
-    reason: reason || 'Walk-in',
+    reason: reasonWithPriority,
     status: 'waiting',
     appointment_id: null,
     patient_id: patientId,
     phone_number: phoneNumber || null,
     service_code: serviceCode,
     service_id: serviceId,
+    service_request_id: serviceRequestId,
     counter_room: counterRoom,
     estimated_waiting_time: estimatedWait,
+    is_priority: priority,
+    priority_labels: priorityLabel || null,
     archived_at: null,
     created_at: now,
     updated_at: now,
     synced: 0,
     pending_create: 1,
-    source: 'walk_in',
+    source: serviceRequestId ? 'staff_encode' : 'walk_in',
   }
 
   await staffOfflineDb.queue.put(row)
@@ -113,6 +134,7 @@ export async function createWalkIn({
     row,
     serviceName,
     assignedStaffId,
+    serviceRequestId,
   })
 
   return { row, label }

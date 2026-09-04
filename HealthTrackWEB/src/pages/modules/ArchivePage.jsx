@@ -233,7 +233,7 @@ export default function ArchivePage() {
           className={tab === 'appointments' ? 'secondary-btn' : 'secondary-btn bg-slate-200 text-slate-900 hover:bg-slate-300'}
           onClick={() => setTab('appointments')}
         >
-          Appointments ({counts.appointments})
+          Legacy Visits ({counts.appointments})
         </button>
         <button
           type="button"
@@ -301,7 +301,7 @@ export default function ArchivePage() {
 
           {tab === 'appointments' ? (
             appointments.length === 0 ? (
-              <ModuleEmptyState title="No archived appointments" description="Archived appointment items will appear here." />
+              <ModuleEmptyState title="No archived legacy visits" description="Archived historical visit rows will appear here." />
             ) : (
               appointments.map((item) => (
                 <article key={item.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">

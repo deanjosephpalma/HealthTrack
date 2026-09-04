@@ -19,7 +19,14 @@ Auth: staff Sanctum session (`X-HealthTrack-Portal: staff`).
 ## Geographic Rule
 
 Only Pila, Laguna residence data (`municipality` is null / Pila / n/a).
-Uses `patient_records.diagnosis` (not a `disease_diagnosis` column).
+Uses `patient_records.diagnosis` from **doctor-completed** consults (ICD-10 morbidity list /
+`OTHER: …`). Permit/certificate / nurse-only / “Essentially Normal” rows are excluded.
+
+**Also on the Command Center map (separate source):** Reported Cases from `estimated_cases`.
+
+**Excluded from clinical counts:** nurse-desk permit/certificate visits, medical certificate
+issuance rows (`medcert_*`), and any record without `doctor_completed_at`.
+Only doctor ICD-10 consults (OPD, TB, Animal Bite, etc.) plus Reported Cases feed the heat map.
 
 ## Expected JSON Response
 

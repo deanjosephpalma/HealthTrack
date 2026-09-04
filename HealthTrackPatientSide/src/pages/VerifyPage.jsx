@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/useAuth'
 import { sendVerificationCode, verifyEmailCode } from '../lib/sendVerificationCode'
@@ -65,6 +65,7 @@ export default function VerifyPage() {
   const [isOtpMode, setIsOtpMode] = useState(false)
   const [sending, setSending] = useState(false)
   const [verifying, setVerifying] = useState(false)
+  const autoSentRef = useRef(false)
 
   useEffect(() => {
     if (userId && email) {
@@ -86,7 +87,7 @@ export default function VerifyPage() {
   function finishVerification() {
     sessionStorage.removeItem(STORAGE_KEY)
     void supabase.auth.signOut().finally(() => {
-      navigate('/login', { replace: true, state: { verified: true } })
+      navigate('/login', { replace: true, state: { verified: true, email } })
     })
   }
 
@@ -112,6 +113,14 @@ export default function VerifyPage() {
 
     setSending(false)
   }
+
+  // Auto-send confirmation code once after registration / login redirect.
+  useEffect(() => {
+    if (!userId || !email || autoSentRef.current) return
+    autoSentRef.current = true
+    void sendCode()
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- one-shot when pending identity is ready
+  }, [userId, email])
 
   async function verifyCode(event) {
     event?.preventDefault?.()

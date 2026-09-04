@@ -5,6 +5,8 @@ import PatientDashboardLayout from './components/PatientDashboardLayout'
 import LoginPage from './pages/LoginPage'
 import RegisterPage from './pages/RegisterPage'
 import VerifyPage from './pages/VerifyPage'
+import AuthCallbackPage from './pages/AuthCallbackPage'
+import ResetPasswordPage from './pages/ResetPasswordPage'
 import LandingPage from './pages/LandingPage'
 import DashboardPage from './pages/DashboardPage'
 import QueueTicketPage from './pages/modules/QueueTicketPage'
@@ -46,6 +48,8 @@ function PublicRoutes() {
         <Route path="/login" element={<AnimatedPage><LoginPage /></AnimatedPage>} />
         <Route path="/register" element={<AnimatedPage><RegisterPage /></AnimatedPage>} />
         <Route path="/verify" element={<AnimatedPage><VerifyPage /></AnimatedPage>} />
+        <Route path="/auth/callback" element={<AnimatedPage><AuthCallbackPage /></AnimatedPage>} />
+        <Route path="/reset-password" element={<AnimatedPage><ResetPasswordPage /></AnimatedPage>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </AnimatePresence>

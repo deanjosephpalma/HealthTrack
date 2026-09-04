@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../context/useAuth'
 import { supabase } from '../../lib/supabaseClient'
+import CancelEncodeConfirmModal from '../../components/CancelEncodeConfirmModal'
 import ModuleEmptyState from '../../components/ModuleEmptyState'
 import { fetchIssuedDocForServiceRequest } from '../../lib/issueDocuments'
 import {
@@ -48,6 +49,8 @@ function statusLabel(raw) {
   if (v === 'completed' || v === 'done') return 'Completed'
   if (v === 'in queue' || v === 'in_queue') return 'In Queue'
   if (v === 'in_progress' || v === 'for doctor' || v === 'doctor_in_progress') return 'In Progress'
+  if (v === 'awaiting encoding') return 'Awaiting Encoding'
+  if (v === 'encoded') return 'Encoded'
   if (v === 'ready') return 'Ready'
   if (v === 'draft') return 'Not started'
   if (v === 'cancelled') return 'Cancelled'
@@ -61,18 +64,22 @@ function statusClasses(raw) {
   if (v === 'completed' || v === 'done') return 'bg-emerald-50 text-emerald-700'
   if (v === 'in queue' || v === 'in_queue') return 'bg-teal-50 text-teal-800'
   if (v === 'in_progress' || v === 'for doctor' || v === 'doctor_in_progress') return 'bg-blue-50 text-blue-700'
+  if (v === 'awaiting encoding') return 'bg-amber-50 text-amber-800'
+  if (v === 'encoded') return 'bg-teal-50 text-teal-800'
   if (v === 'ready') return 'bg-sky-50 text-sky-800'
   if (v === 'draft') return 'bg-amber-50 text-amber-800'
   if (v === 'cancelled' || v === 'rejected') return 'bg-rose-50 text-rose-700'
   return 'bg-slate-100 text-slate-600'
 }
 
-/** Unused enrollments the patient can remove (never queued / not in progress). */
+/** Unused / pre-encode enrollments the patient can cancel. */
 function canDeleteRequest(req) {
   const v = resolveStatus(req).toLowerCase()
-  if (['completed', 'done', 'in_progress', 'for doctor', 'doctor_in_progress'].includes(v)) return false
+  if (['completed', 'done', 'in_progress', 'for doctor', 'doctor_in_progress', 'encoded'].includes(v)) return false
   if (['in queue', 'in_queue'].includes(v) || req.queue_id) return false
-  return ['draft', 'ready', 'pending', 'active', 'waiting', 'cancelled', 'rejected'].includes(v) || !v
+  return (
+    ['draft', 'ready', 'pending', 'active', 'waiting', 'awaiting encoding', 'cancelled', 'rejected'].includes(v) || !v
+  )
 }
 
 function QueuePositionBanner({ patientAuthId }) {
@@ -193,6 +200,7 @@ export default function ServiceStatusPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [deletingId, setDeletingId] = useState(null)
+  const [pendingDelete, setPendingDelete] = useState(null)
   const [info, setInfo] = useState('')
   const [issuedByRequestId, setIssuedByRequestId] = useState({})
 
@@ -276,26 +284,34 @@ export default function ServiceStatusPage() {
   }, [load])
 
   const handleDelete = async (req) => {
+    if (!req?.id || !user) return
     const name = req.service_types?.name || 'this service'
-    const confirmed = window.confirm(
-      `Remove "${name}" from your list?\n\nThis unused service request will be cancelled. You can select the service again later if you need it.`,
-    )
-    if (!confirmed) return
+    const isAwaitingEncoding = resolveStatus(req).toLowerCase() === 'awaiting encoding'
 
     setDeletingId(req.id)
     setError('')
     setInfo('')
     try {
-      const { error: updateError } = await supabase
+      let updateQuery = supabase
         .from('service_requests')
         .update({ status: 'Cancelled', updated_at: new Date().toISOString() })
         .eq('id', req.id)
         .eq('patient_auth_id', user.id)
 
-      if (updateError) throw new Error(updateError.message)
+      if (isAwaitingEncoding) {
+        updateQuery = updateQuery.eq('status', 'Awaiting Encoding')
+      }
 
+      const { data: updated, error: updateError } = await updateQuery.select('id').maybeSingle()
+
+      if (updateError) throw new Error(updateError.message)
+      if (isAwaitingEncoding && !updated) {
+        throw new Error('Could not cancel — encoding may have already started. Refresh and try again.')
+      }
+
+      setPendingDelete(null)
       setRequests((prev) => prev.filter((r) => r.id !== req.id))
-      setInfo(`Removed ${name}.`)
+      setInfo(isAwaitingEncoding ? `Cancelled encode line for ${name}.` : `Removed ${name}.`)
       if (typeof refreshEnrollment === 'function') {
         await refreshEnrollment(user.id)
       }
@@ -351,9 +367,13 @@ export default function ServiceStatusPage() {
                         type="button"
                         className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-100 disabled:opacity-50"
                         disabled={deletingId === req.id}
-                        onClick={() => void handleDelete(req)}
+                        onClick={() => setPendingDelete(req)}
                       >
-                        {deletingId === req.id ? 'Removing…' : 'Remove'}
+                        {deletingId === req.id
+                          ? 'Cancelling…'
+                          : resolveStatus(req).toLowerCase() === 'awaiting encoding'
+                            ? 'Cancel encode line'
+                            : 'Remove'}
                       </button>
                     ) : null}
                   </div>
@@ -403,7 +423,9 @@ export default function ServiceStatusPage() {
                   </div>
                 ) : showDelete ? (
                   <p className="text-xs text-slate-500">
-                    This service was selected but not used. You can remove it from your list.
+                    {resolveStatus(req).toLowerCase() === 'awaiting encoding'
+                      ? 'You are waiting for BHW / Volunteer encoding. You can cancel this line before encoding starts.'
+                      : 'This service was selected but not used. You can remove it from your list.'}
                   </p>
                 ) : null}
 
@@ -442,6 +464,23 @@ export default function ServiceStatusPage() {
           })}
         </div>
       )}
+
+      <CancelEncodeConfirmModal
+        open={Boolean(pendingDelete)}
+        serviceName={pendingDelete?.service_types?.name || 'this service'}
+        variant={
+          pendingDelete && resolveStatus(pendingDelete).toLowerCase() === 'awaiting encoding'
+            ? 'encode'
+            : 'unused'
+        }
+        busy={Boolean(deletingId)}
+        onCancel={() => {
+          if (!deletingId) setPendingDelete(null)
+        }}
+        onConfirm={() => {
+          if (pendingDelete) void handleDelete(pendingDelete)
+        }}
+      />
     </section>
   )
 }
