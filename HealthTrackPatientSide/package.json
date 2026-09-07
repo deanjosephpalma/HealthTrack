@@ -1,5 +1,4 @@
 {
-<<<<<<< HEAD
   "name": "healthtrack-patient",
   "private": true,
   "version": "0.0.0",
@@ -38,14 +37,5 @@
     "globals": "^17.4.0",
     "tailwindcss": "^4.2.2",
     "vite": "^8.0.4"
-=======
-  "name": "healthtrack-monorepo",
-  "private": true,
-  "scripts": {
-    "dev": "npm --prefix HealthTrackWEB run dev",
-    "build:web": "npm --prefix HealthTrackWEB run build",
-    "lint:web": "npm --prefix HealthTrackWEB run lint",
-    "preview:web": "npm --prefix HealthTrackWEB run preview"
->>>>>>> e0c20704d9b0654d7dfb190e0a6d543f0cd167f5
   }
 }

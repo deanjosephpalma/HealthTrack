@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # Logs
 logs
 *.log
@@ -12,65 +11,19 @@ node_modules
 dist
 dist-ssr
 *.local
-=======
-# HealthTrack monorepo
-.DS_Store
-Thumbs.db
-*.log
-npm-debug.log*
-yarn-debug.log*
-pnpm-debug.log*
-
-# Dependencies & builds
-node_modules/
-dist/
-dist-ssr/
-**/.vite/
-**/public/build/
-**/public/hot/
->>>>>>> e0c20704d9b0654d7dfb190e0a6d543f0cd167f5
 
 # Secrets — never commit
 .env
 .env.*
 !.env.example
-<<<<<<< HEAD
 
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
 .idea
 .DS_Store
-=======
-!**/.env.example
-!.env.seed.example
-!**/.env.seed.example
-
-# Laravel
-HealthTrackAPI/vendor/
-HealthTrackAPI/storage/*.key
-HealthTrackAPI/storage/pail
-HealthTrackAPI/storage/logs/*.log
-HealthTrackAPI/bootstrap/cache/*.php
-.phpunit.result.cache
-auth.json
-
-# Editor / IDE
-.idea/
-.vscode/*
-!.vscode/extensions.json
->>>>>>> e0c20704d9b0654d7dfb190e0a6d543f0cd167f5
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
-<<<<<<< HEAD
-=======
-
-# Local tooling
-Homestead.json
-Homestead.yaml
-**/.git.*.bak
-**/.*git*.bak
->>>>>>> e0c20704d9b0654d7dfb190e0a6d543f0cd167f5
