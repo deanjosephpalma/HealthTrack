@@ -1,6 +1,6 @@
 import { PORTAL } from './supabaseClient'
 
-const API_BASE = (import.meta.env.VITE_API_BASE_URL || '/api').replace(/\/$/, '')
+const API_BASE = (import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || '/api').replace(/\/$/, '')
 
 function readCookie(name) {
   const match = document.cookie.match(new RegExp('(?:^|; )' + name.replace(/([.$?*|{}()[\]\\/+^])/g, '\\$1') + '=([^;]*)'))
@@ -16,7 +16,10 @@ export async function ensureCsrf(portal = PORTAL) {
     Accept: 'application/json',
     'X-HealthTrack-Portal': portal,
   }
-  const res = await fetch('/sanctum/csrf-cookie', {
+  const csrfUrl = API_BASE === '/api'
+    ? '/sanctum/csrf-cookie'
+    : `${API_BASE.replace(/\/api$/, '')}/sanctum/csrf-cookie`
+  const res = await fetch(csrfUrl, {
     method: 'GET',
     credentials: 'include',
     headers: portalHeaders,
