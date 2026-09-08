@@ -1194,6 +1194,9 @@ export default function PatientsPage() {
     setShowForm(true)
     setAiDiagnosis('')
     setFormData(getFormDataForRecord(record))
+    window.requestAnimationFrame(() => {
+      if (formScrollRef.current) formScrollRef.current.scrollTop = 0
+    })
 
     // Hydrate full clinical row for the form (list uses a projected select).
     const { data: full, error: fullError } = await supabase
@@ -1204,6 +1207,9 @@ export default function PatientsPage() {
     if (!fullError && full) {
       setRecords((prev) => prev.map((row) => (row.id === full.id ? full : row)))
       setFormData(getFormDataForRecord(full))
+      window.requestAnimationFrame(() => {
+        if (formScrollRef.current) formScrollRef.current.scrollTop = 0
+      })
     }
   }, [getFormDataForRecord])
 
