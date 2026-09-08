@@ -1,0 +1,12 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://healthtrack-api-694d.onrender.com/api/:path*"
+    },
+    {
+      "source": "/sanctum/:path*",
+      "destination": "https://healthtrack-api-694d.onrender.com/sanctum/:path*"
+    }
+  ]
+}
