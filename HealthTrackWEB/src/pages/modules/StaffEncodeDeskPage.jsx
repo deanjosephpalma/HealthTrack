@@ -106,7 +106,6 @@ const REQUIRED_ENCODE_FIELDS = {
     ['waist', 'Waist (cm)'],
     ['hip', 'Hip (cm)'],
     ['barangay', 'Barangay'],
-    ['diagnosis', 'Diagnosis'],
   ],
   animal_bite: [
     ['first_name', 'First name'],
@@ -129,8 +128,6 @@ const REQUIRED_ENCODE_FIELDS = {
     ['sex', 'Sex'],
     ['permanent_address', 'Permanent address'],
     ['barangay', 'Barangay'],
-    ['tb_diagnosis', 'TB diagnosis'],
-    ['tb_date_of_diagnosis', 'TB date of diagnosis'],
     ['tb_case_number', 'TB case number'],
     ['tb_bacteriological_status', 'TB bacteriological status'],
     ['tb_anatomical_site', 'TB anatomical site'],
