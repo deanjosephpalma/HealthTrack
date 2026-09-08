@@ -29,7 +29,11 @@ services:
       - key: SANCTUM_STATEFUL_DOMAINS
         sync: false
       - key: SESSION_DRIVER
-        value: database
+        value: file
+      - key: CACHE_STORE
+        value: file
+      - key: QUEUE_CONNECTION
+        value: sync
       - key: SESSION_SECURE_COOKIE
         value: "true"
       - key: SESSION_SAME_SITE
