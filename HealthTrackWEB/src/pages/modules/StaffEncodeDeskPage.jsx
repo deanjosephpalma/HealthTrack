@@ -88,6 +88,99 @@ function pickIntakeRootFields(source = {}) {
   return out
 }
 
+const REQUIRED_ENCODE_FIELDS = {
+  outpatient: [
+    ['first_name', 'First name'],
+    ['last_name', 'Last name'],
+    ['birthdate', 'Birthdate'],
+    ['age', 'Age'],
+    ['sex', 'Sex'],
+    ['date_of_consultation', 'Date of consultation'],
+    ['barangay', 'Barangay'],
+    ['diagnosis', 'Diagnosis'],
+  ],
+  animal_bite: [
+    ['first_name', 'First name'],
+    ['last_name', 'Last name'],
+    ['barangay', 'Barangay'],
+    ['age', 'Age'],
+    ['sex', 'Sex'],
+    ['date_of_consultation', 'Date of consultation'],
+    ['bite_place', 'Bite place'],
+    ['animal_type', 'Animal type'],
+    ['bite_type', 'Bite type'],
+    ['bite_site', 'Bite site'],
+  ],
+  tb: [
+    ['diagnosing_facility', 'Diagnosing facility'],
+    ['first_name', 'First name'],
+    ['last_name', 'Last name'],
+    ['birthdate', 'Birthdate'],
+    ['age', 'Age'],
+    ['sex', 'Sex'],
+    ['permanent_address', 'Permanent address'],
+    ['barangay', 'Barangay'],
+    ['tb_diagnosis', 'TB diagnosis'],
+    ['tb_date_of_diagnosis', 'TB date of diagnosis'],
+    ['tb_case_number', 'TB case number'],
+    ['tb_bacteriological_status', 'TB bacteriological status'],
+    ['tb_anatomical_site', 'TB anatomical site'],
+    ['tb_drug_resistance', 'TB drug resistance'],
+    ['tb_registration_group', 'TB registration group'],
+  ],
+  health_card_issuance: [
+    ['handler_type', 'Handler type'],
+    ['applicant_name', 'Applicant name'],
+    ['position_or_work', 'Occupation / work'],
+    ['applicant_age', 'Applicant age'],
+    ['applicant_sex', 'Applicant sex'],
+    ['establishment_name', 'Establishment name'],
+    ['establishment_address', 'Establishment address'],
+    ['applicant_contact', 'Applicant contact'],
+  ],
+  sanitary_permit_issuance: [
+    ['establishment_name', 'Establishment name'],
+    ['establishment_type', 'Establishment type'],
+    ['establishment_address', 'Establishment address'],
+    ['owner_name', 'Owner name'],
+    ['owner_contact', 'Owner contact'],
+    ['application_type', 'Application type'],
+  ],
+  exhumation_cremation_transfer_permit: [
+    ['permit_type', 'Permit type'],
+    ['deceased_name', 'Deceased name'],
+    ['date_of_death', 'Date of death'],
+    ['place_of_death', 'Place of death'],
+    ['cause_of_death', 'Cause of death'],
+    ['cemetery_or_destination', 'Cemetery / destination'],
+    ['requester_name', 'Requester name'],
+    ['requester_relationship', 'Requester relationship'],
+    ['requester_contact', 'Requester contact'],
+    ['requester_address', 'Requester address'],
+    ['documents_ready', 'Death certificate status'],
+  ],
+  review_death_certificate: [
+    ['deceased_name', 'Deceased name'],
+    ['date_of_death', 'Date of death'],
+    ['place_of_death', 'Place of death'],
+    ['cause_of_death', 'Cause of death'],
+    ['requester_name', 'Requester name'],
+    ['requester_relationship', 'Requester relationship'],
+    ['requester_contact', 'Requester contact'],
+    ['review_reason', 'Reason for review'],
+    ['purpose', 'Review purpose'],
+    ['has_death_certificate', 'Death certificate status'],
+  ],
+}
+
+function findMissingEncodeField(snapshot, key) {
+  const fields = REQUIRED_ENCODE_FIELDS[key] || REQUIRED_ENCODE_FIELDS.outpatient
+  return fields.find(([name]) => {
+    const value = snapshot?.[name]
+    return value === undefined || value === null || String(value).trim() === ''
+  })
+}
+
 function formatWaitAge(iso) {
   if (!iso) return { label: '', minutes: 0, stuck: false }
   const then = Date.parse(iso)
@@ -408,6 +501,12 @@ export default function StaffEncodeDeskPage() {
   const handleSaveEncode = async () => {
     if (!selected) return
     const snapshot = formDataRef.current
+    const missingField = findMissingEncodeField(snapshot, useOfficialForm ? charterKey : serviceKind)
+    if (missingField) {
+      setError(`Required field missing: ${missingField[1]}. Please complete the form before saving.`)
+      setMessage('')
+      return
+    }
     setSaving(true)
     setError('')
     setMessage('')
