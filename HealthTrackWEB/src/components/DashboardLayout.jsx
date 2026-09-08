@@ -118,6 +118,13 @@ export default function DashboardLayout() {
   const isHeatMapRoute = location.pathname.startsWith('/dashboard/heat-map')
   const isDashboardHome = location.pathname === '/dashboard'
   const pageMeta = PAGE_COPY[location.pathname] || null
+  const staffName = profile?.name || user?.email || 'Signed in'
+  const staffInitial = staffName.trim().charAt(0).toUpperCase() || 'S'
+  const todayLabel = new Intl.DateTimeFormat('en-PH', {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+  }).format(new Date())
 
   useEffect(() => {
     if (mobileNavOpen) setMobileNavOpen(false)
@@ -170,7 +177,7 @@ export default function DashboardLayout() {
 
       <aside className={`app-sidebar ${mobileNavOpen ? 'app-sidebar-open' : ''}`}>
         <div className="app-sidebar-inner">
-          <div>
+          <div className="sidebar-brand">
             <p className="chip">HealthTrack · RHU Pila</p>
             <h2 className="sidebar-title">Staff Console</h2>
             <p className="sidebar-subtitle">
@@ -204,9 +211,16 @@ export default function DashboardLayout() {
             })}
           </nav>
 
-          <button className="app-sidebar-logout" type="button" onClick={handleLogout}>
-            Sign out
-          </button>
+          <div className="sidebar-account">
+            <span className="sidebar-avatar" aria-hidden="true">{staffInitial}</span>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-bold text-slate-800">{staffName}</p>
+              <p className="mt-0.5 text-xs font-medium text-slate-500">{role || 'Staff'} · Online</p>
+            </div>
+            <button className="app-sidebar-logout" type="button" onClick={handleLogout} aria-label="Sign out" title="Sign out">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4" aria-hidden="true"><path d="M10 17l5-5-5-5M15 12H3M21 19V5a2 2 0 00-2-2h-6" /></svg>
+            </button>
+          </div>
         </div>
       </aside>
 
@@ -217,6 +231,10 @@ export default function DashboardLayout() {
               <p className="app-header-kicker">{pageMeta.kicker}</p>
               <h1 className="dashboard-title mt-1">{pageMeta.title}</h1>
               <p className="dashboard-subtitle mt-1">{pageMeta.subtitle}</p>
+            </div>
+            <div className="app-header-meta" aria-label="System status">
+              <span className="app-header-status"><i /> System online</span>
+              <span className="app-header-date">{todayLabel}</span>
             </div>
           </header>
         ) : null}
