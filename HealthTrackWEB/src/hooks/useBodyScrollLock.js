@@ -26,7 +26,6 @@ export default function useBodyScrollLock(locked) {
     }
 
     scrollContainers.forEach((container) => {
-      if (container.matches('.app-sidebar-inner')) container.scrollTop = 0
       container.addEventListener('wheel', preventBackgroundScroll, { passive: false })
       container.addEventListener('touchmove', preventBackgroundScroll, { passive: false })
       container.addEventListener('scroll', restoreContainerScroll)

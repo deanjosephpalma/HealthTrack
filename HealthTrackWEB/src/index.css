@@ -216,7 +216,7 @@ textarea {
 }
 
 .app-sidebar {
-  @apply fixed inset-y-0 left-0 z-50 w-[min(288px,88vw)] -translate-x-full rounded-none border-r border-white/10 bg-[#111d2b] text-white shadow-2xl backdrop-blur-xl transition-transform duration-200 lg:static lg:z-auto lg:w-auto lg:translate-x-0 lg:rounded-[1.25rem] lg:border lg:border-white/10 lg:shadow-[0_22px_60px_-28px_rgba(17,29,43,0.65)];
+  @apply fixed inset-y-0 left-0 z-50 w-[min(288px,88vw)] -translate-x-full rounded-none border-r border-white/10 bg-[#111d2b] text-white shadow-2xl backdrop-blur-xl transition-transform duration-200 lg:sticky lg:top-5 lg:z-auto lg:h-[calc(100dvh-2.5rem)] lg:w-auto lg:self-start lg:translate-x-0 lg:rounded-[1.25rem] lg:border lg:border-white/10 lg:shadow-[0_22px_60px_-28px_rgba(17,29,43,0.65)];
 }
 
 .app-sidebar-open {
@@ -224,7 +224,7 @@ textarea {
 }
 
 .app-sidebar-inner {
-  @apply flex h-full min-h-0 flex-col p-4 sm:p-5 lg:sticky lg:top-5 lg:max-h-[calc(100vh-2.5rem)] lg:overflow-auto;
+  @apply flex h-full min-h-0 flex-col overflow-y-auto p-4 sm:p-5;
 }
 
 .app-sidebar-logout {

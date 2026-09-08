@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import ModuleEmptyState from '../../components/ModuleEmptyState'
 import { logAuditEvent, supabase } from '../../lib/supabaseClient'
@@ -192,6 +192,7 @@ export default function PatientsPage() {
   const [error, setError] = useState('')
   const [searchQuery, setSearchQuery] = useState(() => (location.state?.searchQuery ?? '').toString())
   const [showForm, setShowForm] = useState(false)
+  const formScrollRef = useRef(null)
   const [formMode, setFormMode] = useState('create')
   const [editingRecordId, setEditingRecordId] = useState(null)
   const [formLoading, setFormLoading] = useState(false)
@@ -213,6 +214,14 @@ export default function PatientsPage() {
   const [loadingMore, setLoadingMore] = useState(false)
 
   useBodyScrollLock(showForm || expandedRecordId !== null)
+
+  useEffect(() => {
+    if (!showForm) return undefined
+    const frame = window.requestAnimationFrame(() => {
+      if (formScrollRef.current) formScrollRef.current.scrollTop = 0
+    })
+    return () => window.cancelAnimationFrame(frame)
+  }, [showForm, editingRecordId])
 
   const fetchPatientPage = useCallback(async (from = 0) => {
     if (!isOnline()) {
@@ -1171,6 +1180,7 @@ export default function PatientsPage() {
     setFormError('')
     setFormMode('edit')
     setEditingRecordId(record.id)
+    setExpandedRecordId(null)
     setShowForm(true)
     setAiDiagnosis('')
     setFormData(getFormDataForRecord(record))
@@ -1556,7 +1566,7 @@ export default function PatientsPage() {
             </div>
             
             <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
-              <div className="min-h-0 flex-1 overflow-y-auto p-6">
+              <div ref={formScrollRef} className="min-h-0 flex-1 overflow-y-auto p-6">
                 {isDoctor ? (
                   <div className="space-y-4">
                     {editingRecord ? (
@@ -1819,15 +1829,15 @@ export default function PatientsPage() {
 
                     {expandedRecordId === latestRecord.id ? (
                       <ModalPortal>
-                        <div className="modal-overlay z-50 flex items-start justify-center overflow-hidden bg-slate-900/50 p-4 sm:items-center" role="dialog" aria-modal="true">
-                        <div className="flex max-h-[calc(100vh-2rem)] w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-white shadow-xl">
+                        <div className="modal-overlay z-50 flex items-start justify-center overflow-y-auto bg-slate-900/50 p-4 sm:items-center" role="dialog" aria-modal="true">
+                        <div className="flex h-[calc(100dvh-2rem)] min-h-0 w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-white shadow-xl">
                           <div className="p-6 border-b border-slate-200 flex justify-between items-center sticky top-0 bg-white z-10">
                             <h3 className="text-xl font-bold text-slate-900">Patient Record Details</h3>
                             <button onClick={() => toggleViewRecord(latestRecord.id)} className="text-slate-400 hover:text-slate-600 transition-colors">
                               <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                             </button>
                           </div>
-                          <div className="flex-1 overflow-y-auto p-6">
+                          <div className="min-h-0 flex-1 overflow-y-auto p-6">
                             {renderRecordDetails(latestRecord)}
                           </div>
                         </div>
@@ -1917,15 +1927,15 @@ export default function PatientsPage() {
 
                         {expandedRecordId === record.id ? (
                           <ModalPortal>
-                            <div className="modal-overlay z-50 flex items-start justify-center overflow-hidden bg-slate-900/50 p-4 sm:items-center" role="dialog" aria-modal="true">
-                            <div className="flex max-h-[calc(100vh-2rem)] w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-white shadow-xl">
+                            <div className="modal-overlay z-50 flex items-start justify-center overflow-y-auto bg-slate-900/50 p-4 sm:items-center" role="dialog" aria-modal="true">
+                            <div className="flex h-[calc(100dvh-2rem)] min-h-0 w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-white shadow-xl">
                               <div className="p-6 border-b border-slate-200 flex justify-between items-center sticky top-0 bg-white z-10">
                                 <h3 className="text-xl font-bold text-slate-900">Patient Record Details</h3>
                                 <button onClick={() => toggleViewRecord(record.id)} className="text-slate-400 hover:text-slate-600 transition-colors">
                                   <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                                 </button>
                               </div>
-                              <div className="flex-1 overflow-y-auto p-6">
+                              <div className="min-h-0 flex-1 overflow-y-auto p-6">
                                 {renderRecordDetails(record)}
                               </div>
                             </div>
