@@ -184,10 +184,20 @@ const REQUIRED_ENCODE_FIELDS = {
 
 function findMissingEncodeField(snapshot, key) {
   const fields = REQUIRED_ENCODE_FIELDS[key] || REQUIRED_ENCODE_FIELDS.outpatient
-  return fields.find(([name]) => {
+  const missing = fields.find(([name]) => {
     const value = snapshot?.[name]
     return value === undefined || value === null || String(value).trim() === ''
   })
+  if (missing) return missing
+
+  if (key === 'tb' && snapshot?.tb_anatomical_site === 'Extra-pulmonary') {
+    const value = snapshot?.tb_extra_pulmonary_site
+    if (value === undefined || value === null || String(value).trim() === '') {
+      return ['tb_extra_pulmonary_site', 'Extra-pulmonary site']
+    }
+  }
+
+  return null
 }
 
 function formatWaitAge(iso) {
