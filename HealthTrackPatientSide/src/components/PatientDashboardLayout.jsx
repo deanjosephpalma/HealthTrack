@@ -90,6 +90,7 @@ function BellIcon({ className }) {
 }
 
 function SidebarContent({ patientName, onLogout, onNavigate }) {
+  const patientInitial = patientName?.trim().charAt(0).toUpperCase() || 'P'
   return (
     <div className="flex h-full flex-col">
       <div className="sidebar-brand">
@@ -123,9 +124,20 @@ function SidebarContent({ patientName, onLogout, onNavigate }) {
       </nav>
 
       <div className="mt-auto pt-4">
-        <button className="logout-btn" type="button" onClick={onLogout}>
-          Sign out
-        </button>
+        <div className="patient-sidebar-account">
+          <span className="patient-sidebar-avatar" aria-hidden="true">{patientInitial}</span>
+          <span className="min-w-0 flex-1">
+            <strong>{patientName || 'Patient account'}</strong>
+            <small><i aria-hidden="true" />Securely signed in</small>
+          </span>
+          <button className="patient-sidebar-signout" type="button" onClick={onLogout} aria-label="Sign out">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+              <path d="M10 17l5-5-5-5" />
+              <path d="M15 12H3" />
+              <path d="M21 19V5a2 2 0 00-2-2h-6" />
+            </svg>
+          </button>
+        </div>
       </div>
     </div>
   )
@@ -187,6 +199,11 @@ export default function PatientDashboardLayout() {
     subtitle: 'Rural Health Unit of Pila',
   }
   const hidePageHeader = location.pathname === '/dashboard'
+  const todayLabel = new Intl.DateTimeFormat('en-PH', {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+  }).format(new Date())
 
   const handleLogoutRequest = () => {
     setLogoutOpen(true)
@@ -314,6 +331,10 @@ export default function PatientDashboardLayout() {
           </div>
 
           <div className="flex shrink-0 items-center gap-2">
+            <div className="patient-header-status" aria-label="Portal status">
+              <span aria-hidden="true" />
+              <div><strong>HealthTrack</strong><small>{todayLabel}</small></div>
+            </div>
             <div className="relative" ref={dropdownRef}>
               <button type="button" className="header-icon-btn" onClick={toggleNotifications} aria-label="Notifications">
                 <BellIcon className="h-5 w-5" />
