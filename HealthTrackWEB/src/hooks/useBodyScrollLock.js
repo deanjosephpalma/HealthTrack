@@ -26,6 +26,9 @@ export default function useBodyScrollLock(locked) {
     }
 
     scrollContainers.forEach((container) => {
+      // Keep the navigation usable while a modal is open instead of leaving it
+      // at the last scroll position from the underlying page.
+      if (container.matches('.app-sidebar-inner')) container.scrollTop = 0
       container.addEventListener('wheel', preventBackgroundScroll, { passive: false })
       container.addEventListener('touchmove', preventBackgroundScroll, { passive: false })
       container.addEventListener('scroll', restoreContainerScroll)

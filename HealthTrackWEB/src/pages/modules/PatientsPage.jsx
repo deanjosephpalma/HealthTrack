@@ -223,6 +223,16 @@ export default function PatientsPage() {
     return () => window.cancelAnimationFrame(frame)
   }, [showForm, editingRecordId])
 
+  useEffect(() => {
+    if (!expandedRecordId) return undefined
+    const frame = window.requestAnimationFrame(() => {
+      document.querySelectorAll('.patient-record-details-scroll').forEach((container) => {
+        container.scrollTop = 0
+      })
+    })
+    return () => window.cancelAnimationFrame(frame)
+  }, [expandedRecordId])
+
   const fetchPatientPage = useCallback(async (from = 0) => {
     if (!isOnline()) {
       const rows = await listPatientsCache({ limit: PATIENTS_PAGE_SIZE, offset: from })
@@ -1837,7 +1847,7 @@ export default function PatientsPage() {
                               <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                             </button>
                           </div>
-                          <div className="min-h-0 flex-1 overflow-y-auto p-6">
+                          <div className="patient-record-details-scroll min-h-0 flex-1 overflow-y-auto p-6">
                             {renderRecordDetails(latestRecord)}
                           </div>
                         </div>
@@ -1935,7 +1945,7 @@ export default function PatientsPage() {
                                   <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                                 </button>
                               </div>
-                              <div className="min-h-0 flex-1 overflow-y-auto p-6">
+                              <div className="patient-record-details-scroll min-h-0 flex-1 overflow-y-auto p-6">
                                 {renderRecordDetails(record)}
                               </div>
                             </div>
