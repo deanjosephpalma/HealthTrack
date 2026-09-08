@@ -1106,6 +1106,201 @@ textarea {
   background: #f5f8f5;
 }
 
+/* --------------------------------------------------------------------------
+   Responsive product polish — shared by every staff module.
+   -------------------------------------------------------------------------- */
+html {
+  min-width: 320px;
+  overflow-x: hidden;
+  scroll-behavior: smooth;
+}
+
+body {
+  overflow-x: hidden;
+}
+
+.app-main {
+  position: relative;
+  isolation: isolate;
+}
+
+.app-main::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(121, 216, 192, 0.1), transparent 24rem),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.5), transparent 14rem);
+}
+
+.app-header {
+  display: flex;
+  align-items: end;
+  min-height: 72px;
+}
+
+.dashboard-title,
+.module-title {
+  text-wrap: balance;
+}
+
+.module-card {
+  position: relative;
+  overflow: hidden;
+  border-radius: 20px;
+}
+
+.module-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 1.25rem;
+  right: 1.25rem;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(21, 127, 120, 0.2), transparent);
+}
+
+.primary-btn,
+.secondary-btn,
+.staff-action-btn {
+  transform: translateZ(0);
+  will-change: transform;
+}
+
+.primary-btn:hover:not(:disabled),
+.secondary-btn:hover:not(:disabled),
+.staff-action-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.primary-btn:active:not(:disabled),
+.secondary-btn:active:not(:disabled),
+.staff-action-btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+table {
+  width: 100%;
+}
+
+@media (min-width: 1024px) and (max-width: 1199px) {
+  .app-shell {
+    grid-template-columns: minmax(0, 248px) minmax(0, 1fr);
+    gap: 1rem;
+    padding: 1rem;
+  }
+
+  .app-sidebar {
+    left: 1rem;
+    width: 248px;
+    top: 1rem;
+    bottom: 1rem;
+  }
+
+  .modal-overlay:not(.encode-modal-overlay) {
+    left: calc(1rem + 248px + 1rem);
+  }
+}
+
+@media (max-width: 1023px) {
+  .app-shell {
+    display: block;
+    padding: 0;
+  }
+
+  .app-main {
+    min-height: 100dvh;
+    border-radius: 0;
+    border-inline: 0;
+    padding: 4.75rem 1rem max(1rem, env(safe-area-inset-bottom));
+  }
+
+  .app-header {
+    min-height: auto;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+  }
+
+  .app-mobile-menu-btn {
+    top: max(0.75rem, env(safe-area-inset-top));
+    left: 0.75rem;
+    border-radius: 14px;
+  }
+
+  .app-sidebar {
+    width: min(320px, calc(100vw - 2rem));
+    padding-top: env(safe-area-inset-top);
+  }
+
+  .app-sidebar-inner {
+    padding: 1.25rem;
+  }
+
+  .modal-overlay {
+    left: 0 !important;
+    padding: 0.75rem !important;
+    align-items: center !important;
+  }
+
+  .modal-overlay > div {
+    width: 100%;
+    max-height: calc(100dvh - 1.5rem);
+    border-radius: 18px;
+  }
+
+  .module-card {
+    border-radius: 16px;
+    padding: 1rem;
+  }
+
+  .module-title {
+    font-size: clamp(1.35rem, 6vw, 1.75rem);
+  }
+
+  .module-subtitle {
+    margin-bottom: 1.25rem;
+  }
+
+  .primary-btn,
+  .secondary-btn,
+  .staff-action-btn {
+    min-height: 44px;
+  }
+}
+
+@media (max-width: 639px) {
+  .app-main {
+    padding-inline: 0.75rem;
+  }
+
+  .app-header-kicker {
+    font-size: 10px;
+  }
+
+  .dashboard-subtitle,
+  .module-subtitle {
+    font-size: 0.8125rem;
+  }
+
+  .field-input {
+    min-height: 44px;
+    font-size: 16px; /* prevents mobile browsers from zooming inputs */
+  }
+
+  .primary-btn,
+  .secondary-btn {
+    flex: 1 1 auto;
+    padding-inline: 0.875rem;
+  }
+
+  .module-empty-state {
+    padding: 1.5rem 1rem;
+  }
+}
+
 .queue-operations {
   max-width: 1180px;
   margin-inline: auto;
