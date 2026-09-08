@@ -1544,8 +1544,8 @@ export default function PatientsPage() {
 
       {showForm && (
         <ModalPortal>
-          <div className="modal-overlay z-50 flex items-start justify-center overflow-hidden bg-slate-900/50 p-4 sm:items-center" role="dialog" aria-modal="true">
-          <div className="flex max-h-[calc(100vh-2rem)] w-full max-w-5xl flex-col overflow-hidden rounded-2xl bg-white shadow-xl">
+          <div className="modal-overlay z-50 flex items-start justify-center overflow-y-auto bg-slate-900/50 p-4 sm:items-center" role="dialog" aria-modal="true">
+          <div className="flex h-[calc(100dvh-2rem)] min-h-0 w-full max-w-5xl flex-col overflow-hidden rounded-2xl bg-white shadow-xl">
             <div className="p-6 border-b border-slate-200 flex justify-between items-center sticky top-0 bg-white z-10">
               <h3 className="text-xl font-bold text-slate-900">
                 {isDoctor ? 'Diagnosis and Notes' : formMode === 'edit' ? 'Update Patient Record' : 'Add New Patient Record'}
@@ -1555,8 +1555,8 @@ export default function PatientsPage() {
               </button>
             </div>
             
-            <form onSubmit={handleSubmit} className="flex-1 flex flex-col">
-              <div className="flex-1 overflow-y-auto p-6">
+            <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
+              <div className="min-h-0 flex-1 overflow-y-auto p-6">
                 {isDoctor ? (
                   <div className="space-y-4">
                     {editingRecord ? (
