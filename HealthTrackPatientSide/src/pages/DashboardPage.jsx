@@ -262,7 +262,7 @@ export default function DashboardPage() {
             </p>
             {clockLabel ? <p className="patient-dash-clock">{clockLabel}</p> : null}
             <p className="patient-dash-online">
-              <span className={`patient-dash-online-dot ${online ? '' : '!bg-amber-300'}`} />
+              <span className={`patient-dash-online-dot ${online ? '' : 'bg-amber-300!'}`} />
               {online ? 'Online' : 'Offline — tickets sync when you reconnect'}
             </p>
           </div>
@@ -278,8 +278,24 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {loading ? <p className="info-banner">Loading your dashboard…</p> : null}
-      {error ? <p className="error-banner">Dashboard error: {error}</p> : null}
+      {activeTicket ? (
+        <section className="patient-ticket-card" aria-labelledby="current-visit-title">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="patient-panel-eyebrow text-teal-700">Current visit</p>
+              <h3 id="current-visit-title" className="patient-ticket-number">{activeLabel || 'Queue ticket'}</h3>
+              <p className="mt-1 text-sm font-semibold text-teal-900">{ticketStatusText(activeTicket.status)}</p>
+              <p className="mt-1 text-xs text-slate-600">{serviceName || 'RHU Pila service'} · Keep this screen ready when called.</p>
+            </div>
+            <Link className="patient-dash-btn-primary bg-teal-800! text-white! hover:bg-teal-700!" to="/dashboard/queue">
+              View queue
+            </Link>
+          </div>
+        </section>
+      ) : null}
+
+      {loading ? <p className="info-banner" role="status" aria-live="polite">Loading your dashboard…</p> : null}
+      {error ? <p className="error-banner" role="alert">Dashboard error: {error}</p> : null}
 
       <section className="patient-panel">
         <h3 className="patient-panel-title mb-4">Main menu</h3>
@@ -288,7 +304,7 @@ export default function DashboardPage() {
             <Link
               key={item.to}
               to={item.to}
-              className="rounded-2xl border border-slate-200 bg-white p-4 no-underline shadow-sm transition hover:border-teal-200 hover:bg-teal-50/40 hover:shadow-md"
+              className="patient-quick-link min-h-[126px] flex-col items-stretch justify-between no-underline shadow-sm"
             >
               <div className="mb-3 flex items-center justify-between gap-2">
                 <span className="patient-quick-link-icon">

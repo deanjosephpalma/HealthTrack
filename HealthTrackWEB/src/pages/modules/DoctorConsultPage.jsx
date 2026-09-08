@@ -17,6 +17,7 @@ import {
 import { sendSms, msgVaccineSchedule, msgFollowUpReminder } from '../../lib/smsService'
 import { savePatientRecordLocal, saveScheduleLocal, enqueueServiceRequestUpdate } from '../../lib/offline/paperlessService'
 import PatientProfileView from '../../components/PatientProfileView'
+import useBodyScrollLock from '../../hooks/useBodyScrollLock'
 import Icd10DiagnosisField from '../../components/Icd10DiagnosisField'
 import {
   isDoctorBoundQueueItem,
@@ -94,6 +95,8 @@ export default function DoctorConsultPage() {
   const [showPatientInfo, setShowPatientInfo] = useState(false)
   const [issuedDoc, setIssuedDoc] = useState(null)
   const [bhwEncoded, setBhwEncoded] = useState(false)
+
+  useBodyScrollLock(showPatientInfo)
 
   const refreshQueue = useCallback(async () => {
     setLoading(true)
@@ -995,8 +998,8 @@ export default function DoctorConsultPage() {
               </form>
 
               {showPatientInfo ? (
-                <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-900/50 p-4 pt-10 backdrop-blur-sm">
-                  <div className="max-h-[90vh] w-full max-w-5xl overflow-y-auto rounded-2xl bg-white shadow-xl">
+                <div className="modal-overlay z-50 flex items-start justify-center overflow-hidden bg-slate-900/50 p-4 sm:items-center" role="dialog" aria-modal="true">
+                  <div className="flex max-h-[calc(100vh-2rem)] w-full max-w-5xl flex-col overflow-hidden rounded-2xl bg-white shadow-xl">
                     <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-200 bg-white p-5">
                       <div>
                         <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
@@ -1019,7 +1022,7 @@ export default function DoctorConsultPage() {
                         Close
                       </button>
                     </div>
-                    <div className="space-y-6 p-5 sm:p-6">
+                    <div className="flex-1 space-y-6 overflow-y-auto p-5 sm:p-6">
                       <div>
                         <p className="mb-3 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
                           Master patient profile

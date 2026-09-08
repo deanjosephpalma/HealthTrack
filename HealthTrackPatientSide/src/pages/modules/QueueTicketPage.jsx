@@ -52,6 +52,7 @@ export default function QueueTicketPage() {
   const [services, setServices] = useState([])
   const [servicesLoading, setServicesLoading] = useState(true)
   const [enrolling, setEnrolling] = useState(false)
+  const [serviceCleared, setServiceCleared] = useState(false)
   const [reason, setReason] = useState('')
   const [resolvedPatientId, setResolvedPatientId] = useState(enrollment?.patient_id ?? null)
 
@@ -93,7 +94,6 @@ export default function QueueTicketPage() {
   const awaitingStaff = enrollmentStatus === 'Awaiting Encoding'
   const encodedWaitingNumber = enrollmentStatus === 'Encoded'
   const canJoinStaffLine =
-    Boolean(enrollment) &&
     !activeTicket &&
     !awaitingStaff &&
     !encodedWaitingNumber &&
@@ -166,7 +166,14 @@ export default function QueueTicketPage() {
 
   async function handleServiceChange(e) {
     const serviceId = e.target.value
-    if (!serviceId || !user) return
+    if (!serviceId) {
+      setMessage('')
+      setError('')
+      setServiceCleared(true)
+      return
+    }
+    if (!user) return
+    setServiceCleared(false)
     setEnrolling(true)
     setError('')
     setMessage('')
@@ -193,7 +200,7 @@ export default function QueueTicketPage() {
   async function handleGetInLine(event) {
     event.preventDefault()
     if (!user) return
-    if (!enrollment?.id) {
+    if (!enrollment?.id || serviceCleared) {
       setError('Select a service first.')
       return
     }
@@ -247,8 +254,8 @@ export default function QueueTicketPage() {
   }
 
   return (
-    <section className="space-y-4">
-      <div className="flex flex-wrap items-center justify-end gap-2">
+    <section className="queue-page space-y-4">
+      <div className="queue-sync-bar flex flex-wrap items-center justify-end gap-2">
         <span
           className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${
             online ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200' : 'bg-amber-50 text-amber-800 ring-1 ring-amber-200'
@@ -263,21 +270,23 @@ export default function QueueTicketPage() {
         ) : null}
       </div>
 
-      <div className="patient-panel space-y-4">
-        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+      <div className="queue-workspace patient-panel space-y-4">
+        <div className="queue-flow-banner rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
           Flow today: choose a service → <strong>Get in line</strong> for BHW / Volunteer encoding → they encode your
           visit → they issue your queue number for the doctor or service counter.
         </div>
 
-        <div className="rounded-2xl border border-slate-200 bg-white p-4">
+        <div className="queue-service-card rounded-2xl border border-slate-200 bg-white p-4">
           <label className="field-label" htmlFor="queue-service">
             Service
           </label>
           <select
             id="queue-service"
             className="field-input"
+            aria-invalid={error === 'Select a service first.'}
+            aria-describedby={error === 'Select a service first.' ? 'queue-service-error' : undefined}
             disabled={servicesLoading || enrolling || Boolean(activeTicket) || awaitingStaff || encodedWaitingNumber}
-            value={enrollment?.service_type_id || enrollment?.service_types?.id || ''}
+            value={serviceCleared ? '' : enrollment?.service_type_id || enrollment?.service_types?.id || ''}
             onChange={handleServiceChange}
           >
             <option value="">{servicesLoading ? 'Loading…' : 'Select a service'}</option>
@@ -287,14 +296,19 @@ export default function QueueTicketPage() {
               </option>
             ))}
           </select>
-          {serviceName ? <p className="mt-2 text-xs text-slate-500">Selected: {serviceName}</p> : null}
+          {error === 'Select a service first.' ? (
+            <p id="queue-service-error" className="error-banner mt-2" role="alert">
+              Select a service first.
+            </p>
+          ) : null}
+          {serviceName && !serviceCleared ? <p className="mt-2 text-xs text-slate-500">Selected: {serviceName}</p> : null}
           {enrolling ? <p className="mt-2 text-xs text-slate-500">Switching service…</p> : null}
         </div>
 
         {activeTicket ? (
-          <div className={`rounded-2xl border p-5 ${queueStatusClasses(activeTicket.status)}`}>
+          <div className={`queue-ticket-hero rounded-2xl border p-5 ${queueStatusClasses(activeTicket.status)}`}>
             <p className="text-xs font-semibold uppercase tracking-[0.16em]">Your ticket</p>
-            <p className="mt-2 text-4xl font-bold">{labelOf(activeTicket)}</p>
+            <p className="queue-ticket-number mt-2 text-4xl font-bold">{labelOf(activeTicket)}</p>
             <p className="mt-2 text-sm font-semibold">{queueStatusLabel(activeTicket.status)}</p>
             {ticketPriority.isPriority ? (
               <p className="mt-2 text-sm font-semibold text-violet-800">Priority · {ticketPriority.label}</p>
@@ -305,7 +319,7 @@ export default function QueueTicketPage() {
             ) : null}
           </div>
         ) : awaitingStaff ? (
-          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-amber-950">
+          <div className="queue-state-panel rounded-2xl border border-amber-200 bg-amber-50 p-5 text-amber-950">
             <p className="text-xs font-semibold uppercase tracking-[0.16em]">In encode line</p>
             <p className="mt-2 text-lg font-bold">Waiting for BHW / Volunteer encoding</p>
             {enrollmentPriority.isPriority ? (
@@ -337,7 +351,7 @@ export default function QueueTicketPage() {
             </p>
           </div>
         ) : encodedWaitingNumber ? (
-          <div className="rounded-2xl border border-teal-200 bg-teal-50 p-5 text-teal-950">
+          <div className="queue-state-panel rounded-2xl border border-teal-200 bg-teal-50 p-5 text-teal-950">
             <p className="text-xs font-semibold uppercase tracking-[0.16em]">Encoded</p>
             <p className="mt-2 text-lg font-bold">Encoding finished</p>
             {enrollmentPriority.isPriority ? (
@@ -349,7 +363,7 @@ export default function QueueTicketPage() {
             </p>
           </div>
         ) : (
-          <form onSubmit={handleGetInLine} className="space-y-3 rounded-2xl border border-teal-200 bg-teal-50/40 p-4">
+          <form onSubmit={handleGetInLine} className="queue-join-form space-y-3 rounded-2xl border border-teal-200 bg-teal-50/40 p-4">
             <p className="text-sm font-semibold text-teal-900">Get in line for encoding</p>
             <p className="text-xs text-teal-800">
               You will not receive a queue number yet. A BHW or Volunteer encodes your visit first, then issues your
@@ -375,7 +389,7 @@ export default function QueueTicketPage() {
         )}
 
         {message ? <p className="info-banner">{message}</p> : null}
-        {error ? <p className="error-banner">{error}</p> : null}
+        {error && error !== 'Select a service first.' ? <p className="error-banner">{error}</p> : null}
         {loading ? <p className="info-banner">Loading your tickets…</p> : null}
 
         {!loading && tickets.length === 0 && !activeTicket && !awaitingStaff && !encodedWaitingNumber ? (
@@ -386,7 +400,7 @@ export default function QueueTicketPage() {
         ) : null}
 
         {tickets.length > 0 ? (
-          <div className="space-y-2">
+          <div className="queue-history space-y-2">
             <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Recent tickets</p>
             {tickets.map((t) => (
               <div key={t.id} className="rounded-xl border border-slate-200 bg-white px-4 py-3">

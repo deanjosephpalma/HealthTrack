@@ -127,8 +127,27 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="auth-screen">
-      <div className="auth-screen-inner">
+    <main className="auth-screen staff-login-page">
+      <div className="auth-screen-inner staff-login-shell">
+        <aside className="auth-intro-panel" aria-label="HealthTrack staff workspace">
+          <div>
+            <p className="auth-intro-eyebrow">RHU Pila / Operations</p>
+            <h2>Care moves better when the whole team sees the same picture.</h2>
+            <p className="auth-intro-copy">
+              Start the day with one calm workspace for queues, records, follow-ups, and community signals.
+            </p>
+          </div>
+          <div className="auth-intro-metrics">
+            <div>
+              <strong>01</strong>
+              <span>Shared patient context</span>
+            </div>
+            <div>
+              <strong>24/7</strong>
+              <span>Paperless access</span>
+            </div>
+          </div>
+        </aside>
         <section className="auth-card">
           <header className="auth-card-header">
             <div className="auth-brand-row">

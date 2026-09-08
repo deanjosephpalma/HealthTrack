@@ -534,10 +534,10 @@ export default function LandingPage() {
   )
 
   return (
-    <main className="min-h-screen bg-white flex flex-col overflow-hidden">
+    <main className="landing-page min-h-screen bg-white flex flex-col overflow-hidden">
       <Motion.header
         ref={headerRef}
-        className={`sticky top-0 z-30 border-b transition ${
+        className={`landing-header sticky top-0 z-30 border-b transition ${
           isScrolled
             ? 'border-slate-200/80 bg-white/75 shadow-sm shadow-slate-900/10 backdrop-blur-xl'
             : 'border-transparent bg-white/45 backdrop-blur'
@@ -660,14 +660,14 @@ export default function LandingPage() {
             <Motion.div
               key="tab-home"
               className="h-full overflow-auto"
-              initial={reduceMotion ? false : { opacity: 0, y: 12, filter: 'blur(6px)' }}
-              animate={reduceMotion ? { opacity: 1 } : { opacity: 1, y: 0, filter: 'blur(0px)' }}
-              exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -8, filter: 'blur(6px)' }}
-              transition={reduceMotion ? { duration: 0 } : { duration: 0.34, ease: [0.22, 1, 0.36, 1] }}
+              initial={false}
+              animate={{ opacity: 1, y: 0 }}
+              exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -8 }}
+              transition={reduceMotion ? { duration: 0 } : { duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
             >
               <Motion.section
                 id="home"
-                className="relative overflow-hidden"
+                className="landing-hero relative overflow-hidden"
                 initial={reduceMotion ? false : { opacity: 0 }}
                 animate={reduceMotion ? { opacity: 1 } : { opacity: 1 }}
                 transition={reduceMotion ? { duration: 0 } : { duration: 0.25 }}
@@ -685,15 +685,15 @@ export default function LandingPage() {
                       HealthTrack RHU PILA
                     </Motion.p>
                     <Motion.h1
-                      className="text-4xl font-extrabold leading-tight text-emerald-900 sm:text-5xl"
+                      className="text-4xl font-extrabold leading-[1.02] text-[#123c47] sm:text-5xl"
                       style={{ fontFamily: 'Space Grotesk, sans-serif' }}
                       initial={reduceMotion ? false : { opacity: 0, y: 18 }}
                       animate={reduceMotion ? { opacity: 1 } : { opacity: 1, y: 0 }}
                       transition={reduceMotion ? { duration: 0 } : { duration: 0.6, delay: 0.05, ease: [0.22, 1, 0.36, 1] }}
                     >
-                      Your Health,
+                      Care, closer
                       <br />
-                      Our Priority.
+                      to home.
                     </Motion.h1>
                     <Motion.p
                       className="mt-4 text-sm leading-relaxed text-slate-600 sm:text-base"
@@ -701,27 +701,27 @@ export default function LandingPage() {
                       animate={reduceMotion ? { opacity: 1 } : { opacity: 1, y: 0 }}
                       transition={reduceMotion ? { duration: 0 } : { duration: 0.6, delay: 0.12, ease: [0.22, 1, 0.36, 1] }}
                     >
-                      Dedicated to accessible, quality, and compassionate healthcare services for every individual and community in Pila, Laguna.
+                      Find the right RHU service, join the queue when you arrive, and keep your visit moving from one calm workspace.
                     </Motion.p>
 
                     <div className="mt-6 grid gap-3 sm:grid-cols-2">
                       <Motion.div
-                        className="rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4"
+                        className="rounded-2xl border border-cyan-100 bg-cyan-50/70 p-4"
                         initial={reduceMotion ? false : { opacity: 0, y: 16 }}
                         animate={reduceMotion ? { opacity: 1 } : { opacity: 1, y: 0 }}
                         transition={reduceMotion ? { duration: 0 } : { duration: 0.55, delay: 0.18, ease: [0.22, 1, 0.36, 1] }}
                       >
-                        <p className="text-sm font-semibold text-emerald-900">Serving our community</p>
-                        <p className="mt-1 text-xs text-emerald-800/80">Care and compassion for every patient.</p>
+                        <p className="text-sm font-semibold text-cyan-950">Today at RHU Pila</p>
+                        <p className="mt-1 text-xs text-cyan-900/75">Monday–Friday · 8:00 AM–5:00 PM</p>
                       </Motion.div>
                       <Motion.div
-                        className="rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4"
+                        className="rounded-2xl border border-amber-100 bg-amber-50/80 p-4"
                         initial={reduceMotion ? false : { opacity: 0, y: 16 }}
                         animate={reduceMotion ? { opacity: 1 } : { opacity: 1, y: 0 }}
                         transition={reduceMotion ? { duration: 0 } : { duration: 0.55, delay: 0.24, ease: [0.22, 1, 0.36, 1] }}
                       >
-                        <p className="text-sm font-semibold text-emerald-900">Quality healthcare</p>
-                        <p className="mt-1 text-xs text-emerald-800/80">Professional services closer to home.</p>
+                        <p className="text-sm font-semibold text-amber-950">A simpler visit</p>
+                        <p className="mt-1 text-xs text-amber-900/75">Choose a service before you go.</p>
                       </Motion.div>
                     </div>
 
@@ -729,7 +729,7 @@ export default function LandingPage() {
                       <button
                         type="button"
                         onClick={openHomeServices}
-                        className="inline-flex items-center gap-2 rounded-2xl bg-emerald-700 px-4 py-2.5 text-sm font-semibold text-white shadow-sm shadow-emerald-900/20 transition hover:bg-emerald-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-200"
+                        className="inline-flex items-center gap-2 rounded-2xl bg-[#0e7490] px-4 py-2.5 text-sm font-semibold text-white shadow-sm shadow-cyan-900/20 transition hover:bg-[#0b6077] focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-200"
                         style={{ fontFamily: 'Space Grotesk, sans-serif' }}
                       >
                         Explore Services
@@ -742,7 +742,7 @@ export default function LandingPage() {
                       <button
                         type="button"
                         onClick={() => openTab('contact')}
-                        className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-200"
+                        className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-200"
                         style={{ fontFamily: 'Space Grotesk, sans-serif' }}
                       >
                         Contact RHU
@@ -807,9 +807,33 @@ export default function LandingPage() {
               </Motion.section>
 
               <Motion.section
+                className="mx-auto w-full max-w-6xl px-4 pb-8"
+                initial={{ opacity: 0, y: 12 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, amount: 0.2 }}
+                transition={reduceMotion ? { duration: 0 } : { duration: 0.45 }}
+              >
+                <div className="grid gap-3 rounded-[1.5rem] border border-cyan-100 bg-[#123c47] p-4 text-white shadow-[0_18px_40px_-28px_rgba(18,60,71,0.8)] sm:grid-cols-3 sm:p-5">
+                  {[
+                    ['01', 'Choose a service', 'Start with the care you need.'],
+                    ['02', 'Join your queue', 'Get a ticket when you arrive.'],
+                    ['03', 'Track your visit', 'See updates and records online.'],
+                  ].map(([step, title, description]) => (
+                    <div key={step} className="flex items-start gap-3 rounded-xl border border-white/10 bg-white/5 p-3">
+                      <span className="font-mono text-xs font-bold text-amber-200">{step}</span>
+                      <div>
+                        <p className="text-sm font-bold text-white">{title}</p>
+                        <p className="mt-1 text-xs text-cyan-100/70">{description}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </Motion.section>
+
+              <Motion.section
                 ref={homeServicesRef}
                 id="home-services"
-                className="mx-auto w-full max-w-6xl px-4 pb-12"
+                className="landing-services mx-auto w-full max-w-6xl px-4 pb-12"
                 initial={{ opacity: 0, y: 14 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true, amount: 0.2 }}
@@ -818,22 +842,28 @@ export default function LandingPage() {
                 <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm shadow-slate-900/5 sm:p-8">
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
                     <div className="text-center sm:text-left">
+                      <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.18em] text-cyan-700">Step 01 / Choose a service</p>
                       <h2 className="text-2xl font-extrabold text-emerald-900 sm:text-3xl" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
-                        Services We Offer
+                        Start with what you need
                       </h2>
-                      <p className="mt-2 text-sm text-slate-600">Explore the services available at your Rural Health Unit.</p>
+                      <p className="mt-2 text-sm text-slate-600">Select a service to prepare your visit at the Rural Health Unit.</p>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => contentRef.current?.scrollTo({ top: 0, behavior: reduceMotion ? 'auto' : 'smooth' })}
-                      className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-200"
-                    >
-                      <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-                        <path d="M12 5v14" />
-                        <path d="M6 11l6-6 6 6" />
-                      </svg>
-                      Top
-                    </button>
+                    <div className="flex items-center gap-3 self-center sm:self-auto">
+                      <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-600">
+                        {services.length} available
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => contentRef.current?.scrollTo({ top: 0, behavior: reduceMotion ? 'auto' : 'smooth' })}
+                        className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-200"
+                      >
+                        <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                          <path d="M12 5v14" />
+                          <path d="M6 11l6-6 6 6" />
+                        </svg>
+                        Top
+                      </button>
+                    </div>
                   </div>
 
                   <Motion.div
@@ -883,6 +913,10 @@ export default function LandingPage() {
                                 <Icon type={service.icon} />
                               </div>
                               <div className="min-w-0">
+                                <div className="mb-1 flex items-center gap-2">
+                                  <span className="rounded-full bg-cyan-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em] text-cyan-800">{service.code}</span>
+                                  {isSelected ? <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-emerald-700">Selected</span> : null}
+                                </div>
                                 <p className="text-sm font-bold text-slate-900">{service.title}</p>
                                 <p className="mt-1 text-xs text-slate-600">{service.description}</p>
                               </div>
@@ -915,6 +949,11 @@ export default function LandingPage() {
                       )
                     })}
                   </Motion.div>
+
+                  <div className={`mt-5 flex flex-col gap-2 rounded-2xl border px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between ${selectedName ? 'border-cyan-200 bg-cyan-50 text-cyan-950' : 'border-dashed border-slate-300 bg-slate-50 text-slate-600'}`}>
+                    <span className="font-semibold">{selectedName ? 'Ready for the next step' : 'No service selected yet'}</span>
+                    <span className="text-xs sm:text-right">{selectedName ? selectedName : 'Choose one option above to continue.'}</span>
+                  </div>
 
                   <div className="mt-8 flex flex-col items-center justify-between gap-3 rounded-3xl border border-slate-200 bg-slate-50 p-5 sm:flex-row">
                     <div className="text-center sm:text-left">

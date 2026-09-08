@@ -7,6 +7,7 @@ import {
   parseBarangayReportFile,
 } from '../lib/barangayReportImport'
 import { PILA_BARANGAYS } from '../lib/gis/barangayHeat'
+import useBodyScrollLock from '../hooks/useBodyScrollLock'
 
 export default function BarangayReportUploadModal({ open, onClose, onImported }) {
   const { profile } = useAuth()
@@ -17,6 +18,8 @@ export default function BarangayReportUploadModal({ open, onClose, onImported })
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [reportDate, setReportDate] = useState(() => new Date().toISOString().slice(0, 10))
+
+  useBodyScrollLock(open)
 
   const totalCases = useMemo(
     () => (preview?.rows ?? []).reduce((sum, r) => sum + Number(r.estimated_count || 0), 0),
@@ -102,8 +105,8 @@ export default function BarangayReportUploadModal({ open, onClose, onImported })
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-900/50 px-4 py-10 backdrop-blur-sm">
-      <div className="w-full max-w-2xl rounded-2xl border border-slate-200 bg-white shadow-2xl">
+    <div className="modal-overlay z-50 flex items-start justify-center overflow-hidden bg-slate-900/50 px-4 py-10 backdrop-blur-sm" role="dialog" aria-modal="true">
+      <div className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
         <div className="border-b border-slate-100 px-5 py-4 sm:px-6">
           <div className="flex items-start justify-between gap-3">
             <div>
@@ -125,7 +128,7 @@ export default function BarangayReportUploadModal({ open, onClose, onImported })
           </div>
         </div>
 
-        <div className="space-y-4 px-5 py-5 sm:px-6">
+        <div className="flex-1 space-y-4 overflow-y-auto px-5 py-5 sm:px-6">
           <div className="rounded-xl border border-teal-100 bg-teal-50/70 px-4 py-3 text-sm text-teal-900">
             Tip: Ask the barangay for a simple file with columns <strong>Disease</strong> and{' '}
             <strong>Cases</strong>. You can also download a template.

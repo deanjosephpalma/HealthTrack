@@ -1143,9 +1143,9 @@ export default function DashboardPage() {
         </div>
       </Motion.div>
 
-      {profileError ? <p className="error-banner">Profile error: {profileError}</p> : null}
-      {error ? <p className="error-banner">Dashboard error: {error}</p> : null}
-      {loading ? <p className="info-banner">Syncing live dashboard…</p> : null}
+      {profileError ? <p className="error-banner" role="alert">Profile error: {profileError}</p> : null}
+      {error ? <p className="error-banner" role="alert">Dashboard error: {error}</p> : null}
+      {loading ? <p className="info-banner" role="status" aria-live="polite">Syncing live dashboard…</p> : null}
 
       <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 xl:grid-cols-6">
         {statCards.map((card) => {
@@ -1230,13 +1230,6 @@ export default function DashboardPage() {
               <div className="space-y-3">
                 {waitingQueue.slice(0, 8).map((ticket) => {
                   const status = (ticket.status ?? 'waiting').toString().toLowerCase()
-                  const statusClasses =
-                    status === 'serving'
-                      ? 'bg-sky-50 text-sky-700 border-sky-200'
-                      : status === 'completed'
-                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                        : 'bg-amber-50 text-amber-700 border-amber-200'
-
                   const priority = computePriority({ reason: ticket.reason, patientName: ticket.patient_name })
                   const label = ticket.queue_number || '—'
 
@@ -1258,7 +1251,7 @@ export default function DashboardPage() {
 
                         <div className="flex flex-wrap items-center justify-end gap-2">
                           <PriorityPill priority={priority} />
-                          <span className={`inline-flex rounded-full border px-2 py-1 text-[11px] font-semibold ${statusClasses}`}>
+                          <span className={`status-badge ${status === 'completed' ? 'status-badge-success' : status === 'serving' ? 'status-badge-info' : 'status-badge-warning'}`}>
                             {status.replaceAll('_', ' ')}
                           </span>
                         </div>
@@ -1504,7 +1497,7 @@ export default function DashboardPage() {
                 <h3 className="m-0 text-base font-bold text-slate-900 sm:text-lg">Realtime Queue Monitor</h3>
                 <p className="mt-1 text-sm text-slate-600">Live queue feed with priority and waiting time.</p>
               </div>
-              <Link className="secondary-btn !mt-0" to="/dashboard/queue">
+              <Link className="secondary-btn mt-0!" to="/dashboard/queue">
                 Manage
               </Link>
             </div>

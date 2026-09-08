@@ -119,6 +119,13 @@ class PatientRegisterController extends Controller
             ], 422);
         }
 
+        if ($this->nameAlreadyRegistered($fullName)) {
+            return response()->json([
+                'ok' => false,
+                'error' => 'This name is already registered. Please contact the RHU if you need help accessing your account.',
+            ], 422);
+        }
+
         // Temporary auth email; rewritten to {username}@… after patient_number is known.
         $tempToken = bin2hex(random_bytes(8));
         $tempEmail = 'pending.'.$tempToken.'@'.self::AUTH_EMAIL_DOMAIN;
@@ -290,6 +297,64 @@ class PatientRegisterController extends Controller
             }
         } catch (\Throwable $e) {
             Log::warning('[patient-register] phone check failed: '.$e->getMessage());
+        }
+
+        return false;
+    }
+
+    private function nameAlreadyRegistered(string $fullName): bool
+    {
+        $url = rtrim((string) config('services.supabase.url'), '/');
+        $key = (string) config('services.supabase.service_role_key');
+        if ($url === '' || $key === '' || trim($fullName) === '') {
+            return false;
+        }
+
+        $headers = [
+            'apikey' => $key,
+            'Authorization' => 'Bearer '.$key,
+            'Content-Type' => 'application/json',
+        ];
+
+        try {
+            $rpc = Http::withHeaders($headers)
+                ->timeout(15)
+                ->post("{$url}/rest/v1/rpc/is_name_registered", ['p_name' => $fullName]);
+
+            if ($rpc->successful()) {
+                return $rpc->json() === true;
+            }
+
+            Log::warning('[patient-register] name RPC check failed, using direct lookup', [
+                'status' => $rpc->status(),
+            ]);
+
+            $normalizedName = trim($fullName);
+            foreach (['patients' => 'name', 'profiles' => 'name'] as $table => $column) {
+                $response = Http::withHeaders($headers)->timeout(15)->get("{$url}/rest/v1/{$table}", [
+                    $column => 'ilike.'.$normalizedName,
+                    'select' => 'id',
+                    'limit' => 1,
+                ]);
+                if ($response->successful() && is_array($response->json()) && count($response->json()) > 0) {
+                    return true;
+                }
+            }
+
+            $parts = preg_split('/\s+/', $normalizedName, 2);
+            if (is_array($parts) && count($parts) === 2) {
+                $contacts = Http::withHeaders($headers)->timeout(15)->get("{$url}/rest/v1/patient_contacts", [
+                    'first_name' => 'ilike.'.$parts[0],
+                    'last_name' => 'ilike.'.$parts[1],
+                    'select' => 'id',
+                    'limit' => 1,
+                ]);
+                if ($contacts->successful() && is_array($contacts->json()) && count($contacts->json()) > 0) {
+                    return true;
+                }
+            }
+        } catch (\Throwable $e) {
+            Log::warning('[patient-register] name check failed: '.$e->getMessage());
         }
 
         return false;

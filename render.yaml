@@ -1,0 +1,40 @@
+services:
+  - type: web
+    name: healthtrack-api
+    runtime: docker
+    rootDir: HealthTrackAPI
+    dockerfilePath: ./Dockerfile
+    dockerContext: ./
+    healthCheckPath: /up
+    plan: free
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: APP_DEBUG
+        value: "false"
+      - key: APP_KEY
+        sync: false
+      - key: APP_URL
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: SUPABASE_JWT_SECRET
+        sync: false
+      - key: CORS_ALLOWED_ORIGINS
+        sync: false
+      - key: SANCTUM_STATEFUL_DOMAINS
+        sync: false
+      - key: SESSION_DRIVER
+        value: database
+      - key: SESSION_SECURE_COOKIE
+        value: "true"
+      - key: SESSION_SAME_SITE
+        value: none
+      - key: LOG_CHANNEL
+        value: stderr
+      - key: RUN_MIGRATIONS
+        value: "false"

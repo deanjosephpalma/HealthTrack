@@ -224,6 +224,10 @@ export default function QueuePage() {
       return compareByPriorityThenArrival(a, b)
     })
   const doneQueue = queueItems.filter((i) => doneStatuses.includes((i.status ?? '').toLowerCase()))
+  const servingItem = activeQueue.find((item) => (item.status ?? '').toString().toLowerCase() === 'called') ?? null
+  const nextItem =
+    activeQueue.find((item) => (item.status ?? '').toString().toLowerCase() === 'next') ?? activeQueue[0] ?? null
+  const waitingCount = activeQueue.filter((item) => (item.status ?? '').toString().toLowerCase() === 'waiting').length
 
   const renderItem = (item, index = 0, { showPosition = false } = {}) => {
     const status = (item.status ?? 'waiting').toString().toLowerCase()
@@ -238,7 +242,7 @@ export default function QueuePage() {
     return (
       <article
         key={item.id}
-        className={`rounded-2xl border p-4 ${
+        className={`queue-entry rounded-2xl border p-4 ${
           isDemo
             ? 'border-dashed border-violet-300 bg-violet-50/40'
             : isNext
@@ -252,7 +256,7 @@ export default function QueuePage() {
           <div className="flex min-w-0 flex-1 gap-3">
             {showPosition ? (
               <div
-                className={`flex h-14 w-16 shrink-0 flex-col items-center justify-center rounded-xl text-center ${
+                className={`queue-position flex h-14 w-16 shrink-0 flex-col items-center justify-center rounded-xl text-center ${
                   isNext ? 'bg-teal-700 text-white' : priority.isPriority ? 'bg-violet-100 text-violet-900' : 'bg-slate-200 text-slate-700'
                 }`}
               >
@@ -312,7 +316,7 @@ export default function QueuePage() {
           <div className="mt-3 flex flex-wrap gap-2">
             <button
               type="button"
-              className="px-3 py-1.5 text-xs font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-500 disabled:opacity-50"
+              className="queue-action queue-action-next px-3 py-1.5 text-xs font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-500 disabled:opacity-50"
               onClick={() => handleStatusAction(item, 'next')}
               disabled={isBusy || status === 'next'}
             >
@@ -320,7 +324,7 @@ export default function QueuePage() {
             </button>
             <button
               type="button"
-              className="px-3 py-1.5 text-xs font-medium rounded-lg bg-purple-600 text-white hover:bg-purple-500 disabled:opacity-50"
+              className="queue-action queue-action-call px-3 py-1.5 text-xs font-medium rounded-lg bg-purple-600 text-white hover:bg-purple-500 disabled:opacity-50"
               onClick={() => handleStatusAction(item, 'called')}
               disabled={isBusy || status === 'called'}
             >
@@ -328,7 +332,7 @@ export default function QueuePage() {
             </button>
             <button
               type="button"
-              className="px-3 py-1.5 text-xs font-medium rounded-lg bg-amber-500 text-white hover:bg-amber-400 disabled:opacity-50"
+              className="queue-action queue-action-skip px-3 py-1.5 text-xs font-medium rounded-lg bg-amber-500 text-white hover:bg-amber-400 disabled:opacity-50"
               onClick={() => handleStatusAction(item, 'skipped')}
               disabled={isBusy}
             >
@@ -336,7 +340,7 @@ export default function QueuePage() {
             </button>
             <button
               type="button"
-              className="px-3 py-1.5 text-xs font-medium rounded-lg bg-emerald-600 text-white hover:bg-emerald-500 disabled:opacity-50"
+              className="queue-action queue-action-complete px-3 py-1.5 text-xs font-medium rounded-lg bg-emerald-600 text-white hover:bg-emerald-500 disabled:opacity-50"
               onClick={() => handleStatusAction(item, 'completed')}
               disabled={isBusy}
             >
@@ -349,8 +353,8 @@ export default function QueuePage() {
   }
 
   return (
-    <section className="module-card">
-      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+    <section className="queue-operations module-card">
+      <div className="queue-page-header mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
       <h2 className="module-title">Queue Management</h2>
       <p className="module-subtitle">
@@ -450,6 +454,29 @@ export default function QueuePage() {
         </form>
       ) : null}
 
+      <div className="queue-summary-grid mb-5" aria-label="Queue summary">
+        <article className="queue-summary-card queue-summary-serving">
+          <p className="queue-summary-label">Currently serving</p>
+          <p className="queue-summary-value">{servingItem ? queueLabelOf(servingItem) || 'In service' : 'None'}</p>
+          <p className="queue-summary-detail">{servingItem?.patient_name || 'No patient is currently called.'}</p>
+        </article>
+        <article className="queue-summary-card queue-summary-next">
+          <p className="queue-summary-label">Next in line</p>
+          <p className="queue-summary-value">{nextItem ? queueLabelOf(nextItem) || 'Next' : 'None'}</p>
+          <p className="queue-summary-detail">{nextItem?.patient_name || 'Queue is clear.'}</p>
+        </article>
+        <article className="queue-summary-card">
+          <p className="queue-summary-label">Waiting</p>
+          <p className="queue-summary-value">{waitingCount}</p>
+          <p className="queue-summary-detail">Active patient entries</p>
+        </article>
+        <article className="queue-summary-card">
+          <p className="queue-summary-label">Completed</p>
+          <p className="queue-summary-value">{doneQueue.length}</p>
+          <p className="queue-summary-detail">Today&apos;s finished entries</p>
+        </article>
+      </div>
+
       {walkInMessage ? <p className="info-banner mb-4">{walkInMessage}</p> : null}
       {loading && <p className="info-banner mb-4">Loading queue data...</p>}
       {error && <p className="error-banner mb-4">Queue error: {error}</p>}
@@ -466,7 +493,7 @@ export default function QueuePage() {
               <p className="mb-3 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
                 Active Queue — top is Next ({activeQueue.length})
               </p>
-              <div className="space-y-3">
+              <div className="queue-list space-y-3">
                 {activeQueue.map((item, index) => renderItem(item, index, { showPosition: true }))}
               </div>
             </div>

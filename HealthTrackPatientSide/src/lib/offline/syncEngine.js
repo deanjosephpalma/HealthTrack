@@ -95,6 +95,17 @@ async function pushDocumentUpload(job) {
   })
 }
 
+async function pushDocumentDelete(job) {
+  const { id, filePath } = job.payload
+  if (filePath) {
+    const { error: storageError } = await supabase.storage.from('rhu-requirements').remove([filePath])
+    if (storageError) throw new Error(storageError.message)
+  }
+
+  const { error } = await supabase.from('requirements_submissions').delete().eq('id', id)
+  if (error) throw new Error(error.message)
+}
+
 async function pushOutbox() {
   const jobs = await patientOfflineDb.outbox.filter((r) => !r.synced).sortBy('id')
   // Prefer queue tickets so one failed form/doc job cannot block joining the line
@@ -109,6 +120,7 @@ async function pushOutbox() {
       else if (job.type === 'form_response_upsert') await pushFormResponse(job)
       else if (job.type === 'service_request_update') await pushServiceRequestUpdate(job)
       else if (job.type === 'document_upload') await pushDocumentUpload(job)
+      else if (job.type === 'document_delete') await pushDocumentDelete(job)
       else {
         // Unknown job type — drop so it cannot block forever
         await patientOfflineDb.outbox.update(job.id, { synced: 1, last_error: 'skipped_unknown_type' })

@@ -110,19 +110,19 @@ export default function OutpatientLegacyForm({ data, onChange = () => {}, readOn
     <div className="w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
       
       {/* Header Aesthetic */}
-      <div className="mb-8 rounded-2xl bg-gradient-to-r from-indigo-500 to-violet-600 p-8 text-white shadow-lg shadow-indigo-500/20">
-        <h2 className="text-2xl font-black tracking-tight mb-2 flex items-center gap-3">
-          <svg className="h-8 w-8 text-indigo-100" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <div className="mb-6 rounded-2xl border border-teal-100 bg-white p-5 shadow-sm sm:p-6">
+        <h2 className="mb-2 flex items-center gap-3 text-2xl font-bold tracking-tight text-slate-900">
+          <svg className="h-8 w-8 text-teal-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
           </svg>
           Outpatient Medical Record
         </h2>
-        <p className="text-indigo-100 font-medium">Please fill in the historical patient data carefully. All vital information is required for accurate reporting.</p>
+        <p className="font-medium text-slate-500">Please fill in the historical patient data carefully. All vital information is required for accurate reporting.</p>
       </div>
 
-      <div className="space-y-8">
+      <div className="space-y-5">
         {/* Section 1: Demographics */}
-        <section className="rounded-3xl border border-slate-100 bg-white p-6 md:p-8 shadow-xl shadow-slate-200/40">
+        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm md:p-7">
           <div className="mb-6 border-b border-slate-100 pb-4">
             <h3 className="text-lg font-bold text-slate-800">1. Patient Demographics</h3>
             <p className="text-sm text-slate-500">Basic identification and background information.</p>
@@ -169,7 +169,7 @@ export default function OutpatientLegacyForm({ data, onChange = () => {}, readOn
         </section>
 
         {/* Section 2: Address & Membership */}
-        <section className="rounded-3xl border border-slate-100 bg-white p-6 md:p-8 shadow-xl shadow-slate-200/40">
+        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm md:p-7">
           <div className="mb-6 border-b border-slate-100 pb-4">
             <h3 className="text-lg font-bold text-slate-800">2. Address & Membership Info</h3>
           </div>

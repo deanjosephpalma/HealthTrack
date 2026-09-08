@@ -1,5 +1,5 @@
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
-import { useState, useEffect, useRef } from 'react'
+import { Fragment, useState, useEffect, useRef } from 'react'
 import { useAuth } from '../context/useAuth'
 import LogoutConfirmModal from './LogoutConfirmModal'
 import { supabase } from '../lib/supabaseClient'
@@ -13,6 +13,16 @@ const MODULES = [
   { key: 'medical', label: 'Medical Records', path: '/dashboard/medical-records', icon: 'records' },
   { key: 'profile', label: 'Profile', path: '/dashboard/profile', icon: 'user' },
 ]
+
+const MODULE_SECTIONS = {
+  dashboard: 'Overview',
+  'service-intake': 'Your visit',
+  queue: 'Your visit',
+  'follow-ups': 'Care plan',
+  'service-status': 'Care plan',
+  medical: 'Records',
+  profile: 'Account',
+}
 
 function NavIcon({ name }) {
   const c = 'h-4 w-4'
@@ -89,20 +99,27 @@ function SidebarContent({ patientName, onLogout, onNavigate }) {
       </div>
 
       <nav className="menu-list" aria-label="Patient modules">
-        {MODULES.map((item) => (
-          <NavLink
-            key={item.key}
-            to={item.path}
-            end={item.path === '/dashboard'}
-            onClick={onNavigate}
-            className={({ isActive }) => (isActive ? 'menu-link menu-link-active' : 'menu-link')}
-          >
-            <span className="menu-link-icon">
-              <NavIcon name={item.icon} />
-            </span>
-            {item.label}
-          </NavLink>
-        ))}
+        {MODULES.map((item, index) => {
+          const previous = MODULES[index - 1]
+          const section = MODULE_SECTIONS[item.key]
+          const startsSection = !previous || MODULE_SECTIONS[previous.key] !== section
+          return (
+            <Fragment key={item.key}>
+              {startsSection ? <p className="menu-section-label">{section}</p> : null}
+              <NavLink
+                to={item.path}
+                end={item.path === '/dashboard'}
+                onClick={onNavigate}
+                className={({ isActive }) => (isActive ? 'menu-link menu-link-active' : 'menu-link')}
+              >
+                <span className="menu-link-icon">
+                  <NavIcon name={item.icon} />
+                </span>
+                {item.label}
+              </NavLink>
+            </Fragment>
+          )
+        })}
       </nav>
 
       <div className="mt-auto pt-4">
@@ -283,7 +300,7 @@ export default function PatientDashboardLayout() {
       ) : null}
 
       <section className="app-main">
-        <header className={`app-header ${hidePageHeader ? '!mb-3 !border-0 !pb-0' : ''}`}>
+        <header className={`app-header ${hidePageHeader ? 'mb-3! border-0! pb-0!' : ''}`}>
           <div className="min-w-0 flex-1">
             {hidePageHeader ? (
               <p className="app-header-kicker">Rural Health Unit of Pila</p>

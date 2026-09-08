@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/useAuth'
 import { MODULE_META, MODULES, getSidebarModules } from '../config/rbac'
@@ -65,6 +65,14 @@ function NavIcon({ name }) {
       {icons[name] || icons.grid}
     </svg>
   )
+}
+
+function menuSection(moduleKey) {
+  if ([MODULES.OVERVIEW].includes(moduleKey)) return 'Overview'
+  if ([MODULES.QUEUE, MODULES.STAFF_ENCODE, MODULES.NURSE_SERVICE_DESK, MODULES.WORKFLOW].includes(moduleKey)) return 'Operations'
+  if ([MODULES.DOCTOR_CONSULT, MODULES.PATIENTS, MODULES.FOLLOW_UPS].includes(moduleKey)) return 'Clinical care'
+  if ([MODULES.INVENTORY, MODULES.REPORTED_CASES, MODULES.HEAT_MAP, MODULES.REPORTS].includes(moduleKey)) return 'Intelligence'
+  return 'Administration'
 }
 
 const PAGE_COPY = {
@@ -171,22 +179,27 @@ export default function DashboardLayout() {
           </div>
 
           <nav className="menu-list" aria-label="Dashboard modules">
-            {menuItems.map((moduleKey) => {
+            {menuItems.map((moduleKey, index) => {
               const item = MODULE_META[moduleKey]
               if (!item) return null
+              const previousKey = menuItems[index - 1]
+              const section = menuSection(moduleKey)
+              const startsSection = !previousKey || menuSection(previousKey) !== section
               return (
-                <NavLink
-                  key={moduleKey}
-                  to={item.path}
-                  end={item.path === '/dashboard'}
-                  className={({ isActive }) => (isActive ? 'menu-link menu-link-active' : 'menu-link')}
-                  onClick={() => setMobileNavOpen(false)}
-                >
-                  <span className="menu-link-icon">
-                    <NavIcon name={item.icon} />
-                  </span>
-                  {item.label}
-                </NavLink>
+                <Fragment key={moduleKey}>
+                  {startsSection ? <p className="menu-section-label">{section}</p> : null}
+                  <NavLink
+                    to={item.path}
+                    end={item.path === '/dashboard'}
+                    className={({ isActive }) => (isActive ? 'menu-link menu-link-active' : 'menu-link')}
+                    onClick={() => setMobileNavOpen(false)}
+                  >
+                    <span className="menu-link-icon">
+                      <NavIcon name={item.icon} />
+                    </span>
+                    {item.label}
+                  </NavLink>
+                </Fragment>
               )
             })}
           </nav>

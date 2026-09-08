@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { listLocalDocuments, saveDocumentLocal } from '../lib/offline/paperlessService'
+import { listLocalDocuments, removeDocumentLocal, saveDocumentLocal } from '../lib/offline/paperlessService'
 import { syncPatientQueue } from '../lib/offline/syncEngine'
 import { useOnlineStatus } from '../lib/offline/connectivity'
 
@@ -47,13 +47,29 @@ export default function OfflineDocumentsPanel({
     }
   }
 
+  const onRemove = async (doc) => {
+    setBusy(true)
+    setError('')
+    setMessage('')
+    try {
+      await removeDocumentLocal(doc.id)
+      if (online && doc.synced) await syncPatientQueue({ patientAuthId })
+      setMessage('Document removed. You can attach a replacement file.')
+      await refresh()
+    } catch (e) {
+      setError(e?.message || 'Failed to remove document.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-4">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <h3 className="text-sm font-bold uppercase tracking-wider text-slate-800">{title}</h3>
         <label className="secondary-btn !mt-0 cursor-pointer text-sm">
           {busy ? 'Saving…' : 'Attach file'}
-          <input type="file" className="hidden" disabled={busy} onChange={onPick} />
+          <input type="file" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" className="hidden" disabled={busy} onChange={onPick} />
         </label>
       </div>
       <p className="mb-3 text-xs text-slate-500">
@@ -71,12 +87,22 @@ export default function OfflineDocumentsPanel({
               className="flex items-center justify-between gap-2 rounded-lg border border-slate-100 px-3 py-2 text-sm"
             >
               <span className="truncate font-medium text-slate-800">{doc.document_name || doc.file_name}</span>
-              <span
-                className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold ${
-                  doc.synced ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-800'
-                }`}
-              >
-                {doc.synced ? 'Synced' : 'Pending'}
+              <span className="flex shrink-0 items-center gap-2">
+                <span
+                  className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                    doc.synced ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-800'
+                  }`}
+                >
+                  {doc.synced ? 'Synced' : 'Pending'}
+                </span>
+                <button
+                  type="button"
+                  className="text-xs font-semibold text-rose-600 hover:text-rose-800 disabled:opacity-50"
+                  disabled={busy}
+                  onClick={() => void onRemove(doc)}
+                >
+                  Remove
+                </button>
               </span>
             </li>
           ))}

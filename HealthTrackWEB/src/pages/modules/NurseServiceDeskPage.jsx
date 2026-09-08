@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import ModuleEmptyState from '../../components/ModuleEmptyState'
 import CharterServiceForm from '../../components/CharterServiceForm'
 import PatientProfileView from '../../components/PatientProfileView'
+import useBodyScrollLock from '../../hooks/useBodyScrollLock'
 import { useAuth } from '../../context/useAuth'
 import { logAuditEvent, supabase } from '../../lib/supabaseClient'
 import {
@@ -70,6 +71,8 @@ export default function NurseServiceDeskPage() {
   const [patientProfile, setPatientProfile] = useState(null)
   const [showPatientInfo, setShowPatientInfo] = useState(false)
   const [issuedDoc, setIssuedDoc] = useState(null)
+
+  useBodyScrollLock(showPatientInfo)
 
   const refreshQueue = useCallback(async () => {
     setLoading(true)
@@ -629,8 +632,8 @@ export default function NurseServiceDeskPage() {
               </form>
 
               {showPatientInfo ? (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm">
-                  <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-2xl bg-white shadow-xl">
+                <div className="modal-overlay z-50 flex items-center justify-center overflow-hidden bg-slate-900/50 p-4" role="dialog" aria-modal="true">
+                  <div className="flex max-h-[calc(100vh-2rem)] w-full max-w-3xl flex-col overflow-hidden rounded-2xl bg-white shadow-xl">
                     <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-200 bg-white p-5">
                       <div>
                         <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
@@ -648,7 +651,7 @@ export default function NurseServiceDeskPage() {
                         Close
                       </button>
                     </div>
-                    <div className="p-5 sm:p-6">
+                    <div className="flex-1 overflow-y-auto p-5 sm:p-6">
                       <PatientProfileView patient={patientProfile} email={patientEmail} />
                     </div>
                   </div>

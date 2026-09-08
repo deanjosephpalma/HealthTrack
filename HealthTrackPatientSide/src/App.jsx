@@ -28,9 +28,9 @@ function AnimatedPage({ children }) {
 
   return (
     <Motion.div
-      initial={reduceMotion ? false : { opacity: 0, y: 12, filter: 'blur(6px)' }}
-      animate={reduceMotion ? { opacity: 1 } : { opacity: 1, y: 0, filter: 'blur(0px)' }}
-      exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -8, filter: 'blur(6px)' }}
+      initial={false}
+      animate={{ opacity: 1, y: 0 }}
+      exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -8 }}
       transition={transition}
     >
       {children}

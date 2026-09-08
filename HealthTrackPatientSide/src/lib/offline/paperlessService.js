@@ -95,3 +95,26 @@ export async function listLocalDocuments({ serviceRequestId, patientAuthId } = {
   if (patientAuthId) rows = rows.filter((r) => r.patient_auth_id === patientAuthId)
   return rows.map((r) => ({ ...r, blob: undefined, hasBlob: Boolean(r.blob) }))
 }
+
+export async function removeDocumentLocal(id) {
+  const doc = await patientOfflineDb.documents.get(id)
+  if (!doc) return { removed: false }
+
+  const pendingUploads = await patientOfflineDb.outbox.where('type').equals('document_upload').toArray()
+  await Promise.all(
+    pendingUploads
+      .filter((job) => job.payload?.id === id && !job.synced)
+      .map((job) => patientOfflineDb.outbox.delete(job.id)),
+  )
+
+  await patientOfflineDb.documents.delete(id)
+  if (doc.synced && (doc.file_path || doc.id)) {
+    await enqueuePatientOutbox('document_delete', {
+      id: doc.id,
+      filePath: doc.file_path || null,
+      patientAuthId: doc.patient_auth_id || null,
+    })
+  }
+
+  return { removed: true, offline: !isOnline() }
+}
