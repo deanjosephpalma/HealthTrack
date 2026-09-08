@@ -1176,6 +1176,23 @@ fieldset:disabled .field-input {
 .patient-sidebar-signout svg { width: 1rem; height: 1rem; }
 .patient-sidebar-signout:hover { border-color: rgba(232, 121, 93, .42); background: #fff0eb; color: #b94e39; }
 
+/* The mobile drawer has a light surface, so it needs its own readable navigation palette. */
+.patient-mobile-drawer {
+  background: linear-gradient(180deg, rgba(255, 255, 255, .98), rgba(244, 249, 246, .98)) !important;
+  box-shadow: 24px 0 60px -30px rgba(8, 31, 37, .64);
+}
+
+.patient-mobile-drawer .sidebar-brand { padding-inline: .65rem; }
+.patient-mobile-drawer .sidebar-title { color: var(--premium-ink); }
+.patient-mobile-drawer .sidebar-subtitle { color: #61757a; }
+.patient-mobile-drawer .menu-section-label { color: #7a8d91; }
+.patient-mobile-drawer .menu-link { color: #4c6268; }
+.patient-mobile-drawer .menu-link:hover { background: #eaf5f0; color: var(--premium-teal); }
+.patient-mobile-drawer .menu-link-icon { background: #e4f3ed; color: var(--premium-teal); box-shadow: none; }
+.patient-mobile-drawer .menu-link-active { border-color: var(--premium-coral); background: linear-gradient(135deg, #e8795d, #dc6a50); color: white; box-shadow: 0 14px 28px -18px rgba(220, 106, 80, .85); }
+.patient-mobile-drawer .menu-link-active .menu-link-icon { background: rgba(255, 255, 255, .18); color: white; }
+.patient-mobile-drawer .patient-sidebar-account { background: white; }
+
 .app-main {
   border-color: rgba(255, 255, 255, .9);
   background: rgba(252, 253, 251, .78);

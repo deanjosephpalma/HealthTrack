@@ -300,7 +300,7 @@ export default function PatientDashboardLayout() {
             aria-label="Close menu"
             onClick={() => setMobileMenuOpen(false)}
           />
-          <div className="absolute left-0 top-0 flex h-full w-[86%] max-w-[320px] flex-col overflow-auto rounded-r-3xl border-r border-slate-200 bg-white/95 p-5 shadow-2xl backdrop-blur">
+          <div className="patient-mobile-drawer absolute left-0 top-0 flex h-full w-[86%] max-w-[320px] flex-col overflow-auto rounded-r-3xl border-r border-slate-200 bg-white/95 p-5 shadow-2xl backdrop-blur">
             <div className="mb-4 flex items-center justify-between">
               <p className="chip mb-0">Menu</p>
               <button
