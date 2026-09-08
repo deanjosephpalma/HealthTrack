@@ -28,7 +28,7 @@ import {
   resolveNurseDeskKind,
 } from '../../lib/nurseServices'
 import { resolveCharterKeyFromServiceName } from '../../lib/resolveCharterService'
-import { resolvePatientPriority, compareByPriorityThenArrival } from '../../lib/patientPriority'
+import { compareByPriorityThenArrival } from '../../lib/patientPriority'
 
 const ACTIVE = new Set(['waiting', 'next', 'called', 'skipped'])
 
@@ -49,7 +49,7 @@ function statusClasses(status) {
 }
 
 export default function NurseServiceDeskPage() {
-  const { user } = useAuth()
+  const { user, role } = useAuth()
   const online = useOnlineStatus()
   const [queueItems, setQueueItems] = useState([])
   const [serviceNameById, setServiceNameById] = useState(new Map())
@@ -71,6 +71,8 @@ export default function NurseServiceDeskPage() {
   const [patientProfile, setPatientProfile] = useState(null)
   const [showPatientInfo, setShowPatientInfo] = useState(false)
   const [issuedDoc, setIssuedDoc] = useState(null)
+  const [approvalRequests, setApprovalRequests] = useState([])
+  const [approvalLoading, setApprovalLoading] = useState(false)
 
   useBodyScrollLock(showPatientInfo)
 
@@ -82,12 +84,29 @@ export default function NurseServiceDeskPage() {
       const rows = await listLocalQueue()
       setQueueItems(rows)
       setPendingSync(await countPendingOutbox())
+
+      if (role === 'Doctor' && online) {
+        const { data: pendingApprovals, error: approvalError } = await supabase
+          .from('service_requests')
+          .select('id, reference_number, patient_id, patient_auth_id, queue_id, service_id, service_type_id, intake_data, created_at, patients (name), services (name), service_types (name)')
+          .eq('status', 'For Approval')
+          .order('updated_at', { ascending: true })
+        if (approvalError) throw approvalError
+        setApprovalRequests(
+          (pendingApprovals ?? []).filter((request) => {
+            const name = request.services?.name || request.service_types?.name || ''
+            return resolveNurseDeskKind({ serviceName: name }) === 'sanitary_permit'
+          }),
+        )
+      } else {
+        setApprovalRequests([])
+      }
     } catch (e) {
       setError(e?.message || 'Failed to load nurse desk queue.')
     } finally {
       setLoading(false)
     }
-  }, [online])
+  }, [online, role])
 
   useEffect(() => {
     void refreshQueue()
@@ -113,6 +132,7 @@ export default function NurseServiceDeskPage() {
   }, [])
 
   const deskQueue = useMemo(() => {
+    if (role === 'Doctor') return []
     return queueItems
       .filter((item) => ACTIVE.has((item.status ?? '').toLowerCase()))
       .filter((item) => isNurseDeskQueueItem(item, serviceNameById))
@@ -129,7 +149,7 @@ export default function NurseServiceDeskPage() {
         if (d !== 0) return d
         return compareByPriorityThenArrival(a, b)
       })
-  }, [queueItems, serviceNameById])
+  }, [queueItems, serviceNameById, role])
 
   const selected = useMemo(
     () => deskQueue.find((q) => q.id === selectedId) ?? null,
@@ -410,6 +430,145 @@ export default function NurseServiceDeskPage() {
     }
   }
 
+  const handleSubmitSanitaryForApproval = async (event) => {
+    event.preventDefault()
+    if (!selected || !serviceRequest?.id) return
+
+    const inspectionFindings = outcome.trim()
+    if (!inspectionFindings) {
+      setError('Inspection findings are required before submitting for approval.')
+      return
+    }
+
+    setSaving(true)
+    setError('')
+    setSaveMessage('')
+    const nowIso = new Date().toISOString()
+    try {
+      const nextIntake = {
+        ...(intakeData || {}),
+        sanitary_workflow: {
+          status: 'for_approval',
+          inspection_findings: inspectionFindings,
+          inspection_notes: actionNotes.trim(),
+          inspected_by: user?.id ?? null,
+          inspected_at: nowIso,
+        },
+      }
+      const statusPatch = {
+        status: 'For Approval',
+        current_status: 'waiting',
+        intake_data: nextIntake,
+        updated_at: nowIso,
+      }
+
+      if (online) {
+        const { error: updateError } = await supabase.from('service_requests').update(statusPatch).eq('id', serviceRequest.id)
+        if (updateError) throw updateError
+      } else {
+        await enqueueServiceRequestUpdate(serviceRequest.id, statusPatch)
+      }
+
+      // The counter visit is done, but the permit itself remains pending Doctor approval.
+      await updateQueueStatusLocal(selected, 'completed')
+      if (online) await syncNow()
+
+      void logAuditEvent({
+        action: 'sanitary_permit_submit_for_approval',
+        entityType: 'service_requests',
+        entityId: serviceRequest.id,
+        metadata: { queue_id: selected.id, inspection_findings: inspectionFindings },
+      })
+      setSaveMessage('Inspection submitted. The Sanitary Permit is now waiting for Doctor approval and cannot be released yet.')
+      setSelectedId(null)
+      setServiceRequest(null)
+      await refreshQueue()
+    } catch (e) {
+      setError(e?.message || 'Failed to submit the inspection for approval.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleSanitaryApproval = async (request, approved) => {
+    if (role !== 'Doctor') {
+      setError('Only a Doctor can approve or reject a Sanitary Permit.')
+      return
+    }
+    if (!online) {
+      setError('Connect to the internet before approving or rejecting a Sanitary Permit.')
+      return
+    }
+    setApprovalLoading(request.id)
+    setError('')
+    setSaveMessage('')
+    const nowIso = new Date().toISOString()
+    try {
+      const intake = request.intake_data && typeof request.intake_data === 'object' ? request.intake_data : {}
+      const workflow = intake.sanitary_workflow || {}
+      const nextIntake = {
+        ...intake,
+        sanitary_workflow: {
+          ...workflow,
+          status: approved ? 'approved' : 'rejected',
+          approval_status: approved ? 'Approved' : 'Rejected',
+          approved_by: user?.id ?? null,
+          approved_at: nowIso,
+        },
+      }
+      const statusPatch = {
+        status: approved ? 'Completed' : 'Rejected',
+        current_status: approved ? 'completed' : 'cancelled',
+        intake_data: nextIntake,
+        updated_at: nowIso,
+      }
+      const { error: updateError } = await supabase.from('service_requests').update(statusPatch).eq('id', request.id)
+      if (updateError) throw updateError
+
+      let released = null
+      if (approved && request.patient_id) {
+        released = await releaseIssuedDocument({
+          serviceKind: 'sanitary_permit',
+          serviceName: request.services?.name || request.service_types?.name || 'Sanitary Permit Issuance',
+          patientId: request.patient_id,
+          serviceRequestId: request.id,
+          issuedBy: user?.id ?? null,
+          outcome: 'Sanitary Permit approved and released',
+          notes: [workflow.inspection_findings, workflow.inspection_notes].filter(Boolean).join('\n\n'),
+          intakeData: nextIntake,
+          applicantName: request.patients?.name || 'Patient',
+        })
+        if (!released?.ok) throw new Error(released?.error || 'Permit approval was saved, but document release failed.')
+
+        await savePatientRecordLocal({
+          id: crypto.randomUUID(),
+          patient_name: request.patients?.name || 'Patient',
+          patient_id: request.patient_id,
+          patient_auth_id: request.patient_auth_id ?? null,
+          queue_id: request.queue_id ?? null,
+          diagnosis: null,
+          notes: `Sanitary Permit approved and released.\n\nInspection findings: ${workflow.inspection_findings || '—'}${workflow.inspection_notes ? `\n\n${workflow.inspection_notes}` : ''}`,
+          workflow_status: 'completed',
+          doctor_completed_at: nowIso,
+          date_of_consultation: nowIso.slice(0, 10),
+        })
+      }
+
+      void logAuditEvent({
+        action: approved ? 'sanitary_permit_approved' : 'sanitary_permit_rejected',
+        entityType: 'service_requests',
+        entityId: request.id,
+        metadata: { released_document: released?.row?.id ?? null },
+      })
+      setSaveMessage(approved ? 'Sanitary Permit approved and released.' : 'Sanitary Permit rejected. It was not released.')
+      await refreshQueue()
+    } catch (e) {
+      setError(e?.message || 'Failed to update the Sanitary Permit approval.')
+    } finally {
+      setApprovalLoading(null)
+    }
+  }
+
   const downloadIssuedPdf = () => {
     if (!issuedDoc?.row) return
     const name = selected?.patient_name || patientProfile?.name || 'Patient'
@@ -444,7 +603,7 @@ export default function NurseServiceDeskPage() {
     <section className="module-card space-y-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h2 className="module-title">Nurse Service Desk</h2>
+          <h2 className="module-title">{role === 'Doctor' ? 'Sanitary Permit Approvals' : 'Nurse Service Desk'}</h2>
           <p className="module-subtitle">
             Permits, health cards, death certificate review, and pre-marriage counseling — processed by nurse/staff (not Doctor Consult). Medical Certificate stays with the doctor.
           </p>
@@ -475,7 +634,55 @@ export default function NurseServiceDeskPage() {
       {saveMessage ? <p className="info-banner">{saveMessage}</p> : null}
       {loading ? <p className="info-banner">Loading nurse desk queue…</p> : null}
 
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,340px)_minmax(0,1fr)]">
+      {role === 'Doctor' ? (
+        <div className="space-y-4">
+          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+            Pending Sanitary Permit approvals ({approvalRequests.length})
+          </p>
+          {!loading && approvalRequests.length === 0 ? (
+            <ModuleEmptyState
+              title="No permits awaiting approval"
+              description="Sanitary permits appear here after staff submits their inspection findings."
+            />
+          ) : (
+            approvalRequests.map((request) => {
+              const workflow = request.intake_data?.sanitary_workflow || {}
+              return (
+                <article key={request.id} className="rounded-2xl border border-amber-200 bg-amber-50/40 p-4 shadow-sm sm:p-5">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-amber-800">For approval</p>
+                      <h3 className="mt-1 text-lg font-bold text-slate-900">{request.patients?.name || 'Patient'}</h3>
+                      <p className="text-sm text-slate-600">Sanitary Permit · Ref: {request.reference_number || '—'}</p>
+                    </div>
+                    <span className="w-fit rounded-full border border-amber-200 bg-white px-3 py-1 text-xs font-semibold text-amber-800">Inspection complete</span>
+                  </div>
+                  <div className="mt-4 grid gap-3 rounded-xl border border-amber-100 bg-white p-4 sm:grid-cols-2">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Inspection findings</p>
+                      <p className="mt-1 whitespace-pre-wrap text-sm text-slate-800">{workflow.inspection_findings || 'No findings recorded.'}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Inspection notes</p>
+                      <p className="mt-1 whitespace-pre-wrap text-sm text-slate-800">{workflow.inspection_notes || '—'}</p>
+                    </div>
+                  </div>
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    <button type="button" className="primary-btn !mt-0 bg-emerald-700 hover:bg-emerald-600" disabled={approvalLoading === request.id} onClick={() => void handleSanitaryApproval(request, true)}>
+                      {approvalLoading === request.id ? 'Saving…' : 'Approve & Release Permit'}
+                    </button>
+                    <button type="button" className="secondary-btn !mt-0 border-rose-200 text-rose-700 hover:bg-rose-50" disabled={approvalLoading === request.id} onClick={() => void handleSanitaryApproval(request, false)}>
+                      Reject
+                    </button>
+                  </div>
+                </article>
+              )
+            })
+          )}
+        </div>
+      ) : null}
+
+      {role !== 'Doctor' ? <div className="grid gap-4 xl:grid-cols-[minmax(0,340px)_minmax(0,1fr)]">
         <div className="space-y-3">
           <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
             Nurse desk line ({deskQueue.length})
@@ -583,18 +790,20 @@ export default function NurseServiceDeskPage() {
                 </div>
               </div>
 
-              <form onSubmit={handleComplete} className="space-y-4 rounded-2xl border border-teal-200 bg-teal-50/30 p-4">
-                <p className="text-sm font-semibold text-teal-900">Staff action & release</p>
+              <form onSubmit={serviceKind === 'sanitary_permit' ? handleSubmitSanitaryForApproval : handleComplete} className="space-y-4 rounded-2xl border border-teal-200 bg-teal-50/30 p-4">
+                <p className="text-sm font-semibold text-teal-900">
+                  {serviceKind === 'sanitary_permit' ? 'Inspection & approval submission' : 'Staff action & release'}
+                </p>
                 <div>
                   <label className="field-label" htmlFor="nurse-outcome">
-                    Outcome / document released *
+                    {serviceKind === 'sanitary_permit' ? 'Inspection findings *' : 'Outcome / document released *'}
                   </label>
                   <input
                     id="nurse-outcome"
                     className="field-input"
                     value={outcome}
                     onChange={(e) => setOutcome(e.target.value)}
-                    placeholder="e.g. Health card released, Sanitary permit issued"
+                    placeholder={serviceKind === 'sanitary_permit' ? 'e.g. Premises passed inspection; documents verified' : 'e.g. Health card released'}
                     required
                   />
                 </div>
@@ -611,11 +820,13 @@ export default function NurseServiceDeskPage() {
                   />
                 </div>
                 <p className="text-xs text-slate-600">
-                  Saving creates a paperless record (patient info + outcome + notes) visible in the patient Medical Records.
+                  {serviceKind === 'sanitary_permit'
+                    ? 'Submitting sends the inspection to the Doctor for approval. The permit cannot be released at this step.'
+                    : 'Saving creates a paperless record (patient info + outcome + notes) visible in the patient Medical Records.'}
                 </p>
                 <div className="flex flex-wrap gap-2">
                   <button type="submit" className="primary-btn" disabled={saving}>
-                    {saving ? 'Saving…' : 'Complete & release'}
+                    {saving ? 'Saving…' : serviceKind === 'sanitary_permit' ? 'Submit for Doctor Approval' : 'Complete & release'}
                   </button>
                   <button
                     type="button"
@@ -660,7 +871,7 @@ export default function NurseServiceDeskPage() {
             </div>
           )}
         </div>
-      </div>
+      </div> : null}
     </section>
   )
 }
