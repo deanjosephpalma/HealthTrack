@@ -11,7 +11,7 @@ use App\Http\Controllers\Api\VerificationController;
 use App\Http\Middleware\EnsurePortalSession;
 use Illuminate\Support\Facades\Route;
 
-Route::middleware(['throttle:api'])->group(function () {
+Route::middleware(['web', 'throttle:api'])->group(function () {
     // Cookie session auth (Sanctum SPA)
     Route::post('/auth/login', [AuthController::class, 'login'])
         ->middleware('throttle:login');
