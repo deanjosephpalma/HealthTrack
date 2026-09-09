@@ -13,7 +13,7 @@ import {
 } from '../../lib/offline/queueService'
 import { startAutoSync, syncNow, subscribeSyncStatus } from '../../lib/offline/syncEngine'
 import { resolvePatientPriority, compareByPriorityThenArrival } from '../../lib/patientPriority'
-import { QUEUE_DEMO_ROWS, isDemoQueueRow, linePositionLabel } from '../../lib/queueDemoExamples'
+import { linePositionLabel } from '../../lib/queueDemoExamples'
 
 const formatPatientNumber = (value) => {
   const num = Number(value)
@@ -212,17 +212,10 @@ export default function QueuePage() {
   const activeStatuses = ['waiting', 'next', 'called', 'skipped']
   const doneStatuses = ['done', 'cancelled', 'completed']
 
-  const activeQueue = [
-    ...QUEUE_DEMO_ROWS,
-    ...queueItems.filter((i) => activeStatuses.includes((i.status ?? '').toLowerCase())),
-  ]
+  const activeQueue = queueItems
+    .filter((i) => activeStatuses.includes((i.status ?? '').toLowerCase()))
     .slice()
-    .sort((a, b) => {
-      const aDemo = isDemoQueueRow(a)
-      const bDemo = isDemoQueueRow(b)
-      if (aDemo !== bDemo) return aDemo ? -1 : 1
-      return compareByPriorityThenArrival(a, b)
-    })
+    .sort(compareByPriorityThenArrival)
   const doneQueue = queueItems.filter((i) => doneStatuses.includes((i.status ?? '').toLowerCase()))
   const servingItem = activeQueue.find((item) => (item.status ?? '').toString().toLowerCase() === 'called') ?? null
   const nextItem =
@@ -235,7 +228,6 @@ export default function QueuePage() {
     const isDone = doneStatuses.includes(status)
     const queueLabel = queueLabelOf(item)
     const priority = resolvePatientPriority(item)
-    const isDemo = isDemoQueueRow(item)
     const position = showPosition ? linePositionLabel(index) : ''
     const isNext = showPosition && index === 0
 
@@ -243,9 +235,7 @@ export default function QueuePage() {
       <article
         key={item.id}
         className={`queue-entry rounded-2xl border p-4 ${
-          isDemo
-            ? 'border-dashed border-violet-300 bg-violet-50/40'
-            : isNext
+          isNext
               ? 'border-teal-400 bg-teal-50/40 ring-2 ring-teal-200'
               : priority.isPriority
                 ? 'border-violet-300 bg-violet-50/50'
@@ -264,9 +254,7 @@ export default function QueuePage() {
               </div>
             ) : null}
             <div className="min-w-0">
-              {isDemo ? (
-                <p className="chip mb-2 bg-violet-100 text-violet-800">Demo example</p>
-              ) : item.patient?.patient_number ? (
+              {item.patient?.patient_number ? (
                 <p className="chip mb-2">Patient ID - {formatPatientNumber(item.patient.patient_number)}</p>
               ) : null}
               <h3 className="text-lg font-semibold text-slate-900">
@@ -297,22 +285,20 @@ export default function QueuePage() {
             <span className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${queueStatusClasses(status)}`}>
               {queueStatusLabel(status)}
             </span>
-            {!isDemo ? (
-              <button
-                type="button"
-                className="px-3 py-2 text-xs font-medium rounded-lg bg-rose-600 text-white hover:bg-rose-500 disabled:opacity-50"
-                onClick={() => handleArchive(item)}
-                disabled={!isDone}
-                aria-label="Archive"
-                title={isDone ? 'Archive' : 'Archive only after completion'}
-              >
-                <ArchiveIcon className="h-4 w-4" />
-              </button>
-            ) : null}
+            <button
+              type="button"
+              className="px-3 py-2 text-xs font-medium rounded-lg bg-rose-600 text-white hover:bg-rose-500 disabled:opacity-50"
+              onClick={() => handleArchive(item)}
+              disabled={!isDone}
+              aria-label="Archive"
+              title={isDone ? 'Archive' : 'Archive only after completion'}
+            >
+              <ArchiveIcon className="h-4 w-4" />
+            </button>
           </div>
         </div>
 
-        {!isDone && !isDemo ? (
+        {!isDone ? (
           <div className="mt-3 flex flex-wrap gap-2">
             <button
               type="button"

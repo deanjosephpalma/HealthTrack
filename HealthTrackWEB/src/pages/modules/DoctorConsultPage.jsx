@@ -26,7 +26,7 @@ import {
   resolveDoctorServiceKind,
 } from '../../lib/doctorServices'
 import { resolvePatientPriority, compareByPriorityThenArrival } from '../../lib/patientPriority'
-import { QUEUE_DEMO_ROWS, isDemoQueueRow, linePositionLabel } from '../../lib/queueDemoExamples'
+import { linePositionLabel } from '../../lib/queueDemoExamples'
 import { formatIcd10Diagnosis, parseIcd10Diagnosis, ICD10_OTHER } from '../../lib/icd10Codes'
 import {
   documentTitleFromRow,
@@ -140,14 +140,9 @@ export default function DoctorConsultPage() {
     const live = queueItems
       .filter((item) => ACTIVE.has((item.status ?? '').toLowerCase()))
       .filter((item) => isDoctorBoundQueueItem(item, serviceNameById))
-    const demos = QUEUE_DEMO_ROWS.filter((item) => isDoctorBoundQueueItem(item, serviceNameById))
-
-    return [...demos, ...live]
+    return live
       .slice()
       .sort((a, b) => {
-        const aDemo = isDemoQueueRow(a)
-        const bDemo = isDemoQueueRow(b)
-        if (aDemo !== bDemo) return aDemo ? -1 : 1
         const rank = (s) => {
           const v = (s ?? '').toLowerCase()
           if (v === 'called') return 0
@@ -738,26 +733,17 @@ export default function DoctorConsultPage() {
               const kind = resolveDoctorServiceKind({ serviceCode: item.service_code, serviceName: name })
               const active = item.id === selectedId
               const priority = resolvePatientPriority(item)
-              const isDemo = isDemoQueueRow(item)
               const position = linePositionLabel(index)
               const isNext = index === 0
               return (
                 <button
                   key={item.id}
                   type="button"
-                  onClick={() => {
-                    if (isDemo) {
-                      setSaveMessage('Demo example only — not a real patient ticket.')
-                      return
-                    }
-                    void openConsult(item)
-                  }}
+                  onClick={() => void openConsult(item)}
                   className={`flex w-full items-stretch gap-3 rounded-2xl border p-3 text-left transition sm:p-4 ${
                     active
                       ? 'border-teal-400 bg-teal-50 shadow-sm'
-                      : isDemo
-                        ? 'border-dashed border-violet-300 bg-violet-50/40 hover:border-violet-400'
-                        : isNext
+                      : isNext
                           ? 'border-teal-400 bg-teal-50/40 ring-2 ring-teal-200'
                           : priority.isPriority
                             ? 'border-violet-300 bg-violet-50/40 hover:border-violet-400'
@@ -777,9 +763,6 @@ export default function DoctorConsultPage() {
                       <p className="font-semibold text-slate-900">{item.patient_name}</p>
                       <p className="text-xs text-slate-600">{serviceKindLabel(kind)}</p>
                       <p className="mt-1 text-xs text-slate-500">{item.reason || 'No reason'}</p>
-                      {isDemo ? (
-                        <p className="mt-2 text-[11px] font-semibold uppercase tracking-wide text-violet-700">Demo</p>
-                      ) : null}
                       {priority.isPriority ? (
                         <p className="mt-2 text-[11px] font-semibold uppercase tracking-wide text-violet-800">
                           Priority · {priority.label}

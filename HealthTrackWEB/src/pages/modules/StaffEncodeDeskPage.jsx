@@ -10,7 +10,7 @@ import { syncNow } from '../../lib/offline/syncEngine'
 import { useOnlineStatus } from '../../lib/offline/connectivity'
 import { logAuditEvent, supabase } from '../../lib/supabaseClient'
 import { resolvePatientPriority, compareByPriorityThenArrival } from '../../lib/patientPriority'
-import { ENCODE_DESK_DEMO_ROWS, isDemoQueueRow, linePositionLabel } from '../../lib/queueDemoExamples'
+import { linePositionLabel } from '../../lib/queueDemoExamples'
 
 const AWAITING_STATUSES = ['Awaiting Encoding', 'Encoded']
 /** Highlight patients waiting longer than this (minutes) before encoding finishes. */
@@ -323,7 +323,7 @@ export default function StaffEncodeDeskPage() {
 
   const filteredRows = useMemo(() => {
     const q = search.trim().toLowerCase()
-    const matches = (row, includeDemoToken = false) => {
+    const matches = (row) => {
       if (statusFilter !== 'all' && row.status !== statusFilter) return false
       if (!q) return true
       const p = row.patients || {}
@@ -336,7 +336,6 @@ export default function StaffEncodeDeskPage() {
         row.service_types?.name,
         row.service_types?.queue_prefix,
         row.status,
-        includeDemoToken ? 'demo' : '',
       ]
         .filter(Boolean)
         .join(' ')
@@ -379,9 +378,8 @@ export default function StaffEncodeDeskPage() {
       )
     }
 
-    const demos = ENCODE_DESK_DEMO_ROWS.filter((row) => matches(row, true)).slice().sort(sortEncode)
     const live = rows.filter((row) => matches(row)).slice().sort(sortEncode)
-    return [...demos, ...live]
+    return live
   }, [rows, search, statusFilter])
 
   const stuckCount = useMemo(() => {
@@ -796,8 +794,7 @@ export default function StaffEncodeDeskPage() {
       <div className="rounded-2xl border border-slate-200 bg-white p-3 sm:p-4">
         <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <p className="px-1 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
-            Encode line — top is Next ({filteredRows.length}
-            {rows.length ? ` · ${rows.length} live` : ' · demo examples'})
+            Encode line — top is Next ({filteredRows.length})
           </p>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
             <input
@@ -847,7 +844,6 @@ export default function StaffEncodeDeskPage() {
                 is_priority: row.intake_data?.is_priority,
                 priority_labels: row.intake_data?.priority_labels,
               })
-              const isDemo = isDemoQueueRow(row)
               const position = linePositionLabel(index)
               const isNext = index === 0
               void nowTick
@@ -855,17 +851,9 @@ export default function StaffEncodeDeskPage() {
                 <button
                   key={row.id}
                   type="button"
-                  onClick={() => {
-                    if (isDemo) {
-                      setMessage('Demo example only — not a real patient. Live Get-in-line entries are actionable.')
-                      return
-                    }
-                    setSelectedId(row.id)
-                  }}
+                  onClick={() => setSelectedId(row.id)}
                   className={`flex w-full items-stretch gap-3 rounded-xl border bg-white px-3 py-3 text-left transition hover:border-teal-300 hover:bg-teal-50/60 ${
-                    isDemo
-                      ? 'border-dashed border-violet-300 bg-violet-50/30'
-                      : isNext
+                    isNext
                         ? 'border-teal-400 ring-2 ring-teal-200'
                         : wait.stuck && row.status === 'Awaiting Encoding'
                           ? 'border-amber-300 ring-1 ring-amber-200'
@@ -885,12 +873,7 @@ export default function StaffEncodeDeskPage() {
                     <div className="flex items-start justify-between gap-2">
                       <p className="font-semibold text-slate-900">{displayName(row)}</p>
                       <div className="flex shrink-0 flex-col items-end gap-1">
-                        {isDemo ? (
-                          <span className="rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-violet-800">
-                            Demo
-                          </span>
-                        ) : null}
-                        {!isDemo && wait.label ? (
+                        {wait.label ? (
                           <span
                             className={`text-[11px] font-semibold ${
                               wait.stuck && row.status === 'Awaiting Encoding' ? 'text-amber-800' : 'text-slate-400'
