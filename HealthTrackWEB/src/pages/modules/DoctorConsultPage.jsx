@@ -17,6 +17,7 @@ import {
 import { sendSms, msgVaccineSchedule, msgFollowUpReminder } from '../../lib/smsService'
 import { savePatientRecordLocal, saveScheduleLocal, enqueueServiceRequestUpdate } from '../../lib/offline/paperlessService'
 import PatientProfileView from '../../components/PatientProfileView'
+import ModalPortal from '../../components/ModalPortal'
 import useBodyScrollLock from '../../hooks/useBodyScrollLock'
 import Icd10DiagnosisField from '../../components/Icd10DiagnosisField'
 import {
@@ -1012,17 +1013,14 @@ export default function DoctorConsultPage() {
               </form>
 
               {showPatientInfo ? (
-                <div className="modal-overlay z-50 flex items-start justify-center overflow-hidden bg-slate-900/50 p-4 sm:items-center" role="dialog" aria-modal="true">
-                  <div className="flex max-h-[calc(100vh-2rem)] w-full max-w-5xl flex-col overflow-hidden rounded-2xl bg-white shadow-xl">
-                    <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-200 bg-white p-5">
+                <ModalPortal>
+                  <div className="modal-overlay doctor-patient-details-overlay z-50 flex items-start justify-center overflow-y-auto bg-slate-900/50 p-4 sm:items-center" role="dialog" aria-modal="true" aria-labelledby="doctor-patient-details-title">
+                    <div className="doctor-patient-details-modal flex h-[calc(100dvh-2rem)] min-h-0 w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-white shadow-xl">
+                    <div className="doctor-patient-details-header flex shrink-0 items-start justify-between gap-4 border-b border-slate-200 bg-white px-5 py-4 sm:px-6 sm:py-5">
                       <div>
-                        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
-                          Patient information
-                        </p>
-                        <h3 className="text-lg font-bold text-slate-900">
-                          {patientProfile?.name || selected.patient_name}
-                        </h3>
-                        <p className="mt-1 text-xs text-slate-500">
+                        <h3 id="doctor-patient-details-title" className="text-xl font-bold text-slate-900">Patient Record Details</h3>
+                        <p className="mt-1 text-sm font-semibold text-slate-700">{patientProfile?.name || selected.patient_name}</p>
+                        <p className="mt-1 text-xs leading-relaxed text-slate-500">
                           {bhwEncoded
                             ? 'Includes master profile and BHW / Volunteer encoding for this visit.'
                             : 'Master patient profile on file.'}
@@ -1030,34 +1028,50 @@ export default function DoctorConsultPage() {
                       </div>
                       <button
                         type="button"
-                        className="secondary-btn !mt-0 text-xs"
+                        className="doctor-patient-details-close"
                         onClick={() => setShowPatientInfo(false)}
+                        aria-label="Close patient record details"
                       >
-                        Close
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                          <path strokeLinecap="round" d="M6 6l12 12M18 6L6 18" />
+                        </svg>
                       </button>
                     </div>
-                    <div className="flex-1 space-y-6 overflow-y-auto p-5 sm:p-6">
-                      <div>
-                        <p className="mb-3 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
-                          Master patient profile
-                        </p>
+                    <div className="patient-record-details-scroll min-h-0 flex-1 space-y-5 overflow-y-auto p-5 sm:p-6">
+                      <section className="doctor-patient-details-section">
+                        <div className="mb-5 flex items-center gap-3">
+                          <span className="doctor-patient-details-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M12 12a4 4 0 100-8 4 4 0 000 8z" /><path d="M4 21a8 8 0 0116 0" /></svg>
+                          </span>
+                          <div>
+                            <p className="text-sm font-bold text-slate-900">Master patient profile</p>
+                            <p className="mt-0.5 text-xs text-slate-500">Identification, contact, and health information.</p>
+                          </div>
+                        </div>
                         <PatientProfileView patient={patientProfile} email={patientEmail} />
-                      </div>
-                      <div>
-                        <p className="mb-3 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
-                          {bhwEncoded ? 'BHW / Volunteer encoded details' : 'Visit / intake form'}
-                        </p>
+                      </section>
+                      <section className="doctor-patient-details-section">
+                        <div className="mb-4 flex items-center gap-3">
+                          <span className="doctor-patient-details-icon doctor-patient-details-icon-coral" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M6 3h9l3 3v15H6z" /><path d="M9 11h6M9 15h6M9 7h2" /></svg>
+                          </span>
+                          <div>
+                            <p className="text-sm font-bold text-slate-900">{bhwEncoded ? 'BHW / Volunteer encoded details' : 'Visit / intake form'}</p>
+                            <p className="mt-0.5 text-xs text-slate-500">Information submitted for this consultation.</p>
+                          </div>
+                        </div>
                         {Object.keys(formData).length <= 1 ? (
                           <p className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
                             No encoded visit form is linked to this queue ticket yet.
                           </p>
                         ) : (
-                          <div className="rounded-xl border border-slate-200 bg-white p-3">{renderPatientForm()}</div>
+                          <div className="rounded-xl border border-slate-200 bg-white p-3 sm:p-4">{renderPatientForm()}</div>
                         )}
-                      </div>
+                      </section>
+                    </div>
                     </div>
                   </div>
-                </div>
+                </ModalPortal>
               ) : null}
             </div>
           )}
