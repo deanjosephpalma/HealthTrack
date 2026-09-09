@@ -67,6 +67,17 @@ export default function PatientFollowUpsPage() {
         return
       }
 
+      // Resolve both keys: legacy/encoded records may be linked through the
+      // patient profile even when the auth id was not copied at creation time.
+      const { data: ownPatient } = await supabase
+        .from('patients')
+        .select('id')
+        .eq('patient_auth_id', user.id)
+        .maybeSingle()
+      const outpatientFilter = ownPatient?.id
+        ? `patient_auth_id.eq.${user.id},patient_id.eq.${ownPatient.id}`
+        : `patient_auth_id.eq.${user.id}`
+
       const [abRes, outpatientRes, tbRes] = await Promise.all([
         supabase
           .from('animal_bite_doses')
@@ -76,7 +87,7 @@ export default function PatientFollowUpsPage() {
         supabase
           .from('appointments')
           .select('id, patient_id, patient_auth_id, patient_name, appointment_date, status, reason, notes, preferred_schedule, created_at')
-          .eq('patient_auth_id', user.id)
+          .or(outpatientFilter)
           .eq('reason', 'Outpatient Follow-up')
           .eq('status', 'scheduled')
           .order('appointment_date', { ascending: true }),

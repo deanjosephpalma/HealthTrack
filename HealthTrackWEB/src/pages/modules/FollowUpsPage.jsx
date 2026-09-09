@@ -313,6 +313,7 @@ function OutpatientTab() {
     <div className="space-y-3">
       {records.map((record) => {
         const busy = actionLoading === record.id
+        const due = isToday(record.appointment_date) || isOverdue(record.appointment_date)
         return (
           <article key={record.id} className="rounded-2xl border border-slate-200 bg-white p-4">
             <div className="flex items-start justify-between gap-3">
@@ -326,9 +327,13 @@ function OutpatientTab() {
                 <DueBadge date={record.appointment_date} />
               </div>
             </div>
-            <button type="button" className="mt-3 rounded-lg bg-teal-700 px-3 py-1.5 text-xs font-medium text-white hover:bg-teal-600 disabled:opacity-50" onClick={() => void markComplete(record)} disabled={busy}>
-              {busy ? '...' : 'Mark check-up completed'}
-            </button>
+            {due ? (
+              <button type="button" className="mt-3 rounded-lg bg-teal-700 px-3 py-1.5 text-xs font-medium text-white hover:bg-teal-600 disabled:opacity-50" onClick={() => void markComplete(record)} disabled={busy}>
+                {busy ? '...' : 'Mark check-up completed'}
+              </button>
+            ) : (
+              <p className="mt-3 text-xs font-medium text-slate-500">Scheduled — check-up action will be available on {formatDate(record.appointment_date)}.</p>
+            )}
           </article>
         )
       })}

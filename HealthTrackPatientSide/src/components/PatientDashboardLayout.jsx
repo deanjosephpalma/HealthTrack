@@ -162,7 +162,7 @@ const PAGE_COPY = {
   '/dashboard/follow-ups': {
     kicker: 'Care plan',
     title: 'Follow-up schedules',
-    subtitle: 'Upcoming vaccine or TB monitoring visits.',
+    subtitle: 'Upcoming vaccine, TB monitoring, or outpatient check-up visits.',
   },
   '/dashboard/service-status': {
     kicker: 'Progress',
