@@ -185,7 +185,11 @@ export default function DoctorConsultPage() {
     setShowPatientInfo(false)
     setIssuedDoc(null)
     setBhwEncoded(false)
-    setScheduleEnabled(true)
+    const openingServiceKind = resolveDoctorServiceKind({
+      serviceCode: item.service_code,
+      serviceName: item.service_name || serviceNameById.get(item.service_id) || '',
+    })
+    setScheduleEnabled(openingServiceKind !== 'outpatient')
     setScheduleStartDate(new Date().toISOString().slice(0, 10))
     setTbWeeks(24)
     setMarkDose1Done(true)
@@ -528,8 +532,8 @@ export default function DoctorConsultPage() {
         }
       }
 
-      // Create follow-up schedules for Animal Bite / TB (local-first)
-      if (scheduleEnabled && (serviceKind === 'animal_bite' || serviceKind === 'tb')) {
+      // Create follow-up schedules (local-first).
+      if (scheduleEnabled && (serviceKind === 'animal_bite' || serviceKind === 'tb' || serviceKind === 'outpatient')) {
         const patientId = selected.patient_id ?? serviceRequest?.patient_id ?? null
         const authId = patientAuthId ?? serviceRequest?.patient_auth_id ?? null
         const email = patientEmail || formData.email || null
@@ -606,6 +610,23 @@ export default function DoctorConsultPage() {
             }
           }
         }
+
+        if (serviceKind === 'outpatient') {
+          await saveScheduleLocal({
+            kind: 'outpatient',
+            row: {
+              id: crypto.randomUUID(),
+              patient_id: patientId,
+              patient_auth_id: authId,
+              patient_name: selected.patient_name || patientProfile?.name || 'Patient',
+              appointment_date: scheduleStartDate,
+              status: 'scheduled',
+              reason: 'Outpatient Follow-up',
+              preferred_schedule: 'Set by doctor during consultation',
+              notes: notes.trim() || null,
+            },
+          })
+        }
       }
 
       if (online) await syncNow()
@@ -617,7 +638,7 @@ export default function DoctorConsultPage() {
         metadata: {
           queue_id: selected.id,
           service_code: selected.service_code ?? null,
-          follow_up_scheduled: Boolean(scheduleEnabled && (serviceKind === 'animal_bite' || serviceKind === 'tb')),
+          follow_up_scheduled: Boolean(scheduleEnabled && (serviceKind === 'animal_bite' || serviceKind === 'tb' || serviceKind === 'outpatient')),
           issued_document: released?.ok
             ? { table: released.table, id: released.row?.id, title: released.title }
             : null,
@@ -630,7 +651,7 @@ export default function DoctorConsultPage() {
           ? 'Saved offline. Diagnosis/forms/schedules will sync when you reconnect.'
           : released?.ok
             ? 'Medical Certificate released. Patient can download it from Medical Records.'
-            : scheduleEnabled && (serviceKind === 'animal_bite' || serviceKind === 'tb')
+            : scheduleEnabled && (serviceKind === 'animal_bite' || serviceKind === 'tb' || serviceKind === 'outpatient')
               ? 'Consultation saved and follow-up schedule created. Patient can view it in their portal.'
               : 'Consultation saved. Patient removed from active doctor queue.',
       )
@@ -871,7 +892,7 @@ export default function DoctorConsultPage() {
                   />
                 </div>
 
-                {serviceKind === 'animal_bite' || serviceKind === 'tb' ? (
+                {serviceKind === 'animal_bite' || serviceKind === 'tb' || serviceKind === 'outpatient' ? (
                   <div className="space-y-3 rounded-xl border border-amber-200 bg-amber-50/60 p-4">
                     <label className="flex items-center gap-2 text-sm font-semibold text-amber-900">
                       <input
@@ -879,13 +900,17 @@ export default function DoctorConsultPage() {
                         checked={scheduleEnabled}
                         onChange={(e) => setScheduleEnabled(e.target.checked)}
                       />
-                      Set follow-up monitoring schedule
+                      {serviceKind === 'outpatient' ? 'Set next outpatient check-up' : 'Set follow-up monitoring schedule'}
                     </label>
                     {scheduleEnabled ? (
                       <>
                         <div>
                           <label className="field-label" htmlFor="schedule-start">
-                            {serviceKind === 'animal_bite' ? 'Bite / Day 0 date' : 'Treatment start date'}
+                            {serviceKind === 'animal_bite'
+                              ? 'Bite / Day 0 date'
+                              : serviceKind === 'tb'
+                                ? 'Treatment start date'
+                                : 'Next check-up date'}
                           </label>
                           <input
                             id="schedule-start"
@@ -893,6 +918,7 @@ export default function DoctorConsultPage() {
                             className="field-input"
                             value={scheduleStartDate}
                             onChange={(e) => setScheduleStartDate(e.target.value)}
+                            min={serviceKind === 'outpatient' ? new Date().toISOString().slice(0, 10) : undefined}
                             required
                           />
                         </div>
@@ -922,7 +948,7 @@ export default function DoctorConsultPage() {
                               })()}
                             </div>
                           </>
-                        ) : (
+                        ) : serviceKind === 'tb' ? (
                           <>
                             <div>
                               <label className="field-label" htmlFor="tb-weeks">
@@ -949,6 +975,11 @@ export default function DoctorConsultPage() {
                               </p>
                             </div>
                           </>
+                        ) : (
+                          <div className="rounded-lg border border-amber-100 bg-white p-3 text-xs text-slate-600">
+                            <p className="font-semibold text-slate-800">Doctor-set outpatient check-up</p>
+                            <p className="mt-1">The patient and Follow-ups desk will see the selected date: {scheduleStartDate || '—'}.</p>
+                          </div>
                         )}
                         <p className="text-xs text-amber-800">
                           Patient will see this schedule under Follow-up Schedules in their portal. Staff can track it in Follow-ups.

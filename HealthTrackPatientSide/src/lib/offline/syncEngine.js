@@ -196,12 +196,19 @@ async function pullMyTickets({ patientId, patientAuthId }) {
 
 async function pullFollowUps(patientAuthId) {
   if (!patientAuthId) return
-  const [abRes, tbRes] = await Promise.all([
+  const [abRes, outpatientRes, tbRes] = await Promise.all([
     supabase
       .from('animal_bite_doses')
       .select('*')
       .eq('patient_auth_id', patientAuthId)
       .order('created_at', { ascending: false }),
+    supabase
+      .from('appointments')
+      .select('id, patient_id, patient_auth_id, patient_name, appointment_date, status, reason, notes, preferred_schedule, created_at')
+      .eq('patient_auth_id', patientAuthId)
+      .eq('reason', 'Outpatient Follow-up')
+      .eq('status', 'scheduled')
+      .order('appointment_date', { ascending: true }),
     supabase
       .from('tb_monitoring')
       .select('*')
@@ -212,6 +219,7 @@ async function pullFollowUps(patientAuthId) {
   await cacheFollowUpSchedules({
     animalBite: abRes.data ?? [],
     tb: tbRes.data ?? [],
+    outpatient: outpatientRes.data ?? [],
   })
 }
 

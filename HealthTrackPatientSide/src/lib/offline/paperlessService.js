@@ -28,7 +28,7 @@ export async function enqueueServiceRequestUpdate(id, patch) {
 }
 
 /** Cache follow-up schedules for offline viewing. */
-export async function cacheFollowUpSchedules({ animalBite = [], tb = [] }) {
+export async function cacheFollowUpSchedules({ animalBite = [], tb = [], outpatient = [] }) {
   const now = new Date().toISOString()
   for (const row of animalBite) {
     await patientOfflineDb.schedules.put({
@@ -46,6 +46,14 @@ export async function cacheFollowUpSchedules({ animalBite = [], tb = [] }) {
       synced: 1,
     })
   }
+  for (const row of outpatient) {
+    await patientOfflineDb.schedules.put({
+      ...row,
+      kind: 'outpatient',
+      updated_at: now,
+      synced: 1,
+    })
+  }
   await setMeta('followupsCachedAt', now)
 }
 
@@ -57,6 +65,7 @@ export async function listCachedFollowUps(patientAuthId) {
   return {
     animalBite: rows.filter((r) => r.kind === 'animal_bite'),
     tb: rows.filter((r) => r.kind === 'tb'),
+    outpatient: rows.filter((r) => r.kind === 'outpatient'),
     cachedAt: await getMeta('followupsCachedAt'),
   }
 }

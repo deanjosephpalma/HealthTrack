@@ -141,7 +141,7 @@ async function pushFormResponse(job) {
 
 async function pushFollowupSchedule(job) {
   const { kind, row } = job.payload
-  const table = kind === 'tb' ? 'tb_monitoring' : 'animal_bite_doses'
+  const table = kind === 'tb' ? 'tb_monitoring' : kind === 'outpatient' ? 'appointments' : 'animal_bite_doses'
   const { synced, kind: _k, ...payload } = row
   const { error } = await supabase.from(table).upsert([payload], { onConflict: 'id' })
   if (error) throw new Error(error.message)

@@ -275,6 +275,67 @@ function TBTab() {
   )
 }
 
+// ---- Outpatient check-up tab ----
+function OutpatientTab() {
+  const [records, setRecords] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [actionLoading, setActionLoading] = useState(null)
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    const { data, error: err } = await supabase
+      .from('appointments')
+      .select('id, patient_name, appointment_date, status, notes, preferred_schedule')
+      .eq('reason', 'Outpatient Follow-up')
+      .eq('status', 'scheduled')
+      .order('appointment_date', { ascending: true })
+    if (err) setError(err.message)
+    setRecords(data ?? [])
+    setLoading(false)
+  }, [])
+
+  useEffect(() => { void load() }, [load])
+
+  const markComplete = async (record) => {
+    setActionLoading(record.id)
+    const { error: err } = await supabase.from('appointments').update({ status: 'completed' }).eq('id', record.id)
+    if (err) setError(err.message)
+    await load()
+    setActionLoading(null)
+  }
+
+  if (loading) return <p className="info-banner">Loading outpatient check-ups...</p>
+  if (error) return <p className="error-banner">{error}</p>
+  if (records.length === 0) return <ModuleEmptyState title="No scheduled outpatient check-ups" description="Doctor-set outpatient follow-up dates will appear here." />
+
+  return (
+    <div className="space-y-3">
+      {records.map((record) => {
+        const busy = actionLoading === record.id
+        return (
+          <article key={record.id} className="rounded-2xl border border-slate-200 bg-white p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h3 className="font-semibold text-slate-900">{record.patient_name || 'Patient'}</h3>
+                <p className="text-xs text-slate-500">Outpatient follow-up check-up</p>
+                {record.notes ? <p className="mt-2 text-sm text-slate-600">{record.notes}</p> : null}
+              </div>
+              <div className="text-right">
+                <p className="mb-1 text-xs text-slate-500">Check-up date</p>
+                <DueBadge date={record.appointment_date} />
+              </div>
+            </div>
+            <button type="button" className="mt-3 rounded-lg bg-teal-700 px-3 py-1.5 text-xs font-medium text-white hover:bg-teal-600 disabled:opacity-50" onClick={() => void markComplete(record)} disabled={busy}>
+              {busy ? '...' : 'Mark check-up completed'}
+            </button>
+          </article>
+        )
+      })}
+    </div>
+  )
+}
+
 // ---- Main Page ----
 export default function FollowUpsPage() {
   const [tab, setTab] = useState('animal-bite')
@@ -282,10 +343,11 @@ export default function FollowUpsPage() {
   return (
     <section className="module-card">
       <h2 className="module-title">Follow-up Schedules</h2>
-      <p className="module-subtitle">Anti-rabies dose tracking and TB weekly monitoring.</p>
+      <p className="module-subtitle">Anti-rabies, TB monitoring, and doctor-set outpatient check-ups.</p>
 
       <div className="mb-4 flex gap-2">
         {[
+          { key: 'outpatient', label: 'Outpatient' },
           { key: 'animal-bite', label: '🐾 Animal Bite' },
           { key: 'tb', label: '🫁 TB Monitoring' },
         ].map(t => (
@@ -302,6 +364,7 @@ export default function FollowUpsPage() {
 
       {tab === 'animal-bite' && <AnimalBiteTab />}
       {tab === 'tb' && <TBTab />}
+      {tab === 'outpatient' && <OutpatientTab />}
     </section>
   )
 }

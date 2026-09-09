@@ -37,14 +37,14 @@ export async function saveFormResponseLocal({ serviceRequestId, workflowStepId, 
   return { row, offline: !isOnline() }
 }
 
-/** Local-first follow-up schedule (AB / TB). */
+/** Local-first follow-up schedule (Animal Bite / TB / Outpatient). */
 export async function saveScheduleLocal({ kind, row }) {
   const now = new Date().toISOString()
   const id = row.id || newId()
   const local = {
     ...row,
     id,
-    kind, // 'animal_bite' | 'tb'
+    kind, // 'animal_bite' | 'tb' | 'outpatient'
     updated_at: now,
     created_at: row.created_at || now,
     synced: 0,

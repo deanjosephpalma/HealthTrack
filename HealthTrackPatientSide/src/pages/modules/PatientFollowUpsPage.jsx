@@ -46,6 +46,7 @@ export default function PatientFollowUpsPage() {
   const [offlineNote, setOfflineNote] = useState('')
   const [abRecords, setAbRecords] = useState([])
   const [tbRecords, setTbRecords] = useState([])
+  const [outpatientRecords, setOutpatientRecords] = useState([])
 
   const load = useCallback(async () => {
     if (!user?.id) return
@@ -57,6 +58,7 @@ export default function PatientFollowUpsPage() {
         const cached = await listCachedFollowUps(user.id)
         setAbRecords(cached.animalBite)
         setTbRecords(cached.tb)
+        setOutpatientRecords(cached.outpatient)
         setOfflineNote(
           cached.cachedAt
             ? `Showing saved schedules (last synced ${new Date(cached.cachedAt).toLocaleString()}).`
@@ -65,12 +67,19 @@ export default function PatientFollowUpsPage() {
         return
       }
 
-      const [abRes, tbRes] = await Promise.all([
+      const [abRes, outpatientRes, tbRes] = await Promise.all([
         supabase
           .from('animal_bite_doses')
           .select('*')
           .eq('patient_auth_id', user.id)
           .order('created_at', { ascending: false }),
+        supabase
+          .from('appointments')
+          .select('id, patient_id, patient_auth_id, patient_name, appointment_date, status, reason, notes, preferred_schedule, created_at')
+          .eq('patient_auth_id', user.id)
+          .eq('reason', 'Outpatient Follow-up')
+          .eq('status', 'scheduled')
+          .order('appointment_date', { ascending: true }),
         supabase
           .from('tb_monitoring')
           .select('*')
@@ -78,19 +87,22 @@ export default function PatientFollowUpsPage() {
           .order('created_at', { ascending: false }),
       ])
 
-      if (abRes.error || tbRes.error) {
-        setError([abRes.error?.message, tbRes.error?.message].filter(Boolean).join(' | '))
+      if (abRes.error || tbRes.error || outpatientRes.error) {
+        setError([abRes.error?.message, tbRes.error?.message, outpatientRes.error?.message].filter(Boolean).join(' | '))
       }
       const ab = abRes.data ?? []
       const tb = tbRes.data ?? []
+      const outpatient = outpatientRes.data ?? []
       setAbRecords(ab)
       setTbRecords(tb)
-      await cacheFollowUpSchedules({ animalBite: ab, tb })
+      setOutpatientRecords(outpatient)
+      await cacheFollowUpSchedules({ animalBite: ab, tb, outpatient })
     } catch (e) {
       try {
         const cached = await listCachedFollowUps(user.id)
         setAbRecords(cached.animalBite)
         setTbRecords(cached.tb)
+        setOutpatientRecords(cached.outpatient)
         setOfflineNote('Could not refresh online — showing last saved schedules.')
       } catch {
         setError(e?.message || 'Failed to load follow-up schedules.')
@@ -110,10 +122,10 @@ export default function PatientFollowUpsPage() {
       {offlineNote ? <p className="info-banner">{offlineNote}</p> : null}
       {error ? <p className="error-banner">{error}</p> : null}
 
-      {!loading && abRecords.length === 0 && tbRecords.length === 0 ? (
+      {!loading && abRecords.length === 0 && tbRecords.length === 0 && outpatientRecords.length === 0 ? (
         <ModuleEmptyState
           title="No follow-up schedules yet"
-          description="When your doctor sets an Animal Bite or TB monitoring schedule, it will appear here."
+          description="When your doctor sets an Animal Bite, TB, or outpatient follow-up schedule, it will appear here."
         />
       ) : null}
 
@@ -227,6 +239,27 @@ export default function PatientFollowUpsPage() {
               </article>
             )
           })}
+        </div>
+      ) : null}
+
+      {outpatientRecords.length > 0 ? (
+        <div className="space-y-3">
+          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Outpatient check-up</p>
+          {outpatientRecords.map((record) => (
+            <article key={record.id} className="rounded-2xl border border-slate-200 bg-white p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h3 className="font-semibold text-slate-900">Doctor-set follow-up check-up</h3>
+                  <p className="text-xs text-slate-500">Please return to the RHU on the scheduled date.</p>
+                  {record.notes ? <p className="mt-2 text-sm text-slate-600">{record.notes}</p> : null}
+                </div>
+                <div className="text-right">
+                  <p className="mb-1 text-xs text-slate-500">Check-up date</p>
+                  <DueBadge date={record.appointment_date} />
+                </div>
+              </div>
+            </article>
+          ))}
         </div>
       ) : null}
     </section>

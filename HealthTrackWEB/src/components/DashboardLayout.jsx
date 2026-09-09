@@ -85,7 +85,7 @@ const PAGE_COPY = {
   '/dashboard/doctor-consult': { kicker: 'Clinic', title: 'Doctor Consult', subtitle: 'AB, OPD, Medical Certificate, and TB consults.' },
   '/dashboard/nurse-service-desk': { kicker: 'Desk', title: 'Service Desk', subtitle: 'Permits, health cards, and nurse-handled services.' },
   '/dashboard/patient-records': { kicker: 'Records', title: 'Patient Records', subtitle: 'Paperless consult history and profiles.' },
-  '/dashboard/follow-ups': { kicker: 'Care', title: 'Follow-ups', subtitle: 'Animal bite and TB monitoring schedules.' },
+  '/dashboard/follow-ups': { kicker: 'Care', title: 'Follow-ups', subtitle: 'Animal bite, TB, and outpatient check-up schedules.' },
   '/dashboard/reported-cases': { kicker: 'Surveillance', title: 'Reported Cases', subtitle: 'Community and clinic case reports.' },
   '/dashboard/heat-map': { kicker: 'GIS', title: 'Heat Map', subtitle: 'ICD-10 doctor consults and reported cases by barangay.' },
   '/dashboard/workflow': { kicker: 'Process', title: 'Workflow', subtitle: 'Active service requests and steps.' },
