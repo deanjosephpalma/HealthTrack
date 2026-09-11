@@ -1146,7 +1146,10 @@ fieldset:disabled .field-input {
 
 .app-sidebar {
   position: relative;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
   border-color: rgba(255, 255, 255, .86);
   background: rgba(251, 253, 251, .88);
   box-shadow: 0 26px 65px -42px rgba(16, 45, 53, .48), inset 0 1px 0 rgba(255, 255, 255, .9);
