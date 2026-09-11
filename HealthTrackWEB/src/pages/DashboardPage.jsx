@@ -46,6 +46,11 @@ function formatDateKey(date) {
   return `${yyyy}-${mm}-${dd}`
 }
 
+function isWeekday(date) {
+  const day = date.getDay()
+  return day >= 1 && day <= 5
+}
+
 function buildSeries(days) {
   const today = new Date()
   const base = new Date(today.getFullYear(), today.getMonth(), today.getDate())
@@ -868,6 +873,11 @@ export default function DashboardPage() {
   }, [outbreakSummary.hotspots, recordWeekCurrent, recordWeekPrevious, records, toConsultQueue.length, waitingQueue.length, weekWindows.startCurrent])
 
   const patientsTodayCount = useMemo(() => {
+    // Patient-catered totals are a Monday-to-Friday daily counter. `today` is
+    // derived from the live clock, so this naturally starts a fresh count at
+    // local midnight without needing a stored counter in the database.
+    if (!isWeekday(today)) return 0
+
     const catered = new Set()
     const keyFor = (row, fallback) => {
       if (row.patient_id) return `patient:${row.patient_id}`
@@ -967,7 +977,7 @@ export default function DashboardPage() {
   const statCards = useMemo(() => {
     const base = recordsLast14Series.slice(-7)
     return [
-      { key: 'patients', label: 'Patients Today', value: animatedPatientsToday, icon: 'users', trend: base, change: recordWeekCurrent, sub: 'Unique patients catered today' },
+      { key: 'patients', label: 'Patients Today', value: animatedPatientsToday, icon: 'users', trend: base, change: recordWeekCurrent, sub: 'Unique patients catered today · resets 12 AM (Mon–Fri)' },
       { key: 'queue', label: 'Waiting Queue', value: animatedWaiting, icon: 'queue', trend: base, change: waitingCount, sub: 'Nurse/Staff-issued queue tickets' },
       { key: 'to-consult', label: 'To Consult', value: animatedToConsult, icon: 'stethoscope', trend: base, change: toConsultCount, sub: 'Currently in Doctor Consult queue' },
       { key: 'workflows', label: 'Active Requests', value: animatedActiveWorkflows, icon: 'stethoscope', trend: base, change: activeWorkflowCount, sub: 'In-progress workflows' },
