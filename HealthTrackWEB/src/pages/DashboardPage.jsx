@@ -352,7 +352,7 @@ function PriorityPill({ priority }) {
 
 export default function DashboardPage() {
   const navigate = useNavigate()
-  const { profile, role, profileError } = useAuth()
+  const { profile, role, profileError, user } = useAuth()
   const [now, setNow] = useState(() => new Date())
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -360,7 +360,6 @@ export default function DashboardPage() {
   const [pulseKey, setPulseKey] = useState(0)
   const [quickOpen, setQuickOpen] = useState(false)
 
-  const [appointments, setAppointments] = useState([])
   const [queueItems, setQueueItems] = useState([])
   const [records, setRecords] = useState([])
   const [lowStockItems, setLowStockItems] = useState([])
@@ -383,10 +382,9 @@ export default function DashboardPage() {
     return 'Good evening'
   }, [now])
 
-  const canReadAppointments = role === ROLES.DOCTOR || role === ROLES.NURSE
   const canReadInventory = role === ROLES.DOCTOR || role === ROLES.NURSE
 
-  const hydrateActivity = useCallback(({ nextAppointments, nextQueue, nextRecords }) => {
+  const hydrateActivity = useCallback(({ nextQueue, nextRecords }) => {
     const items = []
     for (const row of nextQueue.slice(0, 10)) {
       const at = row?.created_at ? new Date(row.created_at) : null
@@ -396,16 +394,6 @@ export default function DashboardPage() {
         label: 'Queue check-in',
         detail: `${row.queue_number ? `#${row.queue_number} · ` : ''}${normalizeLabel(row.patient_name, 'Patient')}`,
         tone: 'teal',
-      })
-    }
-    for (const row of nextAppointments.slice(0, 10)) {
-      const at = row?.created_at ? new Date(row.created_at) : null
-      items.push({
-        id: `appt-${row.id}`,
-        at: at && !Number.isNaN(at.getTime()) ? at : new Date(0),
-        label: 'Visit / schedule update',
-        detail: normalizeLabel(row.patient_name, 'Patient'),
-        tone: 'slate',
       })
     }
     for (const row of nextRecords.slice(0, 10)) {
@@ -433,14 +421,6 @@ export default function DashboardPage() {
     recordsSince.setDate(recordsSince.getDate() - 90)
 
     const queries = [
-      canReadAppointments
-        ? supabase
-            .from('appointments')
-            .select('id, patient_name, appointment_date, status, reason, preferred_schedule, notes, created_at, doctor_queue_status, queue_id, service_type_id')
-            .is('archived_at', null)
-            .order('appointment_date', { ascending: true })
-            .limit(300)
-        : Promise.resolve({ data: [], error: null }),
       supabase
         .from('queue')
         .select('id, queue_number, patient_name, reason, status, created_at, appointment_id, patient_id, counter_room, service_code')
@@ -451,7 +431,7 @@ export default function DashboardPage() {
       supabase
         .from('patient_records')
         .select(
-          'id, diagnosis, notes, barangay, sex, age, temp, spo2, bp, created_at, date_of_consultation, latitude, longitude, tb_classification, nurse_completed_at, doctor_completed_at, medcert_pwd, medcert_work, medcert_financial, medcert_4ps, medcert_school, medcert_others',
+          'id, patient_id, patient_name, queue_id, assigned_doctor_id, workflow_status, diagnosis, notes, barangay, sex, age, temp, spo2, bp, created_at, date_of_consultation, latitude, longitude, tb_classification, nurse_completed_at, doctor_completed_at, medcert_pwd, medcert_work, medcert_financial, medcert_4ps, medcert_school, medcert_others',
         )
         .is('archived_at', null)
         .gte('created_at', recordsSince.toISOString())
@@ -475,21 +455,19 @@ export default function DashboardPage() {
       supabase.from('patient_records').select('*', { count: 'exact', head: true }),
     ]
 
-    const [appointmentsRes, queueRes, recordsRes, inventoryRes, serviceTypesRes, activeRequestsRes, totalRecordsRes] = await Promise.all(queries)
-    const firstError = [appointmentsRes.error, queueRes.error, recordsRes.error, inventoryRes.error, serviceTypesRes.error].find(Boolean)
+    const [queueRes, recordsRes, inventoryRes, serviceTypesRes, activeRequestsRes, totalRecordsRes] = await Promise.all(queries)
+    const firstError = [queueRes.error, recordsRes.error, inventoryRes.error, serviceTypesRes.error].find(Boolean)
     if (firstError) {
       setError(firstError.message)
       setLoading(false)
       return
     }
 
-    const nextAppointments = Array.isArray(appointmentsRes.data) ? appointmentsRes.data : []
     const nextQueue = Array.isArray(queueRes.data) ? queueRes.data : []
     const nextRecords = Array.isArray(recordsRes.data) ? recordsRes.data : []
     const nextInventory = Array.isArray(inventoryRes.data) ? inventoryRes.data : []
     const activeRequests = Array.isArray(activeRequestsRes.data) ? activeRequestsRes.data : []
 
-    setAppointments(nextAppointments)
     setQueueItems(nextQueue)
     setRecords(nextRecords)
     setLowStockItems(nextInventory.filter((row) => Number(row.stock_quantity) <= 5).slice(0, 10))
@@ -513,12 +491,12 @@ export default function DashboardPage() {
       }))
     setTbRecords(derivedTb)
 
-    hydrateActivity({ nextAppointments, nextQueue, nextRecords })
+    hydrateActivity({ nextQueue, nextRecords })
 
     setLastSyncAt(new Date())
     setPulseKey((k) => k + 1)
     setLoading(false)
-  }, [canReadAppointments, canReadInventory, hydrateActivity, role])
+  }, [canReadInventory, hydrateActivity, role])
 
   useEffect(() => {
     if (!role) return
@@ -553,23 +531,6 @@ export default function DashboardPage() {
               label: 'Queue update',
               detail: `${num ? `${num} · ` : ''}${who}`,
               tone: 'teal',
-            },
-            ...(Array.isArray(prev) ? prev : []),
-          ]
-          return next.slice(0, 14)
-        })
-        scheduleReload()
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'appointments' }, (payload) => {
-        const who = normalizeLabel(payload?.new?.patient_name, 'Patient')
-        setActivity((prev) => {
-          const next = [
-            {
-              id: `evt-appt-${payload.commit_timestamp ?? Date.now()}-${Math.random().toString(16).slice(2)}`,
-              at: payload.commit_timestamp ? new Date(payload.commit_timestamp) : new Date(),
-              label: 'Visit update',
-              detail: who,
-              tone: 'slate',
             },
             ...(Array.isArray(prev) ? prev : []),
           ]
@@ -631,16 +592,7 @@ export default function DashboardPage() {
 
   const today = useMemo(() => new Date(now.getFullYear(), now.getMonth(), now.getDate()), [now])
 
-  const todayAppointments = useMemo(() => {
-    if (!Array.isArray(appointments)) return []
-    return appointments.filter((row) => {
-      const d = safeDateOnly(row.appointment_date)
-      if (!d) return false
-      return d.getTime() === today.getTime()
-    })
-  }, [appointments, today])
-
-  const activeQueue = useMemo(() => {
+  const liveQueue = useMemo(() => {
     if (!Array.isArray(queueItems)) return []
     return queueItems
       .filter((row) => {
@@ -649,10 +601,22 @@ export default function DashboardPage() {
       })
       .slice()
       .sort((a, b) => (Date.parse(a.created_at ?? '') || 0) - (Date.parse(b.created_at ?? '') || 0))
-      .slice(0, 12)
   }, [queueItems])
 
-  const waitingQueue = useMemo(() => activeQueue.filter((row) => (row.status ?? 'waiting').toString().toLowerCase() === 'waiting'), [activeQueue])
+  // Nurse/Staff-issued tickets remain visible while Waiting, Next, or Called.
+  // This follows the real queue flow, rather than the retired appointment flow.
+  const waitingQueue = liveQueue
+  const activeQueue = useMemo(() => liveQueue.slice(0, 12), [liveQueue])
+
+  const toConsultQueue = useMemo(
+    () =>
+      liveQueue.filter((row) => {
+        const code = (row.service_code ?? '').toString().trim().toUpperCase()
+        const name = (row.service_name ?? '').toString().toLowerCase()
+        return ['AB', 'OPD', 'MC', 'IMC', 'TB'].includes(code) || /animal\s*bite|anti-?rabies|outpatient|medical\s*cert|tuberculosis|\btb\b/.test(name)
+      }),
+    [liveQueue],
+  )
 
   const recordsLast14Series = useMemo(() => {
     const trend = buildSeries(14)
@@ -666,19 +630,6 @@ export default function DashboardPage() {
     }
     return trend.map((d) => ({ key: d.key, value: d.value }))
   }, [records])
-
-  const appointmentsLast14Series = useMemo(() => {
-    const trend = buildSeries(14)
-    const map = new Map(trend.map((d) => [d.key, d]))
-    for (const row of appointments) {
-      const d = safeDateOnly(row.appointment_date) ?? safeDateOnly(row.created_at)
-      if (!d) continue
-      const key = formatDateKey(d)
-      const entry = map.get(key)
-      if (entry) entry.value += 1
-    }
-    return trend.map((d) => ({ key: d.key, value: d.value }))
-  }, [appointments])
 
   const weekWindows = useMemo(() => {
     const base = new Date(today)
@@ -703,22 +654,8 @@ export default function DashboardPage() {
     return { current, previous }
   }, [records, today, weekWindows])
 
-  const appointmentWeekCounts = useMemo(() => {
-    let current = 0
-    let previous = 0
-    for (const row of appointments) {
-      const d = safeDateOnly(row.appointment_date) ?? safeDateOnly(row.created_at)
-      if (!d) continue
-      if (d >= weekWindows.startCurrent && d <= today) current += 1
-      else if (d >= weekWindows.startPrev && d <= weekWindows.endPrev) previous += 1
-    }
-    return { current, previous }
-  }, [appointments, today, weekWindows])
-
   const recordWeekCurrent = recordWeekCounts.current
   const recordWeekPrevious = recordWeekCounts.previous
-  const apptWeekCurrent = appointmentWeekCounts.current
-  const apptWeekPrevious = appointmentWeekCounts.previous
 
   const criticalCases = useMemo(() => {
     const cutoff = new Date(now.getTime() - 24 * 60 * 60 * 1000)
@@ -854,16 +791,6 @@ export default function DashboardPage() {
       })
     }
 
-    const noShowToday = todayAppointments.filter((row) => (row.status ?? '').toString().toLowerCase() === 'no_show').length
-    if (noShowToday > 0) {
-      alerts.push({
-        id: 'no-show',
-        severity: noShowToday >= 3 ? 'orange' : 'yellow',
-        title: 'Missed consultations',
-        message: `${noShowToday} appointment(s) marked as no-show today.`,
-      })
-    }
-
     if (lowStockItems.length > 0) {
       alerts.push({
         id: 'low-stock',
@@ -894,17 +821,15 @@ export default function DashboardPage() {
     }
 
     return alerts.slice(0, 6)
-  }, [criticalCases.length, lowStockItems.length, now, outbreakSummary.dxList, todayAppointments, waitingQueue])
+  }, [criticalCases.length, lowStockItems.length, now, outbreakSummary.dxList, waitingQueue])
 
   const aiInsights = useMemo(() => {
     const insights = []
     const recordsDelta = pctChange(recordWeekCurrent, recordWeekPrevious)
-    const apptDelta = pctChange(apptWeekCurrent, apptWeekPrevious)
-
     insights.push({
       id: 'ins-pace',
       title: 'Workload pulse',
-      message: `Consultations ${recordsDelta >= 0 ? 'up' : 'down'} ${Math.abs(recordsDelta)}% this week. Scheduled visits ${apptDelta >= 0 ? 'up' : 'down'} ${Math.abs(apptDelta)}%.`,
+      message: `Consultations ${recordsDelta >= 0 ? 'up' : 'down'} ${Math.abs(recordsDelta)}% this week. ${toConsultQueue.length} patient(s) are currently for doctor consultation.`,
     })
 
     const hotspot = outbreakSummary.hotspots[0]
@@ -940,16 +865,34 @@ export default function DashboardPage() {
     }
 
     return insights.slice(0, 4)
-  }, [apptWeekCurrent, apptWeekPrevious, outbreakSummary.hotspots, recordWeekCurrent, recordWeekPrevious, records, waitingQueue.length, weekWindows.startCurrent])
+  }, [outbreakSummary.hotspots, recordWeekCurrent, recordWeekPrevious, records, toConsultQueue.length, waitingQueue.length, weekWindows.startCurrent])
 
   const patientsTodayCount = useMemo(() => {
-    const map = new Set()
-    for (const row of todayAppointments) {
+    const catered = new Set()
+    const keyFor = (row, fallback) => {
+      if (row.patient_id) return `patient:${row.patient_id}`
+      if (row.queue_id) return `queue:${row.queue_id}`
+      if (row.id && fallback === 'queue') return `queue:${row.id}`
       const name = normalizeLabel(row.patient_name, '').toLowerCase()
-      if (name) map.add(name)
+      return name ? `name:${name}` : null
     }
-    return map.size
-  }, [todayAppointments])
+
+    for (const row of records) {
+      const completedAt = safeDateOnly(row.doctor_completed_at)
+      if (!completedAt || completedAt.getTime() !== today.getTime()) continue
+      if (role === ROLES.DOCTOR && row.assigned_doctor_id && user?.id && row.assigned_doctor_id !== user.id) continue
+      const key = keyFor(row, 'record')
+      if (key) catered.add(key)
+    }
+    for (const row of queueItems) {
+      const queueDate = safeDateOnly(row.created_at)
+      const status = (row.status ?? '').toString().toLowerCase()
+      if (!queueDate || queueDate.getTime() !== today.getTime() || !['done', 'completed'].includes(status)) continue
+      const key = keyFor(row, 'queue')
+      if (key) catered.add(key)
+    }
+    return catered.size
+  }, [queueItems, records, role, today, user?.id])
 
   const heatmapAlertCount = useMemo(() => {
     const highSignals = outbreakSummary.dxList.filter((row) => row.change >= 35 && row.current >= 3).length
@@ -958,7 +901,7 @@ export default function DashboardPage() {
 
   const criticalCount = criticalCases.length
   const waitingCount = waitingQueue.length
-  const apptTodayCount = todayAppointments.length
+  const toConsultCount = toConsultQueue.length
 
   // TB Surveillance computed data
   const tbSummary = useMemo(() => {
@@ -1009,7 +952,7 @@ export default function DashboardPage() {
 
   const animatedPatientsToday = useAnimatedNumber(patientsTodayCount)
   const animatedWaiting = useAnimatedNumber(waitingCount)
-  const animatedAppts = useAnimatedNumber(apptTodayCount)
+  const animatedToConsult = useAnimatedNumber(toConsultCount)
   const animatedCritical = useAnimatedNumber(criticalCount)
   const animatedHeatAlerts = useAnimatedNumber(heatmapAlertCount)
   const animatedActiveWorkflows = useAnimatedNumber(activeWorkflowCount)
@@ -1024,27 +967,26 @@ export default function DashboardPage() {
   const statCards = useMemo(() => {
     const base = recordsLast14Series.slice(-7)
     return [
-      { key: 'patients', label: 'Patients Today', value: animatedPatientsToday, icon: 'users', trend: base, change: recordWeekCurrent, sub: 'Unique patients from today’s schedule' },
-      { key: 'queue', label: 'Waiting Queue', value: animatedWaiting, icon: 'queue', trend: base, change: waitingCount, sub: 'Live queue waiting now' },
-      { key: 'appt', label: 'In Queue Today', value: animatedAppts, icon: 'calendar', trend: appointmentsLast14Series.slice(-7), change: apptWeekCurrent, sub: 'Scheduled for today' },
+      { key: 'patients', label: 'Patients Today', value: animatedPatientsToday, icon: 'users', trend: base, change: recordWeekCurrent, sub: 'Unique patients catered today' },
+      { key: 'queue', label: 'Waiting Queue', value: animatedWaiting, icon: 'queue', trend: base, change: waitingCount, sub: 'Nurse/Staff-issued queue tickets' },
+      { key: 'to-consult', label: 'To Consult', value: animatedToConsult, icon: 'stethoscope', trend: base, change: toConsultCount, sub: 'Currently in Doctor Consult queue' },
       { key: 'workflows', label: 'Active Requests', value: animatedActiveWorkflows, icon: 'stethoscope', trend: base, change: activeWorkflowCount, sub: 'In-progress workflows' },
       { key: 'critical', label: 'Critical Cases', value: animatedCritical, icon: 'alert', trend: base, change: criticalCount, sub: 'Flagged in last 24 hours' },
       { key: 'heat', label: 'Heatmap Alerts', value: animatedHeatAlerts, icon: 'map', trend: base, change: heatmapAlertCount, sub: 'Signals vs prior week' },
     ]
   }, [
     animatedActiveWorkflows,
-    animatedAppts,
+    animatedToConsult,
     animatedCritical,
     animatedHeatAlerts,
     animatedPatientsToday,
     animatedWaiting,
-    apptWeekCurrent,
-    appointmentsLast14Series,
     criticalCount,
     heatmapAlertCount,
     activeWorkflowCount,
     recordWeekCurrent,
     recordsLast14Series,
+    toConsultCount,
     waitingCount,
   ])
 
@@ -1112,9 +1054,9 @@ export default function DashboardPage() {
             <p className="text-xs font-semibold uppercase tracking-[0.16em] text-teal-100/80">Clinic activity</p>
             <div className="mt-3 grid grid-cols-2 gap-3">
               <div className="rounded-xl border border-white/15 bg-white/10 p-3">
-                <p className="text-xs text-teal-100/75">In queue today</p>
+                <p className="text-xs text-teal-100/75">To consult</p>
                 <p className="mt-1 font-[Fraunces] text-xl font-bold text-white" style={{ fontFamily: 'Fraunces, Georgia, serif' }}>
-                  {animatedAppts}
+                  {animatedToConsult}
                 </p>
               </div>
               <div className="rounded-xl border border-white/15 bg-white/10 p-3">
@@ -1158,7 +1100,7 @@ export default function DashboardPage() {
                   ? 'text-emerald-700 bg-emerald-50 border-emerald-200'
                   : 'text-teal-700 bg-teal-50 border-teal-200'
 
-          const delta = card.key === 'appt' ? pctChange(apptWeekCurrent, apptWeekPrevious) : pctChange(recordWeekCurrent, recordWeekPrevious)
+          const delta = card.key === 'to-consult' ? toConsultCount : pctChange(recordWeekCurrent, recordWeekPrevious)
           const deltaLabel = `${delta >= 0 ? '↑' : '↓'} ${Math.abs(delta)}% vs last week`
           const deltaColor = delta >= 0 ? 'text-emerald-700' : 'text-rose-700'
           const chartColor = card.key === 'critical' ? '#e11d48' : card.key === 'heat' ? '#0284c7' : '#0f766e'
