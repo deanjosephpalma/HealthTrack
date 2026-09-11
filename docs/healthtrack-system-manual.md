@@ -72,20 +72,7 @@ The Heat Map displays clinical and reported-case patterns by barangay. It helps 
 
 Heat map results are decision-support information. They do not replace clinical verification or official outbreak investigation procedures.
 
-### 9. Offline Use and Synchronization
-
-Selected queue and record operations can continue during a temporary internet interruption. Pending work is stored securely in the browser and synchronizes when connectivity returns. Do not clear browser data or use a different account on the same device before pending work has synchronized.
-
-### 10. Security and Good Practice
-
-- Use only your assigned account; never share passwords.
-- Verify patient identity before encoding or consulting.
-- Enter complete and accurate information.
-- Sign out on shared devices.
-- Do not disclose patient records outside authorized RHU work.
-- Report access, synchronization, or data issues to the system administrator.
-
-### 11. Quick Troubleshooting
+### 6. Quick Troubleshooting
 
 **Queue ticket is not visible:** Refresh the Queue page, verify the patient was encoded, and check internet connectivity.
 
@@ -95,7 +82,7 @@ Selected queue and record operations can continue during a temporary internet in
 
 **Heat map has no results:** Check the date/filter selection and confirm clinical or reported-case data has been recorded with barangay information.
 
-### 12. Support
+### Support
 
 HealthTrack — Digital Health Service Management System for RHU Pila, Laguna.
 

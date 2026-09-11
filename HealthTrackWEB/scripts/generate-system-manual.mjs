@@ -137,16 +137,8 @@ steps([
   'Use Heat Map and Reports information to guide validation, outreach, monitoring, and response planning.',
 ])
 paragraph('Important: Heat-map results are decision-support information only. They do not replace clinical verification or official outbreak-investigation procedures.')
-heading('6. Offline Use and Synchronization', 1)
-paragraph('Selected queue and record operations can continue during temporary internet interruption. Pending work is stored in the browser and synchronizes once connectivity returns. Keep the browser open and do not clear browser data before pending work has synchronized.')
-heading('7. Security and Good Practice', 1)
-paragraph('Use only your assigned account; never share passwords.', { bullet: true })
-paragraph('Verify patient identity before encoding or consulting.', { bullet: true })
-paragraph('Enter complete and accurate information, then sign out on shared devices.', { bullet: true })
-paragraph('Do not disclose patient records outside authorized RHU work.', { bullet: true })
-
 newPage()
-heading('8. Quick Troubleshooting', 1)
+heading('6. Quick Troubleshooting', 1)
 heading('Queue ticket is not visible')
 paragraph('Refresh the Queue page, confirm that encoding was completed, and check internet connectivity.')
 heading('Changes are pending sync')
