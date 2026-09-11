@@ -92,14 +92,14 @@ function BellIcon({ className }) {
 function SidebarContent({ patientName, onLogout, onNavigate }) {
   const patientInitial = patientName?.trim().charAt(0).toUpperCase() || 'P'
   return (
-    <div className="flex h-full flex-col">
+    <div className="patient-sidebar-content flex h-full min-h-0 flex-col">
       <div className="sidebar-brand">
         <p className="chip mb-2">HealthTrack · RHU Pila</p>
         <h2 className="sidebar-title">Patient Portal</h2>
         <p className="sidebar-subtitle">{patientName || 'Signed in'}</p>
       </div>
 
-      <nav className="menu-list" aria-label="Patient modules">
+      <nav className="menu-list patient-sidebar-nav" aria-label="Patient modules">
         {MODULES.map((item, index) => {
           const previous = MODULES[index - 1]
           const section = MODULE_SECTIONS[item.key]

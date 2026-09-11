@@ -185,7 +185,7 @@ export default function DashboardLayout() {
             </p>
           </div>
 
-          <nav className="menu-list" aria-label="Dashboard modules">
+          <nav className="menu-list app-sidebar-nav" aria-label="Dashboard modules">
             {menuItems.map((moduleKey, index) => {
               const item = MODULE_META[moduleKey]
               if (!item) return null

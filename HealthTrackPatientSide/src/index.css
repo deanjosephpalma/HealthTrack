@@ -208,6 +208,23 @@ textarea {
   @apply hidden flex-col rounded-[1.25rem] border border-white/80 bg-[#17283d] p-4 text-white shadow-[0_22px_60px_-28px_rgba(23,40,61,0.55)] backdrop-blur-xl lg:flex lg:h-full lg:min-h-0 lg:overflow-auto;
 }
 
+/* Match the staff/nurse sidebar: only the navigation list scrolls. */
+.app-sidebar .patient-sidebar-content {
+  min-height: 0;
+}
+
+.app-sidebar .patient-sidebar-nav {
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: .25rem;
+}
+
+.app-sidebar .patient-sidebar-account {
+  margin-top: 0;
+}
+
 .sidebar-brand {
   @apply mb-1;
 }
