@@ -224,12 +224,13 @@ textarea {
 }
 
 .app-sidebar-inner {
-  @apply flex h-full min-h-0 flex-col overflow-hidden p-4 sm:p-5;
+  @apply flex h-full min-h-0 flex-col overflow-y-auto overscroll-contain p-4 sm:p-5;
+  touch-action: pan-y;
 }
 
-/* Keep the identity and sign-out controls visible while long role menus scroll. */
+/* One continuous sidebar scroll area keeps every final menu item and account control reachable. */
 .app-sidebar-nav {
-  @apply min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1;
+  @apply flex-none overflow-visible pr-1;
 }
 
 /* Desktop navigation must not move with a long module page or a portal modal. */
