@@ -1,0 +1,981 @@
+%PDF-1.3
+%ºß¬à
+3 0 obj
+<</Type /Page
+/Parent 1 0 R
+/Resources 2 0 R
+/MediaBox [0 0 595.2799999999999727 841.8899999999999864]
+/Contents 4 0 R
+>>
+endobj
+4 0 obj
+<<
+/Length 2722
+>>
+stream
+0.5670000000000001 w
+0 G
+0.05 0.41 0.4 rg
+0. 841.8899999999999864 595.2755905511811534 -204.0944881889764133 re
+f
+0.92 0.47 0.36 rg
+0. 637.7955118110236299 595.2755905511811534 -11.3385826771653555 re
+f
+BT
+/F2 27 Tf
+31.0499999999999972 TL
+1. g
+51.0236220472441033 754.0159842519684616 Td
+(HEALTHTRACK) Tj
+ET
+BT
+/F2 16 Tf
+18.3999999999999986 TL
+1. g
+51.0236220472441033 720.0002362204724022 Td
+(System Manual) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+1. g
+51.0236220472441033 688.819133858267719 Td
+(Digital Health Service Management System) Tj
+ET
+BT
+/F1 11 Tf
+12.6499999999999986 TL
+1. g
+51.0236220472441033 668.9766141732283131 Td
+(Rural Health Unit of Pila, Laguna) Tj
+ET
+BT
+/F2 19 Tf
+21.8499999999999979 TL
+0.055 0.412 0.396 rg
+51.0236220472441033 572.5986614173227736 Td
+(Purpose) Tj
+ET
+0.92 0.47 0.36 RG
+1.984251968503937 w
+51.0236220472441033 544.2522047244093528 m
+255.1181102362205024 544.2522047244093528 l
+S
+BT
+/F1 10.5 Tf
+12.0749999999999993 TL
+0.149 0.224 0.247 rg
+51.0236220472441033 524.4096850393700606 Td
+(This manual guides patients and RHU Pila staff in using HealthTrack for service access, queue) Tj
+T* (management, consultations, records, follow-ups, reporting, and heat-map monitoring.) Tj
+ET
+BT
+/F2 13 Tf
+14.9499999999999993 TL
+0.055 0.412 0.396 rg
+51.0236220472441033 485.8585039370078675 Td
+(Roles at a Glance) Tj
+ET
+0.92 0.47 0.36 RG
+1.984251968503937 w
+51.0236220472441033 463.1813385826771423 m
+178.5826771653543403 463.1813385826771423 l
+S
+BT
+/F1 10.5 Tf
+12.0749999999999993 TL
+0.149 0.224 0.247 rg
+51.0236220472441033 443.3388188976377364 Td
+(• Patient — access services, queue tickets, records, and follow-ups.) Tj
+ET
+BT
+/F1 10.5 Tf
+12.0749999999999993 TL
+0.149 0.224 0.247 rg
+51.0236220472441033 419.8112598425196325 Td
+(• BHW / Volunteer — encode patients and issue queue numbers.) Tj
+ET
+BT
+/F1 10.5 Tf
+12.0749999999999993 TL
+0.149 0.224 0.247 rg
+51.0236220472441033 396.2837007874014716 Td
+(• Nurse — manage queues, nurse-led services, records, inventory, and workflows.) Tj
+ET
+BT
+/F1 10.5 Tf
+12.0749999999999993 TL
+0.149 0.224 0.247 rg
+51.0236220472441033 372.7561417322833108 Td
+(• Doctor — complete consultations and create applicable follow-up schedules.) Tj
+ET
+BT
+/F1 10.5 Tf
+12.0749999999999993 TL
+0.149 0.224 0.247 rg
+51.0236220472441033 349.22858267716515 Td
+(• Account Manager — manage approved user accounts.) Tj
+ET
+0.08 0.45 0.43 RG
+51.0236220472441033 36.8506299212597312 m
+544.2519685039370643 36.8506299212597312 l
+S
+BT
+/F1 8 Tf
+9.1999999999999993 TL
+0.365 0.435 0.455 rg
+51.0236220472441033 22.6774015748030706 Td
+(HealthTrack · RHU Pila System Manual) Tj
+ET
+BT
+/F1 8 Tf
+9.1999999999999993 TL
+0.365 0.435 0.455 rg
+519.1319685039370597 22.6774015748030706 Td
+(Page 1) Tj
+ET
+endstream
+endobj
+5 0 obj
+<</Type /Page
+/Parent 1 0 R
+/Resources 2 0 R
+/MediaBox [0 0 595.2799999999999727 841.8899999999999864]
+/Contents 6 0 R
+>>
+endobj
+6 0 obj
+<<
+/Length 3245
+>>
+stream
+1.984251968503937 w
+0.08 0.45 0.43 RG
+BT
+/F2 19 Tf
+21.8499999999999979 TL
+0.055 0.412 0.396 rg
+51.0236220472441033 779.5277952755905062 Td
+(1. Patient Portal) Tj
+ET
+0.92 0.47 0.36 RG
+1.984251968503937 w
+51.0236220472441033 751.1813385826770855 m
+255.1181102362205024 751.1813385826770855 l
+S
+BT
+/F1 10.5 Tf
+12.0749999999999993 TL
+0.149 0.224 0.247 rg
+51.0236220472441033 731.3388188976377933 Td
+(Use the Patient Portal to access RHU services and monitor care progress.) Tj
+ET
+BT
+/F1 10.5 Tf
+12.0749999999999993 TL
+0.149 0.224 0.247 rg
+51.0236220472441033 707.8112598425196893 Td
+(1. Register or sign in using your patient account.) Tj
+ET
+BT
+/F1 10.5 Tf
+12.0749999999999993 TL
+0.149 0.224 0.247 rg
+51.0236220472441033 684.2837007874015853 Td
+(2. Complete the Profile page with accurate personal, contact, and barangay information.) Tj
+ET
+BT
+/F1 10.5 Tf
+12.0749999999999993 TL
+0.149 0.224 0.247 rg
+51.0236220472441033 660.7561417322834814 Td
+(3. Choose a service from Service Info and complete the required intake details.) Tj
+ET
+BT
+/F1 10.5 Tf
+12.0749999999999993 TL
+0.149 0.224 0.247 rg
+51.0236220472441033 637.2285826771653774 Td
+(4. Select Get in Line to join the BHW / Volunteer encoding line.) Tj
+ET
+BT
+/F1 10.5 Tf
+12.0749999999999993 TL
+0.149 0.224 0.247 rg
+51.0236220472441033 613.7010236220472734 Td
+(5. After encoding, open My Queue to view your ticket and live queue status.) Tj
+ET
+BT
+/F1 10.5 Tf
+12.0749999999999993 TL
+0.149 0.224 0.247 rg
+51.0236220472441033 590.1734645669291695 Td
+(6. Open Service Status to monitor request progress and released documents.) Tj
+ET
+BT
+/F1 10.5 Tf
+12.0749999999999993 TL
+0.149 0.224 0.247 rg
+51.0236220472441033 566.6459055118110655 Td
+(7. Open Medical Records and Follow-ups to view completed care and schedules.) Tj
+ET
+BT
+/F2 19 Tf
+21.8499999999999979 TL
+0.055 0.412 0.396 rg
+51.0236220472441033 543.1183464566929615 Td
+(2. BHW / Volunteer Encode Desk) Tj
+ET
+0.92 0.47 0.36 RG
+1.984251968503937 w
+51.0236220472441033 514.7718897637795408 m
+255.1181102362205024 514.7718897637795408 l
+S
+BT
+/F1 10.5 Tf
+12.0749999999999993 TL
+0.149 0.224 0.247 rg
+51.0236220472441033 494.9293700787401917 Td
+(1. Sign in to the Staff Console and open Encode Desk.) Tj
+ET
+BT
+/F1 10.5 Tf
+12.0749999999999993 TL
+0.149 0.224 0.247 rg
+51.0236220472441033 471.4018110236220309 Td
+(2. Select a patient under Awaiting Encoding.) Tj
+ET
+BT
+/F1 10.5 Tf
+12.0749999999999993 TL
+0.149 0.224 0.247 rg
+51.0236220472441033 447.8742519685038701 Td
+(3. Verify the profile and complete the required intake information.) Tj
+ET
+BT
+/F1 10.5 Tf
+12.0749999999999993 TL
+0.149 0.224 0.247 rg
+51.0236220472441033 424.3466929133857093 Td
+(4. Save the encoded information.) Tj
+ET
+BT
+/F1 10.5 Tf
+12.0749999999999993 TL
+0.149 0.224 0.247 rg
+51.0236220472441033 400.8191338582676053 Td
+(5. Select Get Queue Number to issue a ticket for Doctor Consult or the appropriate service desk.) Tj
+ET
+0.08 0.45 0.43 RG
+51.0236220472441033 36.8506299212597312 m
+544.2519685039370643 36.8506299212597312 l
+S
+BT
+/F1 8 Tf
+9.1999999999999993 TL
+0.365 0.435 0.455 rg
+51.0236220472441033 22.6774015748030706 Td
+(HealthTrack · RHU Pila System Manual) Tj
+ET
+BT
+/F1 8 Tf
+9.1999999999999993 TL
+0.365 0.435 0.455 rg
+519.1319685039370597 22.6774015748030706 Td
+(Page 2) Tj
+ET
+endstream
+endobj
+7 0 obj
+<</Type /Page
+/Parent 1 0 R
+/Resources 2 0 R
+/MediaBox [0 0 595.2799999999999727 841.8899999999999864]
+/Contents 8 0 R
+>>
+endobj
+8 0 obj
+<<
+/Length 3470
+>>
+stream
+1.984251968503937 w
+0.08 0.45 0.43 RG
+BT
+/F2 19 Tf
+21.8499999999999979 TL
+0.055 0.412 0.396 rg
+51.0236220472441033 779.5277952755905062 Td
+(3. Nurse Workflow) Tj
+ET
+0.92 0.47 0.36 RG
+1.984251968503937 w
+51.0236220472441033 751.1813385826770855 m
+255.1181102362205024 751.1813385826770855 l
+S
+BT
+/F1 10.5 Tf
+12.0749999999999993 TL
+0.149 0.224 0.247 rg
+51.0236220472441033 731.3388188976377933 Td
+(1. Open Queue to view active tickets and call patients in the appropriate order.) Tj
+ET
+BT
+/F1 10.5 Tf
+12.0749999999999993 TL
+0.149 0.224 0.247 rg
+51.0236220472441033 707.8112598425196893 Td
+(2. Use Service Desk for nurse-led services such as health cards, permits, and related requests.) Tj
+ET
+BT
+/F1 10.5 Tf
+12.0749999999999993 TL
+0.149 0.224 0.247 rg
+51.0236220472441033 684.2837007874015853 Td
+(3. Use Patient Records to encode or update authorized clinical information.) Tj
+ET
+BT
+/F1 10.5 Tf
+12.0749999999999993 TL
+0.149 0.224 0.247 rg
+51.0236220472441033 660.7561417322834814 Td
+(4. Use Inventory to monitor medicine and supply levels.) Tj
+ET
+BT
+/F1 10.5 Tf
+12.0749999999999993 TL
+0.149 0.224 0.247 rg
+51.0236220472441033 637.2285826771653774 Td
+(5. Use Workflow, Archive, and Reports for operational monitoring.) Tj
+ET
+BT
+/F2 19 Tf
+21.8499999999999979 TL
+0.055 0.412 0.396 rg
+51.0236220472441033 613.7010236220472734 Td
+(4. Doctor Consultation) Tj
+ET
+0.92 0.47 0.36 RG
+1.984251968503937 w
+51.0236220472441033 585.3545669291338527 m
+255.1181102362205024 585.3545669291338527 l
+S
+BT
+/F1 10.5 Tf
+12.0749999999999993 TL
+0.149 0.224 0.247 rg
+51.0236220472441033 565.5120472440944468 Td
+(1. Open Doctor Consult and select an active doctor-service queue ticket.) Tj
+ET
+BT
+/F1 10.5 Tf
+12.0749999999999993 TL
+0.149 0.224 0.247 rg
+51.0236220472441033 541.9844881889764565 Td
+(2. Review the patient profile and intake details.) Tj
+ET
+BT
+/F1 10.5 Tf
+12.0749999999999993 TL
+0.149 0.224 0.247 rg
+51.0236220472441033 518.4569291338582389 Td
+(3. Call the patient when ready.) Tj
+ET
+BT
+/F1 10.5 Tf
+12.0749999999999993 TL
+0.149 0.224 0.247 rg
+51.0236220472441033 494.9293700787401917 Td
+(4. Record diagnosis, notes, prescription, and required clinical details.) Tj
+ET
+BT
+/F1 10.5 Tf
+12.0749999999999993 TL
+0.149 0.224 0.247 rg
+51.0236220472441033 471.4018110236220309 Td
+(5. Complete the consultation to save the patient record and close the queue ticket.) Tj
+ET
+BT
+/F1 10.5 Tf
+12.0749999999999993 TL
+0.149 0.224 0.247 rg
+51.0236220472441033 447.8742519685038701 Td
+(6. Create animal-bite, TB, or outpatient follow-up schedules when applicable.) Tj
+ET
+BT
+/F2 13 Tf
+14.9499999999999993 TL
+0.055 0.412 0.396 rg
+51.0236220472441033 424.3466929133857093 Td
+(Queue Statuses) Tj
+ET
+0.92 0.47 0.36 RG
+1.984251968503937 w
+51.0236220472441033 401.6695275590550409 m
+178.5826771653543403 401.6695275590550409 l
+S
+BT
+/F1 10.5 Tf
+12.0749999999999993 TL
+0.149 0.224 0.247 rg
+51.0236220472441033 381.827007874015635 Td
+(Waiting — active ticket awaiting action. Next — prepared to be called. Called — patient has been called.) Tj
+T* (Skipped — temporarily skipped. Completed / Done — service finished. Cancelled — ticket cancelled.) Tj
+ET
+0.08 0.45 0.43 RG
+51.0236220472441033 36.8506299212597312 m
+544.2519685039370643 36.8506299212597312 l
+S
+BT
+/F1 8 Tf
+9.1999999999999993 TL
+0.365 0.435 0.455 rg
+51.0236220472441033 22.6774015748030706 Td
+(HealthTrack · RHU Pila System Manual) Tj
+ET
+BT
+/F1 8 Tf
+9.1999999999999993 TL
+0.365 0.435 0.455 rg
+519.1319685039370597 22.6774015748030706 Td
+(Page 3) Tj
+ET
+endstream
+endobj
+9 0 obj
+<</Type /Page
+/Parent 1 0 R
+/Resources 2 0 R
+/MediaBox [0 0 595.2799999999999727 841.8899999999999864]
+/Contents 10 0 R
+>>
+endobj
+10 0 obj
+<<
+/Length 3529
+>>
+stream
+1.984251968503937 w
+0.08 0.45 0.43 RG
+BT
+/F2 19 Tf
+21.8499999999999979 TL
+0.055 0.412 0.396 rg
+51.0236220472441033 779.5277952755905062 Td
+(5. Heat Map and Reports) Tj
+ET
+0.92 0.47 0.36 RG
+1.984251968503937 w
+51.0236220472441033 751.1813385826770855 m
+255.1181102362205024 751.1813385826770855 l
+S
+BT
+/F1 10.5 Tf
+12.0749999999999993 TL
+0.149 0.224 0.247 rg
+51.0236220472441033 731.3388188976377933 Td
+(The Heat Map displays clinical and reported-case patterns by barangay. It supports monitoring of possible) Tj
+T* (disease hotspots and community-health trends.) Tj
+ET
+BT
+/F1 10.5 Tf
+12.0749999999999993 TL
+0.149 0.224 0.247 rg
+51.0236220472441033 692.7876377952754865 Td
+(1. Open Heat Map from the Staff Console.) Tj
+ET
+BT
+/F1 10.5 Tf
+12.0749999999999993 TL
+0.149 0.224 0.247 rg
+51.0236220472441033 669.2600787401574962 Td
+(2. Review map points and barangay-level case patterns.) Tj
+ET
+BT
+/F1 10.5 Tf
+12.0749999999999993 TL
+0.149 0.224 0.247 rg
+51.0236220472441033 645.7325196850392786 Td
+(3. Apply available clinical or disease filters.) Tj
+ET
+BT
+/F1 10.5 Tf
+12.0749999999999993 TL
+0.149 0.224 0.247 rg
+51.0236220472441033 622.2049606299212883 Td
+(4. Use Heat Map and Reports information to guide validation, outreach, monitoring, and response) Tj
+T* (planning.) Tj
+ET
+BT
+/F1 10.5 Tf
+12.0749999999999993 TL
+0.149 0.224 0.247 rg
+51.0236220472441033 583.6537795275589815 Td
+(Important: Heat-map results are decision-support information only. They do not replace clinical verification) Tj
+T* (or official outbreak-investigation procedures.) Tj
+ET
+BT
+/F2 19 Tf
+21.8499999999999979 TL
+0.055 0.412 0.396 rg
+51.0236220472441033 545.1025984251969021 Td
+(6. Offline Use and Synchronization) Tj
+ET
+0.92 0.47 0.36 RG
+1.984251968503937 w
+51.0236220472441033 516.7561417322834814 m
+255.1181102362205024 516.7561417322834814 l
+S
+BT
+/F1 10.5 Tf
+12.0749999999999993 TL
+0.149 0.224 0.247 rg
+51.0236220472441033 496.9136220472440755 Td
+(Selected queue and record operations can continue during temporary internet interruption. Pending work is) Tj
+T* (stored in the browser and synchronizes once connectivity returns. Keep the browser open and do not clear) Tj
+T* (browser data before pending work has synchronized.) Tj
+ET
+BT
+/F2 19 Tf
+21.8499999999999979 TL
+0.055 0.412 0.396 rg
+51.0236220472441033 443.3388188976377364 Td
+(7. Security and Good Practice) Tj
+ET
+0.92 0.47 0.36 RG
+1.984251968503937 w
+51.0236220472441033 414.9923622047243725 m
+255.1181102362205024 414.9923622047243725 l
+S
+BT
+/F1 10.5 Tf
+12.0749999999999993 TL
+0.149 0.224 0.247 rg
+51.0236220472441033 395.1498425196850235 Td
+(• Use only your assigned account; never share passwords.) Tj
+ET
+BT
+/F1 10.5 Tf
+12.0749999999999993 TL
+0.149 0.224 0.247 rg
+51.0236220472441033 371.6222834645668627 Td
+(• Verify patient identity before encoding or consulting.) Tj
+ET
+BT
+/F1 10.5 Tf
+12.0749999999999993 TL
+0.149 0.224 0.247 rg
+51.0236220472441033 348.0947244094487019 Td
+(• Enter complete and accurate information, then sign out on shared devices.) Tj
+ET
+BT
+/F1 10.5 Tf
+12.0749999999999993 TL
+0.149 0.224 0.247 rg
+51.0236220472441033 324.567165354330541 Td
+(• Do not disclose patient records outside authorized RHU work.) Tj
+ET
+0.08 0.45 0.43 RG
+51.0236220472441033 36.8506299212597312 m
+544.2519685039370643 36.8506299212597312 l
+S
+BT
+/F1 8 Tf
+9.1999999999999993 TL
+0.365 0.435 0.455 rg
+51.0236220472441033 22.6774015748030706 Td
+(HealthTrack · RHU Pila System Manual) Tj
+ET
+BT
+/F1 8 Tf
+9.1999999999999993 TL
+0.365 0.435 0.455 rg
+519.1319685039370597 22.6774015748030706 Td
+(Page 4) Tj
+ET
+endstream
+endobj
+11 0 obj
+<</Type /Page
+/Parent 1 0 R
+/Resources 2 0 R
+/MediaBox [0 0 595.2799999999999727 841.8899999999999864]
+/Contents 12 0 R
+>>
+endobj
+12 0 obj
+<<
+/Length 3871
+>>
+stream
+1.984251968503937 w
+0.08 0.45 0.43 RG
+BT
+/F2 19 Tf
+21.8499999999999979 TL
+0.055 0.412 0.396 rg
+51.0236220472441033 779.5277952755905062 Td
+(8. Quick Troubleshooting) Tj
+ET
+0.92 0.47 0.36 RG
+1.984251968503937 w
+51.0236220472441033 751.1813385826770855 m
+255.1181102362205024 751.1813385826770855 l
+S
+BT
+/F2 13 Tf
+14.9499999999999993 TL
+0.055 0.412 0.396 rg
+51.0236220472441033 731.3388188976377933 Td
+(Queue ticket is not visible) Tj
+ET
+0.92 0.47 0.36 RG
+1.984251968503937 w
+51.0236220472441033 708.6616535433070112 m
+178.5826771653543403 708.6616535433070112 l
+S
+BT
+/F1 10.5 Tf
+12.0749999999999993 TL
+0.149 0.224 0.247 rg
+51.0236220472441033 688.819133858267719 Td
+(Refresh the Queue page, confirm that encoding was completed, and check internet connectivity.) Tj
+ET
+BT
+/F2 13 Tf
+14.9499999999999993 TL
+0.055 0.412 0.396 rg
+51.0236220472441033 665.291574803149615 Td
+(Changes are pending sync) Tj
+ET
+0.92 0.47 0.36 RG
+1.984251968503937 w
+51.0236220472441033 642.614409448818833 m
+178.5826771653543403 642.614409448818833 l
+S
+BT
+/F1 10.5 Tf
+12.0749999999999993 TL
+0.149 0.224 0.247 rg
+51.0236220472441033 622.7718897637795408 Td
+(Reconnect to the internet, keep the browser open, and wait for synchronization to finish.) Tj
+ET
+BT
+/F2 13 Tf
+14.9499999999999993 TL
+0.055 0.412 0.396 rg
+51.0236220472441033 599.2443307086614368 Td
+(Patient cannot access a record) Tj
+ET
+0.92 0.47 0.36 RG
+1.984251968503937 w
+51.0236220472441033 576.5671653543306547 m
+178.5826771653543403 576.5671653543306547 l
+S
+BT
+/F1 10.5 Tf
+12.0749999999999993 TL
+0.149 0.224 0.247 rg
+51.0236220472441033 556.7246456692912489 Td
+(Confirm the patient profile is linked to the correct account and that the consultation was completed.) Tj
+ET
+BT
+/F2 13 Tf
+14.9499999999999993 TL
+0.055 0.412 0.396 rg
+51.0236220472441033 533.1970866141732586 Td
+(Heat Map has no results) Tj
+ET
+0.92 0.47 0.36 RG
+1.984251968503937 w
+51.0236220472441033 510.5199212598425333 m
+178.5826771653543403 510.5199212598425333 l
+S
+BT
+/F1 10.5 Tf
+12.0749999999999993 TL
+0.149 0.224 0.247 rg
+51.0236220472441033 490.6774015748031275 Td
+(Check date and disease filters. Confirm that clinical or reported-case data was saved with barangay) Tj
+T* (information.) Tj
+ET
+BT
+/F2 19 Tf
+21.8499999999999979 TL
+0.055 0.412 0.396 rg
+51.0236220472441033 452.1262204724408775 Td
+(Support) Tj
+ET
+0.92 0.47 0.36 RG
+1.984251968503937 w
+51.0236220472441033 423.7797637795275136 m
+255.1181102362205024 423.7797637795275136 l
+S
+BT
+/F1 10.5 Tf
+12.0749999999999993 TL
+0.149 0.224 0.247 rg
+51.0236220472441033 403.9372440944881077 Td
+(For operational support, contact the authorized RHU Pila system administrator.) Tj
+ET
+0.05 0.41 0.4 rg
+59.5275590551181182 357.7325196850392786 m
+535.7480314960630494 357.7325196850392786 l
+540.4446262190335801 357.7325196850392786 544.2519685039370643 353.9251774001357376 544.2519685039370643 349.2285826771652637 c
+544.2519685039370643 295.3703149606297984 l
+544.2519685039370643 290.6737202376593245 539.5553737809665336 286.8663779527557836 535.7480314960630494 286.8663779527557836 c
+59.5275590551181182 286.8663779527557836 l
+54.8309643321475875 286.8663779527557836 51.0236220472441033 291.5629726757262574 51.0236220472441033 295.3703149606297984 c
+51.0236220472441033 349.2285826771652637 l
+51.0236220472441033 353.9251774001357376 55.7202167702146269 357.7325196850392786 59.5275590551181182 357.7325196850392786 c
+h
+f
+BT
+/F2 14 Tf
+16.0999999999999979 TL
+1. g
+164.7077952755905983 315.2128346456692043 Td
+(HealthTrack · Your Health, Within Reach) Tj
+ET
+0.08 0.45 0.43 RG
+51.0236220472441033 36.8506299212597312 m
+544.2519685039370643 36.8506299212597312 l
+S
+BT
+/F1 8 Tf
+9.1999999999999993 TL
+0.365 0.435 0.455 rg
+51.0236220472441033 22.6774015748030706 Td
+(HealthTrack · RHU Pila System Manual) Tj
+ET
+BT
+/F1 8 Tf
+9.1999999999999993 TL
+0.365 0.435 0.455 rg
+519.1319685039370597 22.6774015748030706 Td
+(Page 5) Tj
+ET
+endstream
+endobj
+1 0 obj
+<</Type /Pages
+/Kids [3 0 R 5 0 R 7 0 R 9 0 R 11 0 R ]
+/Count 5
+>>
+endobj
+13 0 obj
+<<
+/Type /Font
+/BaseFont /Helvetica
+/Subtype /Type1
+/Encoding /WinAnsiEncoding
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+14 0 obj
+<<
+/Type /Font
+/BaseFont /Helvetica-Bold
+/Subtype /Type1
+/Encoding /WinAnsiEncoding
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+15 0 obj
+<<
+/Type /Font
+/BaseFont /Helvetica-Oblique
+/Subtype /Type1
+/Encoding /WinAnsiEncoding
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+16 0 obj
+<<
+/Type /Font
+/BaseFont /Helvetica-BoldOblique
+/Subtype /Type1
+/Encoding /WinAnsiEncoding
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+17 0 obj
+<<
+/Type /Font
+/BaseFont /Courier
+/Subtype /Type1
+/Encoding /WinAnsiEncoding
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+18 0 obj
+<<
+/Type /Font
+/BaseFont /Courier-Bold
+/Subtype /Type1
+/Encoding /WinAnsiEncoding
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+19 0 obj
+<<
+/Type /Font
+/BaseFont /Courier-Oblique
+/Subtype /Type1
+/Encoding /WinAnsiEncoding
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+20 0 obj
+<<
+/Type /Font
+/BaseFont /Courier-BoldOblique
+/Subtype /Type1
+/Encoding /WinAnsiEncoding
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+21 0 obj
+<<
+/Type /Font
+/BaseFont /Times-Roman
+/Subtype /Type1
+/Encoding /WinAnsiEncoding
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+22 0 obj
+<<
+/Type /Font
+/BaseFont /Times-Bold
+/Subtype /Type1
+/Encoding /WinAnsiEncoding
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+23 0 obj
+<<
+/Type /Font
+/BaseFont /Times-Italic
+/Subtype /Type1
+/Encoding /WinAnsiEncoding
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+24 0 obj
+<<
+/Type /Font
+/BaseFont /Times-BoldItalic
+/Subtype /Type1
+/Encoding /WinAnsiEncoding
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+25 0 obj
+<<
+/Type /Font
+/BaseFont /ZapfDingbats
+/Subtype /Type1
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+26 0 obj
+<<
+/Type /Font
+/BaseFont /Symbol
+/Subtype /Type1
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+2 0 obj
+<<
+/ProcSet [/PDF /Text /ImageB /ImageC /ImageI]
+/Font <<
+/F1 13 0 R
+/F2 14 0 R
+/F3 15 0 R
+/F4 16 0 R
+/F5 17 0 R
+/F6 18 0 R
+/F7 19 0 R
+/F8 20 0 R
+/F9 21 0 R
+/F10 22 0 R
+/F11 23 0 R
+/F12 24 0 R
+/F13 25 0 R
+/F14 26 0 R
+>>
+/XObject <<
+>>
+>>
+endobj
+27 0 obj
+<<
+/Producer (jsPDF 4.2.1)
+/CreationDate (D:20260911231253+08'00')
+>>
+endobj
+28 0 obj
+<<
+/Type /Catalog
+/Pages 1 0 R
+/OpenAction [3 0 R /FitH null]
+/PageLayout /OneColumn
+>>
+endobj
+xref
+0 29
+0000000000 65535 f 
+0000017802 00000 n 
+0000019649 00000 n 
+0000000015 00000 n 
+0000000152 00000 n 
+0000002926 00000 n 
+0000003063 00000 n 
+0000006360 00000 n 
+0000006497 00000 n 
+0000010019 00000 n 
+0000010157 00000 n 
+0000013739 00000 n 
+0000013878 00000 n 
+0000017884 00000 n 
+0000018010 00000 n 
+0000018141 00000 n 
+0000018275 00000 n 
+0000018413 00000 n 
+0000018537 00000 n 
+0000018666 00000 n 
+0000018798 00000 n 
+0000018934 00000 n 
+0000019062 00000 n 
+0000019189 00000 n 
+0000019318 00000 n 
+0000019451 00000 n 
+0000019553 00000 n 
+0000019902 00000 n 
+0000019988 00000 n 
+trailer
+<<
+/Size 29
+/Root 28 0 R
+/Info 27 0 R
+/ID [ <41D22A42DF067CBF15DFB4E518763585> <41D22A42DF067CBF15DFB4E518763585> ]
+>>
+startxref
+20092
+%%EOF
