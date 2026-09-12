@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import OutpatientLegacyForm from './OutpatientLegacyForm'
 import AnimalBiteLegacyForm from './AnimalBiteLegacyForm'
 import TbLegacyForm from './TbLegacyForm'
@@ -31,7 +31,9 @@ export default function EncodeServiceFormModal({
   canIssueQueue = false,
   encodedByName = '',
   encodedAt = '',
+  invalidField = null,
 }) {
+  const formContentRef = useRef(null)
   useBodyScrollLock(open)
 
   useEffect(() => {
@@ -42,6 +44,46 @@ export default function EncodeServiceFormModal({
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [open, onClose])
+
+  useEffect(() => {
+    if (!open || !invalidField?.name) return undefined
+
+    const target = formContentRef.current?.querySelector(`[name="${invalidField.name}"]`)
+    if (!target) return undefined
+
+    const warningId = `required-field-warning-${invalidField.name}`
+    const clearWarning = () => {
+      target.classList.remove('border-rose-500', 'ring-2', 'ring-rose-500/20')
+      target.removeAttribute('aria-invalid')
+      target.removeAttribute('aria-describedby')
+      formContentRef.current?.querySelector(`#${warningId}`)?.remove()
+    }
+
+    clearWarning()
+    target.classList.add('border-rose-500', 'ring-2', 'ring-rose-500/20')
+    target.setAttribute('aria-invalid', 'true')
+    target.setAttribute('aria-describedby', warningId)
+
+    const warning = document.createElement('p')
+    warning.id = warningId
+    warning.className = 'mt-1 text-xs font-semibold text-rose-600'
+    warning.setAttribute('role', 'alert')
+    warning.textContent = `Required: ${invalidField.label}. Please fill out this field.`
+    target.insertAdjacentElement('afterend', warning)
+
+    const focusFirstMissingField = window.setTimeout(() => {
+      target.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      target.focus({ preventScroll: true })
+    }, 50)
+
+    target.addEventListener('input', clearWarning, { once: true })
+    target.addEventListener('change', clearWarning, { once: true })
+    return () => {
+      window.clearTimeout(focusFirstMissingField)
+      target.removeEventListener('input', clearWarning)
+      target.removeEventListener('change', clearWarning)
+    }
+  }, [open, invalidField])
 
   if (!open) return null
 
@@ -114,7 +156,7 @@ export default function EncodeServiceFormModal({
           </button>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-5 sm:px-6 sm:py-6">
+        <div ref={formContentRef} className="min-h-0 flex-1 overflow-y-auto px-4 py-5 sm:px-6 sm:py-6">
           {error ? <p className="error-banner mb-4">{error}</p> : null}
           {message ? <p className="info-banner mb-4">{message}</p> : null}
           {joinReason ? (

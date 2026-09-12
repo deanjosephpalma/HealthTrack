@@ -312,6 +312,7 @@ export default function StaffEncodeDeskPage() {
   const [issuing, setIssuing] = useState(false)
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
+  const [invalidField, setInvalidField] = useState(null)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [nowTick, setNowTick] = useState(() => Date.now())
@@ -519,8 +520,10 @@ export default function StaffEncodeDeskPage() {
     if (missingField) {
       setError(`Required field missing: ${missingField[1]}. Please complete the form before saving.`)
       setMessage('')
+      setInvalidField({ name: missingField[0], label: missingField[1] })
       return
     }
+    setInvalidField(null)
     setSaving(true)
     setError('')
     setMessage('')
@@ -745,6 +748,7 @@ export default function StaffEncodeDeskPage() {
     hydratedForId.current = ''
     setSelectedId('')
     setFormData({})
+    setInvalidField(null)
   }
 
   const formTitle = useMemo(() => {
@@ -950,6 +954,7 @@ export default function StaffEncodeDeskPage() {
             : ''
         }
         encodedAt={formatEncodedAt(selected?.intake_data?.encoded_at)}
+        invalidField={invalidField}
       >
         {useOfficialForm ? (
           <OfficialServiceEncodeForm charterKey={charterKey} data={formData} onChange={setFormData} />
