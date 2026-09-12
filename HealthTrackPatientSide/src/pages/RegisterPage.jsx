@@ -9,6 +9,12 @@ const phoneRegex = /^(09\d{9}|\+639\d{9})$/
 const uppercaseRegex = /[A-Z]/
 const specialCharRegex = /[^A-Za-z0-9]/
 
+function RequiredMark() {
+  return (
+    <span className="ml-0.5 text-rose-600" aria-hidden="true">*</span>
+  )
+}
+
 export default function RegisterPage() {
   const { signUp } = useAuth()
   const navigate = useNavigate()
@@ -271,17 +277,17 @@ export default function RegisterPage() {
               <p className="auth-section-label">Personal details</p>
               <div className="simple-grid">
                 <div>
-                  <label className="field-label" htmlFor="firstName">First Name</label>
+                  <label className="field-label" htmlFor="firstName">First Name<RequiredMark /></label>
                   <input id="firstName" required className="field-input" value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="First name" />
                 </div>
                 <div>
-                  <label className="field-label" htmlFor="lastName">Last Name</label>
+                  <label className="field-label" htmlFor="lastName">Last Name<RequiredMark /></label>
                   <input id="lastName" required className="field-input" value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="Last name" />
                 </div>
               </div>
 
               <div>
-                <label className="field-label" htmlFor="phone">Phone Number</label>
+                <label className="field-label" htmlFor="phone">Phone Number<RequiredMark /></label>
                 <input
                   id="phone"
                   type="tel"
@@ -295,7 +301,7 @@ export default function RegisterPage() {
 
               <div className="simple-grid">
                 <div>
-                  <label className="field-label" htmlFor="birthdate">Birthdate</label>
+                  <label className="field-label" htmlFor="birthdate">Birthdate<RequiredMark /></label>
                   <input
                     id="birthdate"
                     type="date"
@@ -331,7 +337,7 @@ export default function RegisterPage() {
               {isPwd ? (
                 <div className="space-y-3">
                   <div>
-                    <label className="field-label" htmlFor="pwdSpecify">PWD / Disability specification</label>
+                    <label className="field-label" htmlFor="pwdSpecify">PWD / Disability specification<RequiredMark /></label>
                     <select
                       id="pwdSpecify"
                       required
@@ -355,7 +361,7 @@ export default function RegisterPage() {
                   </div>
                   {pwdSpecify === 'Other' ? (
                     <div>
-                      <label className="field-label" htmlFor="pwdOtherDetail">Please specify</label>
+                      <label className="field-label" htmlFor="pwdOtherDetail">Please specify<RequiredMark /></label>
                       <input
                         id="pwdOtherDetail"
                         required
@@ -394,7 +400,7 @@ export default function RegisterPage() {
 
               {municipalityMode === 'Others' ? (
                 <div>
-                  <label className="field-label" htmlFor="municipalityOther">Municipality / City name</label>
+                  <label className="field-label" htmlFor="municipalityOther">Municipality / City name<RequiredMark /></label>
                   <input
                     id="municipalityOther"
                     required
@@ -407,7 +413,7 @@ export default function RegisterPage() {
               ) : null}
 
               <div>
-                <label className="field-label" htmlFor="barangay">Barangay</label>
+                <label className="field-label" htmlFor="barangay">Barangay<RequiredMark /></label>
                 {municipalityMode === 'Pila' ? (
                   <select
                     id="barangay"
@@ -434,7 +440,7 @@ export default function RegisterPage() {
               </div>
 
               <div>
-                <label className="field-label" htmlFor="houseNoPurok">House No. / Street / Purok</label>
+                <label className="field-label" htmlFor="houseNoPurok">House No. / Street / Purok<RequiredMark /></label>
                 <input
                   id="houseNoPurok"
                   required
@@ -449,7 +455,7 @@ export default function RegisterPage() {
             <div className="auth-field-group">
               <p className="auth-section-label">Password</p>
               <div>
-                <label className="field-label" htmlFor="password">Password</label>
+                <label className="field-label" htmlFor="password">Password<RequiredMark /></label>
                 <div className="password-input-wrap">
                   <input
                     id="password"
@@ -476,7 +482,7 @@ export default function RegisterPage() {
                 )}
               </div>
               <div>
-                <label className="field-label" htmlFor="confirmPassword">Confirm Password</label>
+                <label className="field-label" htmlFor="confirmPassword">Confirm Password<RequiredMark /></label>
                 <div className="password-input-wrap">
                   <input
                     id="confirmPassword"
