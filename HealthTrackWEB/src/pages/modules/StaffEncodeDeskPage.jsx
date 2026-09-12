@@ -11,6 +11,7 @@ import { useOnlineStatus } from '../../lib/offline/connectivity'
 import { logAuditEvent, supabase } from '../../lib/supabaseClient'
 import { resolvePatientPriority, compareByPriorityThenArrival } from '../../lib/patientPriority'
 import { linePositionLabel } from '../../lib/queueDemoExamples'
+import { notifyPatient } from '../../lib/patientNotifications'
 
 const AWAITING_STATUSES = ['Awaiting Encoding', 'Encoded']
 /** Highlight patients waiting longer than this (minutes) before encoding finishes. */
@@ -653,6 +654,13 @@ export default function StaffEncodeDeskPage() {
             : r,
         ),
       )
+      void notifyPatient({
+        patientId: patientId || selected.patient_id,
+        serviceRequestId: selected.id,
+        title: 'Details encoded',
+        message: 'Your information and vital signs have been encoded by the RHU staff. Your queue number will be issued shortly.',
+        type: 'encoding_complete',
+      })
       setMessage('Encoding saved. You can now issue a queue number.')
     } catch (e) {
       setError(e?.message || 'Failed to save encoding.')
@@ -778,6 +786,14 @@ export default function StaffEncodeDeskPage() {
       setMessage(
         `Queue number issued: ${label}. Patient moves to ${serviceKind ? 'Doctor Consult' : 'Service Desk'} queue.`,
       )
+      void notifyPatient({
+        patientId,
+        queueId: row.id,
+        serviceRequestId: selected.id,
+        title: 'Queue number issued',
+        message: `Your queue number is ${label}. Please wait for the next queue update.`,
+        type: 'queue_issued',
+      })
       hydratedForId.current = ''
       clearEncodeDraft({ userId: user?.id, requestId: selected.id })
       setSelectedId('')

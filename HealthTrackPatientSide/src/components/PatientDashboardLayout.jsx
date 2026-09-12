@@ -238,11 +238,11 @@ export default function PatientDashboardLayout() {
     let isMounted = true
 
     const loadNotifications = async () => {
-      if (!patient?.email) return
+      if (!patient?.patient_auth_id) return
       const { data, error } = await supabase
-        .from('email_logs')
-        .select('*')
-        .eq('recipient_email', patient.email)
+        .from('patient_notifications')
+        .select('id, title, message, notification_type, created_at')
+        .eq('patient_auth_id', patient.patient_auth_id)
         .order('created_at', { ascending: false })
         .limit(20)
 
@@ -256,14 +256,14 @@ export default function PatientDashboardLayout() {
     void loadNotifications()
 
     const channel = supabase
-      .channel('notifications-patient')
+      .channel(`notifications-patient-${patient?.patient_auth_id || 'guest'}`)
       .on(
         'postgres_changes',
         {
           event: 'INSERT',
           schema: 'public',
-          table: 'email_logs',
-          filter: patient?.email ? `recipient_email=eq.${patient.email}` : undefined,
+          table: 'patient_notifications',
+          filter: patient?.patient_auth_id ? `patient_auth_id=eq.${patient.patient_auth_id}` : undefined,
         },
         (payload) => {
           if (!isMounted) return
@@ -279,7 +279,7 @@ export default function PatientDashboardLayout() {
       isMounted = false
       supabase.removeChannel(channel)
     }
-  }, [patient?.email])
+  }, [patient?.patient_auth_id])
 
   const toggleNotifications = () => {
     setShowNotifications(!showNotifications)
@@ -364,6 +364,7 @@ export default function PatientDashboardLayout() {
                           key={notif.id}
                           className="border-b border-slate-50 p-4 transition-colors last:border-0 hover:bg-slate-50"
                         >
+                          {notif.title ? <p className="mb-1 text-sm font-bold text-slate-900">{notif.title}</p> : null}
                           <p className="whitespace-pre-wrap text-sm leading-relaxed text-slate-700">{notif.message}</p>
                           <p className="mt-2 text-xs font-medium text-slate-400">
                             {new Date(notif.created_at).toLocaleString(undefined, {

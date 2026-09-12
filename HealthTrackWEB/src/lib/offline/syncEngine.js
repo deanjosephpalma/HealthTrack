@@ -7,6 +7,7 @@ import {
   msgCompleted,
   sendSms,
 } from '../smsService'
+import { notifyPatient } from '../patientNotifications'
 import { staffOfflineDb, getMeta, setMeta } from './db'
 import { isOnline } from './connectivity'
 import { mergeRemoteQueueRows, countPendingOutbox } from './queueService'
@@ -102,12 +103,42 @@ async function pushUpdate(job) {
     : String(notify.queue_number ?? '')
 
   let message = null
+  let notification = null
   if (status === 'next') message = msgMarkedNext({ patientName: notify.patient_name, room })
-  else if (status === 'called') message = msgCalled({ queueNumber: queueLabel, room })
+  if (status === 'next') {
+    notification = {
+      title: 'You are Next',
+      message: `You are next in line. Please proceed near ${room} and wait to be called.`,
+      type: 'queue_next',
+    }
+  } else if (status === 'called') {
+    message = msgCalled({ queueNumber: queueLabel, room })
+    notification = {
+      title: 'You are now called',
+      message: 'You are now called. Please proceed to the MHO Office.',
+      type: 'queue_called',
+    }
+  }
   else if (status === 'skipped')
     message = msgSkipped({ patientName: notify.patient_name, queueNumber: queueLabel })
-  else if (status === 'completed' || status === 'done')
+  else if (status === 'completed' || status === 'done') {
     message = msgCompleted({ patientName: notify.patient_name })
+    notification = {
+      title: 'Service Completed',
+      message: 'Service Completed. Please check your record at Medical Records.',
+      type: 'service_completed',
+    }
+  }
+
+  if (notification && notify.patient_id) {
+    await notifyPatient({
+      patientId: notify.patient_id,
+      queueId: id,
+      title: notification.title,
+      message: notification.message,
+      type: notification.type,
+    })
+  }
 
   const to = notify.phone_number || notify.patient_email
   if (message && to) {

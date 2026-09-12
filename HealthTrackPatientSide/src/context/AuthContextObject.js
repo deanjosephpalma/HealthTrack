@@ -11,6 +11,7 @@ export const buildPatient = (user) => {
   const fullName = [firstName, lastName].filter(Boolean).join(' ').trim()
   return {
     id: user.id,
+    patient_auth_id: user.id,
     email: user.email ?? '',
     firstName,
     lastName,
@@ -19,4 +20,3 @@ export const buildPatient = (user) => {
     name: fullName || meta.portal_username || user.email || 'Patient',
   }
 }
-
