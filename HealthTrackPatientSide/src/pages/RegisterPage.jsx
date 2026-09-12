@@ -41,6 +41,7 @@ export default function RegisterPage() {
   ])
 
   const normalizedPhone = useMemo(() => phone.trim().replace(/\s+/g, ''), [phone])
+  const passwordMismatch = confirmPassword.length > 0 && password !== confirmPassword
 
   useEffect(() => {
     let cancelled = false
@@ -485,6 +486,8 @@ export default function RegisterPage() {
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     autoComplete="new-password"
+                    aria-invalid={passwordMismatch}
+                    aria-describedby={passwordMismatch ? 'confirm-password-error' : undefined}
                   />
                   <button type="button" className="password-toggle-btn" onClick={() => setShowConfirmPassword((v) => !v)} aria-label="Toggle confirm password">
                     <svg viewBox="0 0 24 24" className="password-toggle-icon" fill="none" stroke="currentColor" strokeWidth="2">
@@ -493,6 +496,11 @@ export default function RegisterPage() {
                     </svg>
                   </button>
                 </div>
+                {passwordMismatch ? (
+                  <p id="confirm-password-error" className="mt-1.5 text-sm font-semibold text-rose-600" role="alert">
+                    Password Not Match
+                  </p>
+                ) : null}
               </div>
             </div>
 
