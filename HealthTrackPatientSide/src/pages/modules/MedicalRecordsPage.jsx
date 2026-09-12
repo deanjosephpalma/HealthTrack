@@ -475,21 +475,25 @@ export default function PatientMedicalRecordsPage() {
       ) : null}
 
       {showModal && selectedRecord && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-slate-200 flex justify-between items-center sticky top-0 bg-white z-10">
-              <h2 className="text-xl font-bold text-slate-900">
-                Medical Record - {selectedRecord.date_of_consultation || selectedRecord.created_at}
-              </h2>
-              <button onClick={() => setShowModal(false)} className="text-slate-400 hover:text-slate-600">
+        <div className="modal-overlay z-50 flex items-start justify-center overflow-y-auto bg-slate-900/50 p-4 sm:items-center" role="dialog" aria-modal="true" aria-labelledby="patient-medical-record-title">
+          <div className="flex h-[calc(100dvh-2rem)] min-h-0 w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-white shadow-xl">
+            <div className="flex shrink-0 items-start justify-between gap-4 border-b border-slate-200 bg-white px-5 py-4 sm:px-6 sm:py-5">
+              <div className="min-w-0">
+                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-teal-700">Medical record</p>
+                <h2 id="patient-medical-record-title" className="mt-1 text-xl font-bold text-slate-900">
+                  {formatDate(selectedRecord.date_of_consultation || selectedRecord.created_at)}
+                </h2>
+                <p className="mt-1 text-sm text-slate-600">{selectedRecord.patient_name || patient?.name || 'Patient record details'}</p>
+              </div>
+              <button type="button" onClick={() => setShowModal(false)} className="shrink-0 rounded-lg p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600" aria-label="Close medical record">
                 <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
             </div>
-            <div className="p-6">{renderDetails(selectedRecord)}</div>
-            <div className="p-6 border-t border-slate-200 flex justify-end sticky bottom-0 bg-white z-10">
-              <button onClick={() => setShowModal(false)} className="secondary-btn">
+            <div className="min-h-0 flex-1 overflow-y-auto p-5 sm:p-6">{renderDetails(selectedRecord)}</div>
+            <div className="flex shrink-0 justify-end border-t border-slate-200 bg-white px-5 py-4 sm:px-6">
+              <button type="button" onClick={() => setShowModal(false)} className="secondary-btn !mt-0">
                 Close
               </button>
             </div>
