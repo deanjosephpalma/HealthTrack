@@ -380,7 +380,7 @@ export default function QueuePage() {
           <div className="grid gap-3 sm:grid-cols-2">
             <div>
               <label className="field-label" htmlFor="walkin-name">
-                Patient name
+                Patient name <span className="text-rose-500" aria-hidden="true">*</span>
               </label>
               <input
                 id="walkin-name"

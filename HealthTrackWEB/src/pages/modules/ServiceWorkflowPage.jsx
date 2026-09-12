@@ -391,7 +391,8 @@ export default function ServiceWorkflowPage() {
              return (
                <div key={field.id} className={field.field_type === 'textarea' ? 'sm:col-span-2' : ''}>
                  <label className="field-label text-xs uppercase tracking-wider text-slate-500 mb-1 block">
-                   {field.field_label} {field.is_required && isEditable ? '*' : ''}
+                   {field.field_label}{' '}
+                   {field.is_required && isEditable ? <span className="text-rose-500" aria-hidden="true">*</span> : null}
                  </label>
                  <FieldInput 
                     field={field} 

@@ -629,7 +629,8 @@ export default function HistoricalDataEncoder() {
                       formFields[step.id].map((field) => (
                         <div key={field.id}>
                           <label className="field-label">
-                            {field.field_label} {field.is_required && '*'}
+                            {field.field_label}{' '}
+                            {field.is_required ? <span className="text-rose-500" aria-hidden="true">*</span> : null}
                           </label>
                           {renderField(field)}
                         </div>

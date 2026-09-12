@@ -911,7 +911,7 @@ export default function DoctorConsultPage() {
                               ? 'Bite / Day 0 date'
                               : serviceKind === 'tb'
                                 ? 'Treatment start date'
-                                : 'Next check-up date'}
+                                : 'Next check-up date'} <span className="text-rose-500" aria-hidden="true">*</span>
                           </label>
                           <input
                             id="schedule-start"
