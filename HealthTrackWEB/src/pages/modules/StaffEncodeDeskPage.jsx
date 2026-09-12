@@ -15,6 +15,41 @@ import { linePositionLabel } from '../../lib/queueDemoExamples'
 const AWAITING_STATUSES = ['Awaiting Encoding', 'Encoded']
 /** Highlight patients waiting longer than this (minutes) before encoding finishes. */
 const STUCK_WAIT_MINUTES = 30
+const ENCODE_DRAFT_STORAGE_PREFIX = 'healthtrack:staff-encode-draft:v1'
+
+function encodeDraftStorageKey({ userId, requestId }) {
+  return `${ENCODE_DRAFT_STORAGE_PREFIX}:${encodeURIComponent(userId || 'staff')}:${requestId}`
+}
+
+function loadEncodeDraft({ userId, requestId }) {
+  if (!requestId || typeof window === 'undefined') return null
+  try {
+    const raw = window.localStorage.getItem(encodeDraftStorageKey({ userId, requestId }))
+    if (!raw) return null
+    const parsed = JSON.parse(raw)
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : null
+  } catch {
+    return null
+  }
+}
+
+function saveEncodeDraft({ userId, requestId, data }) {
+  if (!requestId || typeof window === 'undefined') return
+  try {
+    window.localStorage.setItem(encodeDraftStorageKey({ userId, requestId }), JSON.stringify(data))
+  } catch {
+    // Draft persistence is best-effort; encoding remains usable if storage is unavailable.
+  }
+}
+
+function clearEncodeDraft({ userId, requestId }) {
+  if (!requestId || typeof window === 'undefined') return
+  try {
+    window.localStorage.removeItem(encodeDraftStorageKey({ userId, requestId }))
+  } catch {
+    // Ignore storage cleanup errors.
+  }
+}
 
 /** Intake keys that must stay on service_requests.intake_data root for PDF / nurse release. */
 const INTAKE_ROOT_KEYS = [
@@ -508,10 +543,19 @@ export default function StaffEncodeDeskPage() {
     const row = rows.find((r) => r.id === selectedId)
     if (!row) return
     hydratedForId.current = selectedId
-    setFormData(buildFormFromRow(row))
-  }, [selectedId, rows])
+    const restoredDraft = loadEncodeDraft({ userId: user?.id, requestId: row.id })
+    setFormData({ ...buildFormFromRow(row), ...(restoredDraft || {}) })
+  }, [selectedId, rows, user?.id])
 
   const displayName = (row) => displayNameFromPatient(row.patients || {})
+
+  const handleDraftFormChange = (nextData) => {
+    setFormData(nextData)
+    formDataRef.current = nextData
+    if (selected?.id) {
+      saveEncodeDraft({ userId: user?.id, requestId: selected.id, data: nextData })
+    }
+  }
 
   const handleSaveEncode = async () => {
     if (!selected) return
@@ -600,6 +644,7 @@ export default function StaffEncodeDeskPage() {
       }
 
       // Keep typed values; only patch local row status/intake so Get Queue Number unlocks.
+      clearEncodeDraft({ userId: user?.id, requestId: selected.id })
       setFormData(snapshot)
       setRows((prev) =>
         prev.map((r) =>
@@ -734,6 +779,7 @@ export default function StaffEncodeDeskPage() {
         `Queue number issued: ${label}. Patient moves to ${serviceKind ? 'Doctor Consult' : 'Service Desk'} queue.`,
       )
       hydratedForId.current = ''
+      clearEncodeDraft({ userId: user?.id, requestId: selected.id })
       setSelectedId('')
       setFormData({})
       await refresh({ silent: true })
@@ -940,7 +986,7 @@ export default function StaffEncodeDeskPage() {
         status={selected?.status || ''}
         joinReason={formData.join_reason || ''}
         formData={formData}
-        onFormChange={setFormData}
+        onFormChange={handleDraftFormChange}
         error={error}
         message={message}
         saving={saving}
@@ -957,7 +1003,7 @@ export default function StaffEncodeDeskPage() {
         invalidField={invalidField}
       >
         {useOfficialForm ? (
-          <OfficialServiceEncodeForm charterKey={charterKey} data={formData} onChange={setFormData} />
+          <OfficialServiceEncodeForm charterKey={charterKey} data={formData} onChange={handleDraftFormChange} />
         ) : null}
       </EncodeServiceFormModal>
     </section>
