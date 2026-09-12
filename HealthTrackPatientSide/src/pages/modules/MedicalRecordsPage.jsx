@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import ModuleEmptyState from '../../components/ModuleEmptyState'
+import { createPortal } from 'react-dom'
 import { useAuth } from '../../context/useAuth'
 import { supabase } from '../../lib/supabaseClient'
 import { fetchIssuedDocsForPatient } from '../../lib/issueDocuments'
@@ -474,16 +475,12 @@ export default function PatientMedicalRecordsPage() {
         </div>
       ) : null}
 
-      {showModal && selectedRecord && (
+      {showModal && selectedRecord && typeof document !== 'undefined' ? createPortal(
         <div className="modal-overlay z-50 flex items-start justify-center overflow-y-auto bg-slate-900/50 p-4 sm:items-center" role="dialog" aria-modal="true" aria-labelledby="patient-medical-record-title">
           <div className="flex h-[calc(100dvh-2rem)] min-h-0 w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-white shadow-xl">
             <div className="flex shrink-0 items-start justify-between gap-4 border-b border-slate-200 bg-white px-5 py-4 sm:px-6 sm:py-5">
               <div className="min-w-0">
-                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-teal-700">Medical record</p>
-                <h2 id="patient-medical-record-title" className="mt-1 text-xl font-bold text-slate-900">
-                  {formatDate(selectedRecord.date_of_consultation || selectedRecord.created_at)}
-                </h2>
-                <p className="mt-1 text-sm text-slate-600">{selectedRecord.patient_name || patient?.name || 'Patient record details'}</p>
+                <h2 id="patient-medical-record-title" className="text-xl font-bold text-slate-900">Patient Record Details</h2>
               </div>
               <button type="button" onClick={() => setShowModal(false)} className="shrink-0 rounded-lg p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600" aria-label="Close medical record">
                 <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -492,14 +489,10 @@ export default function PatientMedicalRecordsPage() {
               </button>
             </div>
             <div className="min-h-0 flex-1 overflow-y-auto p-5 sm:p-6">{renderDetails(selectedRecord)}</div>
-            <div className="flex shrink-0 justify-end border-t border-slate-200 bg-white px-5 py-4 sm:px-6">
-              <button type="button" onClick={() => setShowModal(false)} className="secondary-btn !mt-0">
-                Close
-              </button>
-            </div>
           </div>
-        </div>
-      )}
+        </div>,
+        document.body,
+      ) : null}
     </section>
   )
 }

@@ -1030,8 +1030,16 @@ fieldset:disabled .field-input {
 }
 
 .modal-overlay {
+  position: fixed;
+  inset: 0;
   background: rgba(15, 32, 38, 0.52) !important;
   backdrop-filter: blur(5px);
+}
+
+@media (min-width: 1024px) {
+  .modal-overlay {
+    left: calc(1rem + 264px + 1rem);
+  }
 }
 
 @keyframes ht-skeleton {
