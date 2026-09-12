@@ -48,6 +48,10 @@ export default function AccountsPage() {
   const [newPasswordByUser, setNewPasswordByUser] = useState({})
   const [revealed, setRevealed] = useState({})
   const [showAllPasswords, setShowAllPasswords] = useState(false)
+  const [showNewNurseForm, setShowNewNurseForm] = useState(false)
+  const [creatingNurse, setCreatingNurse] = useState(false)
+  const [updatingStatusId, setUpdatingStatusId] = useState('')
+  const [newNurse, setNewNurse] = useState({ name: '', email: '', password: '' })
 
   const managerName = normalize(import.meta.env.VITE_ACCOUNT_MANAGER_NAME || 'Alma Divinagracia')
   const managerEmail = normalize(import.meta.env.VITE_ACCOUNT_MANAGER_EMAIL || '')
@@ -117,6 +121,40 @@ export default function AccountsPage() {
     }
   }
 
+  const handleCreateNurse = async (event) => {
+    event.preventDefault()
+    setCreatingNurse(true)
+    setError('')
+    try {
+      await apiFetch('/accounts/nurses', { method: 'POST', body: newNurse })
+      setNewNurse({ name: '', email: '', password: '' })
+      setShowNewNurseForm(false)
+      await loadAccounts()
+    } catch (err) {
+      setError(err?.message || 'Could not create the Nurse account.')
+    } finally {
+      setCreatingNurse(false)
+    }
+  }
+
+  const handleNurseStatusChange = async (userId, employmentStatus) => {
+    setUpdatingStatusId(userId)
+    setError('')
+    try {
+      await apiFetch('/accounts/nurses/status', {
+        method: 'PATCH',
+        body: { user_id: userId, employment_status: employmentStatus },
+      })
+      setAccounts((prev) =>
+        prev.map((row) => (row.user_id === userId ? { ...row, employment_status: employmentStatus } : row)),
+      )
+    } catch (err) {
+      setError(err?.message || 'Could not update the Nurse status.')
+    } finally {
+      setUpdatingStatusId('')
+    }
+  }
+
   const copyText = async (text) => {
     if (!text) return
     try {
@@ -148,6 +186,9 @@ export default function AccountsPage() {
         <div className="flex flex-wrap items-center gap-2">
           <button type="button" className="accounts-ghost-btn" onClick={() => setShowAllPasswords((v) => !v)}>
             {showAllPasswords ? 'Hide passwords' : 'Show passwords'}
+          </button>
+          <button type="button" className="accounts-primary-btn" onClick={() => setShowNewNurseForm((v) => !v)}>
+            {showNewNurseForm ? 'Close form' : 'Add Nurse'}
           </button>
           <button type="button" className="accounts-primary-btn" onClick={loadAccounts} disabled={loading}>
             {loading ? 'Refreshing…' : 'Refresh'}
@@ -200,6 +241,33 @@ export default function AccountsPage() {
 
       {error ? <p className="accounts-error">{error}</p> : null}
 
+      {showNewNurseForm ? (
+        <form onSubmit={handleCreateNurse} className="rounded-2xl border border-teal-200 bg-teal-50/50 p-5">
+          <div className="mb-4">
+            <h3 className="text-base font-bold text-slate-900">Add new Nurse</h3>
+            <p className="mt-1 text-sm text-slate-600">The account starts as Active and can sign in to the staff portal immediately.</p>
+          </div>
+          <div className="grid gap-3 md:grid-cols-3">
+            <label className="field-label">
+              Full name <span className="text-rose-500" aria-hidden="true">*</span>
+              <input className="field-input mt-1" required value={newNurse.name} onChange={(e) => setNewNurse((prev) => ({ ...prev, name: e.target.value }))} placeholder="e.g. Maria Santos, RN" />
+            </label>
+            <label className="field-label">
+              Work email <span className="text-rose-500" aria-hidden="true">*</span>
+              <input type="email" className="field-input mt-1" required value={newNurse.email} onChange={(e) => setNewNurse((prev) => ({ ...prev, email: e.target.value }))} placeholder="name@rhu.pila.gov.ph" />
+            </label>
+            <label className="field-label">
+              Temporary password <span className="text-rose-500" aria-hidden="true">*</span>
+              <input type="password" minLength={6} className="field-input mt-1" required value={newNurse.password} onChange={(e) => setNewNurse((prev) => ({ ...prev, password: e.target.value }))} placeholder="At least 6 characters" />
+            </label>
+          </div>
+          <div className="mt-4 flex justify-end gap-2">
+            <button type="button" className="secondary-btn !mt-0" onClick={() => setShowNewNurseForm(false)} disabled={creatingNurse}>Cancel</button>
+            <button type="submit" className="primary-btn !mt-0" disabled={creatingNurse}>{creatingNurse ? 'Creating...' : 'Create Nurse account'}</button>
+          </div>
+        </form>
+      ) : null}
+
       <div className="accounts-table-shell">
         {loading ? (
           <div className="accounts-empty">Loading accounts…</div>
@@ -214,6 +282,7 @@ export default function AccountsPage() {
                   <th>Username</th>
                   <th>Email</th>
                   <th>Phone</th>
+                  <th>Status</th>
                   <th>Password</th>
                   <th>Reset</th>
                 </tr>
@@ -243,6 +312,22 @@ export default function AccountsPage() {
                       </td>
                       <td className="accounts-muted">{item.email || '—'}</td>
                       <td className="accounts-muted">{item.phone || '—'}</td>
+                      <td>
+                        {item.account_type === 'staff' && item.role === 'Nurse' ? (
+                          <select
+                            className="field-input min-w-28 !py-1.5 text-xs"
+                            value={item.employment_status || 'Active'}
+                            onChange={(e) => void handleNurseStatusChange(item.user_id, e.target.value)}
+                            disabled={updatingStatusId === item.user_id}
+                            aria-label={`Employment status for ${item.name || 'Nurse'}`}
+                          >
+                            <option value="Active">Active</option>
+                            <option value="Resigned">Resigned</option>
+                          </select>
+                        ) : (
+                          <span className="accounts-muted">—</span>
+                        )}
+                      </td>
                       <td>
                         <div className="accounts-cred">
                           <code className="accounts-password">{passwordValue ? (isRevealed ? passwordValue : '••••••••') : '—'}</code>
@@ -292,7 +377,7 @@ export default function AccountsPage() {
                 })}
                 {!filtered.length ? (
                   <tr>
-                    <td className="accounts-empty-cell" colSpan={8}>
+                    <td className="accounts-empty-cell" colSpan={9}>
                       No accounts match your search.
                     </td>
                   </tr>

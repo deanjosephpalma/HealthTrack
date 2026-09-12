@@ -32,6 +32,22 @@ class EnsurePortalSession
             return response()->json(['ok' => false, 'error' => 'Wrong portal session'], 403);
         }
 
+        // Do not let an already-open staff session survive an employment status change.
+        if (($auth['portal'] ?? null) === 'staff') {
+            $profile = $this->supabaseAuth->fetchStaffProfile((string) $auth['user_id']);
+            if (!$profile || ($profile['employment_status'] ?? 'Active') === 'Resigned') {
+                $this->supabaseAuth->globalSignOut((string) ($auth['access_token'] ?? ''));
+                $request->session()->forget('ht_auth');
+                $request->session()->invalidate();
+                $request->session()->regenerateToken();
+
+                return response()->json([
+                    'ok' => false,
+                    'error' => 'This staff account has been marked as resigned and no longer has access.',
+                ], 403);
+            }
+        }
+
         $expiresAt = (int) ($auth['expires_at'] ?? 0);
         if ($expiresAt > 0 && $expiresAt < time() + 60) {
             $refreshed = $this->supabaseAuth->refresh((string) ($auth['refresh_token'] ?? ''));

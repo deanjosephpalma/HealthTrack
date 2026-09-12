@@ -6,6 +6,7 @@ create table if not exists public.profiles (
   name text not null,
   email text not null unique,
   role text not null default 'Nurse',
+  employment_status text not null default 'Active' check (employment_status in ('Active', 'Resigned')),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -570,7 +571,15 @@ language sql
 security definer
 set search_path = public
 as $$
-  select coalesce((select p.role from public.profiles p where p.id = auth.uid()), '')
+  select coalesce(
+    (
+      select p.role
+      from public.profiles p
+      where p.id = auth.uid()
+        and p.employment_status = 'Active'
+    ),
+    ''
+  )
 $$;
 
 create or replace function public.handle_auth_user_changed()

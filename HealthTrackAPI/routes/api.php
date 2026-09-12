@@ -54,5 +54,9 @@ Route::middleware(['web', 'throttle:api'])->group(function () {
             ->middleware('throttle:api');
         Route::post('/accounts/reset-password', [AccountAdminController::class, 'resetPassword'])
             ->middleware('throttle:password-reset');
+        Route::post('/accounts/nurses', [AccountAdminController::class, 'createNurse'])
+            ->middleware('throttle:api');
+        Route::patch('/accounts/nurses/status', [AccountAdminController::class, 'updateNurseStatus'])
+            ->middleware('throttle:api');
     });
 });

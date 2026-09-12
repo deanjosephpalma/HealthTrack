@@ -78,7 +78,7 @@ export function AuthProvider({ children }) {
 
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, name, email, role, created_at')
+        .select('id, name, email, role, employment_status, created_at')
         .eq('id', userId)
         .maybeSingle()
 
@@ -92,13 +92,15 @@ export function AuthProvider({ children }) {
       }
 
       const nextProfile = data ?? null
-      const validRole = nextProfile && isStaffPortalRole(nextProfile.role)
+      const validRole = nextProfile && isStaffPortalRole(nextProfile.role) && nextProfile.employment_status !== 'Resigned'
       if (!validRole) {
         await secureSignOut()
         setSession(null)
         setProfile(null)
         setProfileError(
-          'This account is not allowed here. Use an approved Doctor, Nurse, BHW, or Volunteer account, or the Patient Portal.',
+          nextProfile?.employment_status === 'Resigned'
+            ? 'This staff account has been marked as resigned and no longer has access.'
+            : 'This account is not allowed here. Use an approved Doctor, Nurse, BHW, or Volunteer account, or the Patient Portal.',
         )
         setProfileLoading(false)
         return

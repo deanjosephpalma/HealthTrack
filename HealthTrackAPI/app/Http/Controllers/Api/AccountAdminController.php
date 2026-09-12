@@ -39,6 +39,7 @@ class AccountAdminController extends Controller
                 'username' => null,
                 'phone' => null,
                 'password' => $vault[$userId] ?? 'rhupila',
+                'employment_status' => (string) ($row['employment_status'] ?? 'Active'),
             ];
         }, $profiles);
 
@@ -115,6 +116,88 @@ class AccountAdminController extends Controller
         self::upsertPasswordVault($userId, $password);
 
         return response()->json(['ok' => true, 'message' => 'Password reset successful.', 'password' => $password]);
+    }
+
+    public function createNurse(Request $request)
+    {
+        if (!$this->isAccountManager($request)) {
+            return response()->json(['ok' => false, 'error' => 'Forbidden'], 403);
+        }
+
+        $data = $request->validate([
+            'name' => 'required|string|max:120',
+            'email' => 'required|email|max:255',
+            'password' => 'required|string|min:6|max:255',
+        ]);
+
+        $name = trim((string) $data['name']);
+        $email = strtolower(trim((string) $data['email']));
+        if ($this->supabaseAuth->findAuthUserByEmail($email)) {
+            return response()->json(['ok' => false, 'error' => 'An account with this email already exists.'], 422);
+        }
+
+        $userId = $this->supabaseAuth->adminCreateStaffUser([
+            'email' => $email,
+            'password' => (string) $data['password'],
+            'user_metadata' => [
+                'name' => $name,
+                'role' => 'Nurse',
+                'app' => 'staff',
+            ],
+        ]);
+        if (!$userId) {
+            return response()->json(['ok' => false, 'error' => 'Could not create the Nurse login account.'], 500);
+        }
+
+        if (!$this->upsertStaffProfile($userId, $name, $email, 'Active')) {
+            return response()->json(['ok' => false, 'error' => 'Nurse login was created but the staff profile could not be saved.'], 500);
+        }
+
+        self::upsertPasswordVault($userId, (string) $data['password']);
+
+        return response()->json([
+            'ok' => true,
+            'message' => 'Nurse account created.',
+            'account' => [
+                'user_id' => $userId,
+                'account_type' => 'staff',
+                'role' => 'Nurse',
+                'name' => $name,
+                'email' => $email,
+                'employment_status' => 'Active',
+            ],
+        ], 201);
+    }
+
+    public function updateNurseStatus(Request $request)
+    {
+        if (!$this->isAccountManager($request)) {
+            return response()->json(['ok' => false, 'error' => 'Forbidden'], 403);
+        }
+
+        $data = $request->validate([
+            'user_id' => 'required|uuid',
+            'employment_status' => 'required|in:Active,Resigned',
+        ]);
+
+        $userId = (string) $data['user_id'];
+        $status = (string) $data['employment_status'];
+        $profile = collect($this->fetchProfiles())->first(fn (array $row) => (string) ($row['id'] ?? '') === $userId);
+        if (!is_array($profile) || ($profile['role'] ?? '') !== 'Nurse') {
+            return response()->json(['ok' => false, 'error' => 'Only Nurse accounts can have this employment status changed.'], 422);
+        }
+
+        if (!$this->updateStaffEmploymentStatus($userId, $status)) {
+            return response()->json(['ok' => false, 'error' => 'Could not update the Nurse employment status.'], 500);
+        }
+
+        // A long-lived ban prevents new password grants. RLS and session checks also block existing sessions.
+        $banDuration = $status === 'Resigned' ? '876000h' : 'none';
+        if (!$this->supabaseAuth->adminSetUserBan($userId, $banDuration)) {
+            return response()->json(['ok' => false, 'error' => 'Status was not applied because account access could not be updated.'], 500);
+        }
+
+        return response()->json(['ok' => true, 'message' => "Nurse status updated to {$status}.", 'employment_status' => $status]);
     }
 
     public static function upsertPasswordVault(string $userId, string $password): bool
@@ -256,7 +339,7 @@ class AccountAdminController extends Controller
                 'apikey' => $key,
                 'Authorization' => 'Bearer '.$key,
             ])->timeout(20)->get("{$url}/rest/v1/profiles", [
-                'select' => 'id,name,email,role',
+                'select' => 'id,name,email,role,employment_status',
                 'order' => 'name.asc',
                 'limit' => 1000,
             ]);
@@ -275,6 +358,62 @@ class AccountAdminController extends Controller
             }));
         } catch (\Throwable) {
             return [];
+        }
+    }
+
+    private function upsertStaffProfile(string $userId, string $name, string $email, string $status): bool
+    {
+        $url = rtrim((string) config('services.supabase.url'), '/');
+        $key = (string) config('services.supabase.service_role_key');
+        if ($url === '' || $key === '') {
+            return false;
+        }
+
+        try {
+            $response = Http::withHeaders([
+                'apikey' => $key,
+                'Authorization' => 'Bearer '.$key,
+                'Content-Type' => 'application/json',
+                'Prefer' => 'resolution=merge-duplicates,return=minimal',
+            ])->timeout(20)->post("{$url}/rest/v1/profiles?on_conflict=id", [[
+                'id' => $userId,
+                'name' => $name,
+                'email' => $email,
+                'role' => 'Nurse',
+                'employment_status' => $status,
+            ]]);
+
+            return $response->successful();
+        } catch (\Throwable $e) {
+            Log::warning('[accounts] profile upsert failed: '.$e->getMessage());
+
+            return false;
+        }
+    }
+
+    private function updateStaffEmploymentStatus(string $userId, string $status): bool
+    {
+        $url = rtrim((string) config('services.supabase.url'), '/');
+        $key = (string) config('services.supabase.service_role_key');
+        if ($url === '' || $key === '') {
+            return false;
+        }
+
+        try {
+            $response = Http::withHeaders([
+                'apikey' => $key,
+                'Authorization' => 'Bearer '.$key,
+                'Content-Type' => 'application/json',
+            ])->timeout(20)->patch("{$url}/rest/v1/profiles?id=eq.{$userId}", [
+                'employment_status' => $status,
+                'updated_at' => now()->toIso8601String(),
+            ]);
+
+            return $response->successful();
+        } catch (\Throwable $e) {
+            Log::warning('[accounts] employment status update failed: '.$e->getMessage());
+
+            return false;
         }
     }
 

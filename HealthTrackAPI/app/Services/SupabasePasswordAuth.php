@@ -133,7 +133,7 @@ class SupabasePasswordAuth
                 'Authorization' => 'Bearer '.$serviceKey,
             ])->timeout(15)->get("{$url}/rest/v1/profiles", [
                 'id' => 'eq.'.$userId,
-                'select' => 'id,role,name,email',
+                'select' => 'id,role,name,email,employment_status',
             ]);
 
             if (!$response->successful()) {
@@ -335,6 +335,82 @@ class SupabasePasswordAuth
             Log::warning('[supabase-auth] adminCreatePatientUser exception: '.$e->getMessage());
 
             return null;
+        }
+    }
+
+    /**
+     * Create a confirmed staff user that can be linked to a profile by the account manager.
+     *
+     * @param  array{email: string, password: string, user_metadata?: array}  $payload
+     */
+    public function adminCreateStaffUser(array $payload): ?string
+    {
+        $url = rtrim((string) config('services.supabase.url'), '/');
+        $serviceKey = (string) config('services.supabase.service_role_key');
+        $email = trim((string) ($payload['email'] ?? ''));
+        $password = (string) ($payload['password'] ?? '');
+        if ($url === '' || $serviceKey === '' || $email === '' || $password === '') {
+            return null;
+        }
+
+        try {
+            $response = Http::withHeaders([
+                'apikey' => $serviceKey,
+                'Authorization' => 'Bearer '.$serviceKey,
+                'Content-Type' => 'application/json',
+            ])->timeout(25)->post("{$url}/auth/v1/admin/users", [
+                'email' => $email,
+                'password' => $password,
+                'email_confirm' => true,
+                'user_metadata' => is_array($payload['user_metadata'] ?? null) ? $payload['user_metadata'] : [],
+            ]);
+
+            if (!$response->successful()) {
+                Log::warning('[supabase-auth] adminCreateStaffUser failed: '.$response->body());
+
+                return null;
+            }
+
+            $json = $response->json();
+            $id = is_array($json) ? (string) ($json['id'] ?? '') : '';
+
+            return $id !== '' ? $id : null;
+        } catch (\Throwable $e) {
+            Log::warning('[supabase-auth] adminCreateStaffUser exception: '.$e->getMessage());
+
+            return null;
+        }
+    }
+
+    /** Ban a user at the Supabase Auth layer; use "none" to restore access. */
+    public function adminSetUserBan(string $userId, ?string $banDuration): bool
+    {
+        $url = rtrim((string) config('services.supabase.url'), '/');
+        $serviceKey = (string) config('services.supabase.service_role_key');
+        if ($url === '' || $serviceKey === '' || $userId === '') {
+            return false;
+        }
+
+        try {
+            $response = Http::withHeaders([
+                'apikey' => $serviceKey,
+                'Authorization' => 'Bearer '.$serviceKey,
+                'Content-Type' => 'application/json',
+            ])->timeout(20)->put("{$url}/auth/v1/admin/users/{$userId}", [
+                'ban_duration' => $banDuration ?? 'none',
+            ]);
+
+            if (!$response->successful()) {
+                Log::warning('[supabase-auth] adminSetUserBan failed: '.$response->body());
+
+                return false;
+            }
+
+            return true;
+        } catch (\Throwable $e) {
+            Log::warning('[supabase-auth] adminSetUserBan exception: '.$e->getMessage());
+
+            return false;
         }
     }
 

@@ -63,6 +63,14 @@ class AuthController extends Controller
         if ($data['portal'] === 'staff') {
             $profile = $this->supabaseAuth->fetchStaffProfile($userId);
             $role = $profile['role'] ?? null;
+            if (($profile['employment_status'] ?? 'Active') === 'Resigned') {
+                $this->supabaseAuth->globalSignOut($grant['access_token']);
+
+                return response()->json([
+                    'ok' => false,
+                    'error' => 'This staff account has been marked as resigned and no longer has access.',
+                ], 403);
+            }
             if (!in_array($role, ['Doctor', 'Nurse', 'BHW', 'Volunteer'], true)) {
                 $this->supabaseAuth->globalSignOut($grant['access_token']);
 
