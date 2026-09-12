@@ -13,7 +13,7 @@ import { startPatientAutoSync } from '../../lib/offline/syncEngine'
 function queueStatusLabel(status) {
   const v = (status ?? 'waiting').toString().toLowerCase()
   if (v === 'next') return 'You are next'
-  if (v === 'called') return 'Please proceed to counter'
+  if (v === 'called') return 'Please proceed to MHO Office'
   if (v === 'skipped') return 'Skipped — wait to be recalled'
   if (v === 'completed' || v === 'done') return 'Completed'
   if (v === 'cancelled') return 'Cancelled'
