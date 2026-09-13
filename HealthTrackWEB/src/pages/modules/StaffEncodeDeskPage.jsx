@@ -994,6 +994,7 @@ export default function StaffEncodeDeskPage() {
 
       <EncodeServiceFormModal
         showDiagnosis={false}
+        showMedicalCertificatePurposes={serviceKind === 'medcert'}
         open={Boolean(selectedId)}
         onClose={closeEncodeModal}
         title={formTitle}

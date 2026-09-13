@@ -55,7 +55,7 @@ const CheckboxCard = ({ label, name, data, onChange, disabled }) => (
   </label>
 )
 
-export default function OutpatientLegacyForm({ data, onChange = () => {}, readOnly = false, showDiagnosis = true }) {
+export default function OutpatientLegacyForm({ data, onChange = () => {}, readOnly = false, showDiagnosis = true, showMedicalCertificatePurposes = true }) {
   // Pila, Laguna Barangay Coordinates Lookup - ACCURATE VERIFIED DATA
   const BARANGAY_COORDINATES = {
     'Aplaya': { latitude: 14.2579, longitude: 121.3531 },
@@ -193,7 +193,7 @@ export default function OutpatientLegacyForm({ data, onChange = () => {}, readOn
         </section>
 
         {/* Section 3: Certificate Purposes */}
-        <section className="rounded-3xl border border-slate-100 bg-gradient-to-br from-white to-slate-50 p-6 md:p-8 shadow-xl shadow-slate-200/40">
+        {showMedicalCertificatePurposes && <section className="rounded-3xl border border-slate-100 bg-gradient-to-br from-white to-slate-50 p-6 md:p-8 shadow-xl shadow-slate-200/40">
           <div className="mb-6 border-b border-slate-100 pb-4">
             <h3 className="text-lg font-bold text-slate-800">3. Medical Certificate Purposes</h3>
           </div>
@@ -205,7 +205,7 @@ export default function OutpatientLegacyForm({ data, onChange = () => {}, readOn
             <CheckboxCard label="SCHOOL" name="medcert_school" data={data} onChange={handleChange} disabled={readOnly} />
           </div>
           <FormField label="Others (Specify)" name="medcert_others" data={data} onChange={handleChange} disabled={readOnly} />
-        </section>
+        </section>}
 
         {/* Two-Column Bottom Layout for dense data */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -213,7 +213,7 @@ export default function OutpatientLegacyForm({ data, onChange = () => {}, readOn
           {/* Left: Vitals & Consult */}
           <section className="rounded-3xl border border-slate-100 bg-white p-6 shadow-xl shadow-slate-200/40">
              <div className="mb-6 border-b border-slate-100 pb-4">
-                <h3 className="text-lg font-bold text-slate-800">4. Vitals & Consultation</h3>
+                <h3 className="text-lg font-bold text-slate-800">{showMedicalCertificatePurposes ? 4 : 3}. Vitals & Consultation</h3>
              </div>
              
              <FormField label="Date of Consultation" name="date_of_consultation" type="date" data={data} onChange={handleChange} className="mb-6" disabled={readOnly} />
@@ -256,7 +256,7 @@ export default function OutpatientLegacyForm({ data, onChange = () => {}, readOn
                  <div className={`flex h-8 w-8 items-center justify-center rounded-full ${data.sex === 'Female' ? 'bg-pink-100 text-pink-600' : 'bg-slate-200 text-slate-500'}`}>
                     <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
                  </div>
-                 <h3 className={`text-lg font-bold ${data.sex === 'Female' ? 'text-pink-900' : 'text-slate-700'}`}>5. Obstetrical History</h3>
+                 <h3 className={`text-lg font-bold ${data.sex === 'Female' ? 'text-pink-900' : 'text-slate-700'}`}>{showMedicalCertificatePurposes ? 5 : 4}. Obstetrical History</h3>
                </div>
 
                {data.sex !== 'Female' && (
@@ -278,7 +278,7 @@ export default function OutpatientLegacyForm({ data, onChange = () => {}, readOn
             {/* Vaccinations */}
             <section className="rounded-3xl border border-sky-100 bg-gradient-to-br from-sky-50/50 to-white p-6 shadow-xl shadow-sky-200/30">
                <div className="mb-6 border-b border-sky-100 pb-4">
-                 <h3 className="text-lg font-bold text-sky-900">6. Vaccination History</h3>
+                 <h3 className="text-lg font-bold text-sky-900">{showMedicalCertificatePurposes ? 6 : 5}. Vaccination History</h3>
                </div>
                
                <div className="mb-6">
