@@ -7,7 +7,7 @@ import TbLegacyForm from '../../components/TbLegacyForm'
 import { useAuth } from '../../context/useAuth'
 import { logAuditEvent, supabase } from '../../lib/supabaseClient'
 import { listLocalQueue, updateQueueStatusLocal, countPendingOutbox } from '../../lib/offline/queueService'
-import { startAutoSync, syncNow } from '../../lib/offline/syncEngine'
+import { startAutoSync, subscribeSyncStatus, syncNow } from '../../lib/offline/syncEngine'
 import { useOnlineStatus } from '../../lib/offline/connectivity'
 import { getPatientCacheById, getPatientCacheByAuthId, upsertPatientsCache } from '../../lib/offline/patientsCacheService'
 import {
@@ -99,25 +99,27 @@ export default function DoctorConsultPage() {
 
   useBodyScrollLock(showPatientInfo)
 
-  const refreshQueue = useCallback(async () => {
-    setLoading(true)
-    setError('')
+  const refreshQueue = useCallback(async ({ silent = false, localOnly = false } = {}) => {
+    if (!silent) { setLoading(true); setError('') }
     try {
-      if (online) await syncNow()
+      if (online && !localOnly) await syncNow()
       const rows = await listLocalQueue()
       setQueueItems(rows)
       setPendingSync(await countPendingOutbox())
     } catch (e) {
-      setError(e?.message || 'Failed to load doctor queue.')
+      if (!silent) setError(e?.message || 'Failed to load doctor queue.')
     } finally {
-      setLoading(false)
+      if (!silent) setLoading(false)
     }
   }, [online])
 
   useEffect(() => {
     void refreshQueue()
+    const unsubscribe = subscribeSyncStatus((status) => {
+      if (!status.syncing) void refreshQueue({ silent: true, localOnly: true })
+    })
     const stop = startAutoSync({ intervalMs: 15000 })
-    return () => stop()
+    return () => { stop(); unsubscribe() }
   }, [refreshQueue])
 
   useEffect(() => {

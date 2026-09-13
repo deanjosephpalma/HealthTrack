@@ -1,4 +1,5 @@
 import { supabase } from '../supabaseClient'
+import { subscribeWorkflowChanges } from '../workflowRealtime'
 import { ensureServiceRequest } from '../workflowEngine'
 import {
   msgMarkedNext,
@@ -13,6 +14,7 @@ import { isOnline } from './connectivity'
 import { mergeRemoteQueueRows, countPendingOutbox } from './queueService'
 
 let syncing = false
+let currentSync = null
 let listeners = new Set()
 
 export function subscribeSyncStatus(fn) {
@@ -265,7 +267,6 @@ async function pullTodayQueue() {
     .select(
       'id, queue_number, patient_id, patient_name, reason, status, created_at, updated_at, appointment_id, phone_number, counter_room, estimated_waiting_time, service_code, is_priority, priority_labels, archived_at, patient:patients!queue_patient_id_fkey(patient_number), appointment:appointments!queue_appointment_id_fkey(patient_email)',
     )
-    .is('archived_at', null)
     .gte('created_at', today.toISOString())
     .order('created_at', { ascending: true })
 
@@ -275,7 +276,6 @@ async function pullTodayQueue() {
       .select(
         'id, queue_number, patient_id, patient_name, reason, status, created_at, updated_at, appointment_id, phone_number, counter_room, estimated_waiting_time, service_code, archived_at, patient:patients!queue_patient_id_fkey(patient_number), appointment:appointments!queue_appointment_id_fkey(patient_email)',
       )
-      .is('archived_at', null)
       .gte('created_at', today.toISOString())
       .order('created_at', { ascending: true })
     if (fallback.error) throw new Error(fallback.error.message)
@@ -288,7 +288,13 @@ async function pullTodayQueue() {
   return data ?? []
 }
 
-export async function syncNow() {
+export function syncNow() {
+  if (currentSync) return currentSync
+  currentSync = performSync().finally(() => { currentSync = null })
+  return currentSync
+}
+
+async function performSync() {
   if (!isOnline() || syncing) {
     return { ok: false, reason: syncing ? 'busy' : 'offline' }
   }
@@ -332,14 +338,5 @@ export async function syncNow() {
 }
 
 export function startAutoSync({ intervalMs = 20000 } = {}) {
-  const run = () => {
-    void syncNow()
-  }
-  window.addEventListener('online', run)
-  const id = window.setInterval(run, intervalMs)
-  run()
-  return () => {
-    window.removeEventListener('online', run)
-    window.clearInterval(id)
-  }
+  return subscribeWorkflowChanges(supabase, syncNow, { intervalMs })
 }

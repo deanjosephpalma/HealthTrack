@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import EncodeServiceFormModal from '../../components/EncodeServiceFormModal'
+import { subscribeWorkflowChanges } from '../../lib/workflowRealtime'
 import OfficialServiceEncodeForm, { isOfficialEncodeService } from '../../components/OfficialServiceEncodeForm'
 import ModuleEmptyState from '../../components/ModuleEmptyState'
 import { useAuth } from '../../context/useAuth'
@@ -525,13 +526,11 @@ export default function StaffEncodeDeskPage() {
     return () => window.clearInterval(id)
   }, [selectedId])
 
-  // Initial load + poll only while no encode modal is open (avoids wiping in-progress typing).
+  // Form hydration is separate, so live list updates preserve in-progress typing.
   useEffect(() => {
     void refresh({ silent: false })
-    if (selectedId) return undefined
-    const id = window.setInterval(() => void refresh({ silent: true }), 20000)
-    return () => window.clearInterval(id)
-  }, [refresh, selectedId])
+    return subscribeWorkflowChanges(supabase, () => refresh({ silent: true }))
+  }, [refresh])
 
   // Hydrate form once per selected patient — never on background row refresh.
   useEffect(() => {

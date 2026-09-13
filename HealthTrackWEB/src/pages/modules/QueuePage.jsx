@@ -88,19 +88,13 @@ export default function QueuePage() {
   }, [])
 
   useEffect(() => {
-    let stop = () => {}
-    const boot = async () => {
-      setLoading(true)
-      await refreshLocal()
-      stop = startAutoSync({ intervalMs: 15000 })
-    }
-    void boot()
-
+    void refreshLocal()
     const unsub = subscribeSyncStatus((status) => {
       setSyncing(Boolean(status.syncing))
       if (typeof status.pending === 'number') setPendingCount(status.pending)
-      if (status.ok !== false) void refreshLocal()
+      if (!status.syncing) void refreshLocal()
     })
+    const stop = startAutoSync({ intervalMs: 15000 })
 
     return () => {
       stop()

@@ -18,7 +18,7 @@ import {
   pdfPayloadFromPermit,
 } from '../../lib/issuedDocumentPdf'
 import { listLocalQueue, updateQueueStatusLocal, countPendingOutbox } from '../../lib/offline/queueService'
-import { startAutoSync, syncNow } from '../../lib/offline/syncEngine'
+import { startAutoSync, subscribeSyncStatus, syncNow } from '../../lib/offline/syncEngine'
 import { useOnlineStatus } from '../../lib/offline/connectivity'
 import { savePatientRecordLocal, enqueueServiceRequestUpdate } from '../../lib/offline/paperlessService'
 import { queueLabelOf, mergeIntakeResponses } from '../../lib/doctorServices'
@@ -76,11 +76,10 @@ export default function NurseServiceDeskPage() {
 
   useBodyScrollLock(showPatientInfo)
 
-  const refreshQueue = useCallback(async () => {
-    setLoading(true)
-    setError('')
+  const refreshQueue = useCallback(async ({ silent = false, localOnly = false } = {}) => {
+    if (!silent) { setLoading(true); setError('') }
     try {
-      if (online) await syncNow()
+      if (online && !localOnly) await syncNow()
       const rows = await listLocalQueue()
       setQueueItems(rows)
       setPendingSync(await countPendingOutbox())
@@ -102,16 +101,19 @@ export default function NurseServiceDeskPage() {
         setApprovalRequests([])
       }
     } catch (e) {
-      setError(e?.message || 'Failed to load nurse desk queue.')
+      if (!silent) setError(e?.message || 'Failed to load nurse desk queue.')
     } finally {
-      setLoading(false)
+      if (!silent) setLoading(false)
     }
   }, [online, role])
 
   useEffect(() => {
     void refreshQueue()
+    const unsubscribe = subscribeSyncStatus((status) => {
+      if (!status.syncing) void refreshQueue({ silent: true, localOnly: true })
+    })
     const stop = startAutoSync({ intervalMs: 15000 })
-    return () => stop()
+    return () => { stop(); unsubscribe() }
   }, [refreshQueue])
 
   useEffect(() => {
