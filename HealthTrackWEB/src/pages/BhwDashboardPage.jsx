@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../context/useAuth'
 import { MODULES } from '../config/rbac'
+import { subscribeWorkflowChanges } from '../lib/workflowRealtime'
 import { supabase } from '../lib/supabaseClient'
 
 export default function BhwDashboardPage() {
@@ -14,7 +15,6 @@ export default function BhwDashboardPage() {
   const roleLabel = role === 'Volunteer' ? 'Volunteer' : 'BHW'
 
   const refresh = useCallback(async () => {
-    setLoading(true)
     try {
       const [awaitingRes, encodedRes] = await Promise.all([
         supabase
@@ -26,20 +26,18 @@ export default function BhwDashboardPage() {
           .select('id', { count: 'exact', head: true })
           .eq('status', 'Encoded'),
       ])
+      if (awaitingRes.error || encodedRes.error) throw awaitingRes.error || encodedRes.error
       setAwaiting(awaitingRes.count ?? 0)
       setEncoded(encodedRes.count ?? 0)
     } catch {
-      setAwaiting(0)
-      setEncoded(0)
+      // Keep the last successful counts during a temporary connection failure.
     } finally {
       setLoading(false)
     }
   }, [])
 
   useEffect(() => {
-    void refresh()
-    const id = window.setInterval(() => void refresh(), 20000)
-    return () => window.clearInterval(id)
+    return subscribeWorkflowChanges(supabase, refresh)
   }, [refresh])
 
   return (

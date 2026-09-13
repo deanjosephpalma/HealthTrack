@@ -1,5 +1,5 @@
 // Coalesce transaction bursts and catch up after reconnects or a background tab.
-export function subscribeWorkflowChanges(client, refresh, { intervalMs = 15000 } = {}) {
+export function subscribeWorkflowChanges(client, refresh, { intervalMs = 15000, extraTables = [] } = {}) {
   let stopped = false
   let running = false
   let pending = false
@@ -23,7 +23,7 @@ export function subscribeWorkflowChanges(client, refresh, { intervalMs = 15000 }
   }
   const visible = () => { if (document.visibilityState === 'visible') schedule() }
   const channel = client.channel(`workflow-${crypto.randomUUID()}`)
-  for (const table of ['queue', 'service_requests', 'service_request_steps', 'patient_records']) {
+  for (const table of new Set(['queue', 'service_requests', 'service_request_steps', 'patient_records', ...extraTables])) {
     channel.on('postgres_changes', { event: '*', schema: 'public', table }, schedule)
   }
   channel.subscribe((status) => { if (status === 'SUBSCRIBED') schedule() })

@@ -1,3 +1,4 @@
+import { subscribeWorkflowChanges } from '../lib/workflowRealtime'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/useAuth'
@@ -373,7 +374,6 @@ export default function DashboardPage() {
   const [totalRecordsCount, setTotalRecordsCount] = useState(0)
   const [tbRecords, setTbRecords] = useState([])
 
-  const loadTimerRef = useRef(null)
 
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 1000)
@@ -415,9 +415,9 @@ export default function DashboardPage() {
     setActivity(items.slice(0, 14))
   }, [])
 
-  const loadDashboard = useCallback(async () => {
+  const loadDashboard = useCallback(async ({ silent = false } = {}) => {
     if (!role) return
-    setLoading(true)
+    if (!silent) setLoading(true)
     setError('')
 
     const startOfToday = new Date()
@@ -505,68 +505,9 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (!role) return
-    const raf = requestAnimationFrame(() => {
-      void loadDashboard()
+    return subscribeWorkflowChanges(supabase, () => loadDashboard({ silent: true }), {
+      extraTables: ['patients', 'inventory_items', 'service_types'],
     })
-    return () => cancelAnimationFrame(raf)
-  }, [loadDashboard, role])
-
-  useEffect(() => {
-    if (!role) return
-
-    const scheduleReload = () => {
-      if (loadTimerRef.current) {
-        clearTimeout(loadTimerRef.current)
-      }
-      loadTimerRef.current = setTimeout(() => {
-        void loadDashboard()
-      }, 350)
-    }
-
-    const channel = supabase
-      .channel('doctor-dashboard-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'queue' }, (payload) => {
-        const who = normalizeLabel(payload?.new?.patient_name, 'Patient')
-        const num = payload?.new?.queue_number ? `#${payload.new.queue_number}` : ''
-        setActivity((prev) => {
-          const next = [
-            {
-              id: `evt-queue-${payload.commit_timestamp ?? Date.now()}-${Math.random().toString(16).slice(2)}`,
-              at: payload.commit_timestamp ? new Date(payload.commit_timestamp) : new Date(),
-              label: 'Queue update',
-              detail: `${num ? `${num} · ` : ''}${who}`,
-              tone: 'teal',
-            },
-            ...(Array.isArray(prev) ? prev : []),
-          ]
-          return next.slice(0, 14)
-        })
-        scheduleReload()
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'patient_records' }, (payload) => {
-        const dx = normalizeLabel(payload?.new?.diagnosis, 'Unspecified')
-        const brgy = normalizeLabel(payload?.new?.barangay, 'Barangay')
-        setActivity((prev) => {
-          const next = [
-            {
-              id: `evt-rec-${payload.commit_timestamp ?? Date.now()}-${Math.random().toString(16).slice(2)}`,
-              at: payload.commit_timestamp ? new Date(payload.commit_timestamp) : new Date(),
-              label: 'Consultation recorded',
-              detail: `${dx} · ${brgy}`,
-              tone: 'emerald',
-            },
-            ...(Array.isArray(prev) ? prev : []),
-          ]
-          return next.slice(0, 14)
-        })
-        scheduleReload()
-      })
-      .subscribe()
-
-    return () => {
-      if (loadTimerRef.current) clearTimeout(loadTimerRef.current)
-      supabase.removeChannel(channel)
-    }
   }, [loadDashboard, role])
 
   useEffect(() => {
@@ -902,7 +843,7 @@ export default function DashboardPage() {
       if (key) catered.add(key)
     }
     return catered.size
-  }, [queueItems, records, role, today, user?.id])
+  }, [queueItems, records, role, today, user])
 
   const heatmapAlertCount = useMemo(() => {
     const highSignals = outbreakSummary.dxList.filter((row) => row.change >= 35 && row.current >= 3).length

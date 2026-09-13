@@ -24,9 +24,9 @@ test('workflow changes coalesce, catch up during refresh, reconnect, and clean u
   const stop = subscribeWorkflowChanges(client, async () => {
     calls++
     if (block) await new Promise((resolve) => { release = resolve })
-  }, { intervalMs: 60000 })
+  }, { intervalMs: 60000, extraTables: ['patients', 'inventory_items', 'service_types', 'queue'] })
   try {
-    assert.deepEqual([...handlers.keys()], ['queue', 'service_requests', 'service_request_steps', 'patient_records'])
+    assert.deepEqual([...handlers.keys()], ['queue', 'service_requests', 'service_request_steps', 'patient_records', 'patients', 'inventory_items', 'service_types'])
     await pause()
     assert.equal(calls, 1)
     block = true

@@ -5,7 +5,8 @@ import { supabase } from '../lib/supabaseClient'
 import { MODULES } from '../config/rbac'
 import { useOnlineStatus } from '../lib/offline/connectivity'
 import { listLocalQueue, countPendingOutbox } from '../lib/offline/queueService'
-import { startAutoSync } from '../lib/offline/syncEngine'
+import { syncNow } from '../lib/offline/syncEngine'
+import { subscribeWorkflowChanges } from '../lib/workflowRealtime'
 
 function StatIcon({ children, className }) {
   return (
@@ -29,7 +30,6 @@ export default function NurseDashboardPage() {
 
   const loadDashboardStats = useCallback(async () => {
     try {
-      setLoading(true)
 
       const localQueue = await listLocalQueue()
       const waitingQueue = localQueue.filter((r) => (r.status ?? '').toLowerCase() === 'waiting').length
@@ -40,13 +40,15 @@ export default function NurseDashboardPage() {
       let totalPatients = 0
       let activeRequests = 0
       if (online) {
-        const { count: patientCount } = await supabase.from('patients').select('*', { count: 'exact', head: true })
-        const { count: activeRequestsCount } = await supabase
+        const { count: patientCount, error: patientError } = await supabase.from('patients').select('*', { count: 'exact', head: true })
+        if (patientError) throw patientError
+        const { count: activeRequestsCount, error: requestsError } = await supabase
           .from('service_requests')
           .select('*', { count: 'exact', head: true })
           .is('archived_at', null)
-          .not('current_status', 'eq', 'completed')
-          .not('current_status', 'eq', 'cancelled')
+          .not('status', 'in', '(Completed,Cancelled)')
+          .or('current_status.is.null,current_status.not.in.(completed,cancelled)')
+        if (requestsError) throw requestsError
         totalPatients = patientCount || 0
         activeRequests = activeRequestsCount || 0
       }
@@ -66,9 +68,10 @@ export default function NurseDashboardPage() {
   }, [online])
 
   useEffect(() => {
-    void loadDashboardStats()
-    const stop = startAutoSync({ intervalMs: 30000 })
-    return () => stop()
+    return subscribeWorkflowChanges(supabase, async () => {
+      await syncNow()
+      await loadDashboardStats()
+    }, { extraTables: ['patients'] })
   }, [loadDashboardStats])
 
   const hour = new Date().getHours()
