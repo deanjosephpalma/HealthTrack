@@ -55,7 +55,7 @@ const CheckboxCard = ({ label, name, data, onChange, disabled }) => (
   </label>
 )
 
-export default function OutpatientLegacyForm({ data, onChange = () => {}, readOnly = false }) {
+export default function OutpatientLegacyForm({ data, onChange = () => {}, readOnly = false, showDiagnosis = true }) {
   // Pila, Laguna Barangay Coordinates Lookup - ACCURATE VERIFIED DATA
   const BARANGAY_COORDINATES = {
     'Aplaya': { latitude: 14.2579, longitude: 121.3531 },
@@ -235,7 +235,7 @@ export default function OutpatientLegacyForm({ data, onChange = () => {}, readOn
                <FormField label="Kailan Naoperahan" name="operation_date" type="date" data={data} onChange={handleChange} disabled={readOnly} />
              </div>
 
-             <div className="flex flex-col gap-1.5 border-t border-slate-100 pt-6">
+             {showDiagnosis && <div className="flex flex-col gap-1.5 border-t border-slate-100 pt-6">
                 <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider ml-1">Diagnosis</label>
                 <textarea
                   name="diagnosis"
@@ -244,7 +244,7 @@ export default function OutpatientLegacyForm({ data, onChange = () => {}, readOn
                   disabled={readOnly}
                   className="w-full rounded-xl border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-medium text-slate-800 shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)] transition-all focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 hover:border-slate-300 min-h-32 disabled:opacity-75 disabled:cursor-not-allowed"
                 />
-             </div>
+             </div>}
           </section>
 
           {/* Right: Female & Vaxx */}

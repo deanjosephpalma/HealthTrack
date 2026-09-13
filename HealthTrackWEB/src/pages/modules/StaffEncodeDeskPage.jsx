@@ -993,6 +993,7 @@ export default function StaffEncodeDeskPage() {
       </div>
 
       <EncodeServiceFormModal
+        showDiagnosis={false}
         open={Boolean(selectedId)}
         onClose={closeEncodeModal}
         title={formTitle}

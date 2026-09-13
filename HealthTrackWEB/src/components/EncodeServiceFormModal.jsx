@@ -19,6 +19,7 @@ export default function EncodeServiceFormModal({
   joinReason = '',
   formData = {},
   onFormChange,
+  showDiagnosis = true,
   children = null,
   error = '',
   message = '',
@@ -93,7 +94,7 @@ export default function EncodeServiceFormModal({
     ) : serviceKind === 'tb' ? (
       <TbLegacyForm data={formData} onChange={onFormChange} />
     ) : (
-      <OutpatientLegacyForm data={formData} onChange={onFormChange} />
+      <OutpatientLegacyForm data={formData} onChange={onFormChange} showDiagnosis={showDiagnosis} />
     )
 
   const form = children ?? defaultForm
