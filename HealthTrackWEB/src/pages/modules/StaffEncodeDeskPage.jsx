@@ -512,7 +512,6 @@ export default function StaffEncodeDeskPage() {
     } catch (e) {
       if (!silent) {
         setError(e?.message || 'Failed to load encode line.')
-        setRows([])
       }
     } finally {
       if (!silent) setLoading(false)
@@ -531,6 +530,19 @@ export default function StaffEncodeDeskPage() {
     void refresh({ silent: false })
     return subscribeWorkflowChanges(supabase, () => refresh({ silent: true }))
   }, [refresh])
+
+  // A cancelled/removed request disappears from the active query, even while its form is open.
+  useEffect(() => {
+    if (!selectedId || selected) return
+    clearEncodeDraft({ userId: user?.id, requestId: selectedId })
+    hydratedForId.current = ''
+    formDataRef.current = {}
+    setSelectedId('')
+    setFormData({})
+    setInvalidField(null)
+    setError('')
+    if (!issuing) setMessage('This request is no longer in the encode line. The form has been closed.')
+  }, [selectedId, selected, user?.id, issuing])
 
   // Hydrate form once per selected patient — never on background row refresh.
   useEffect(() => {
@@ -619,7 +631,7 @@ export default function StaffEncodeDeskPage() {
         encoded_at: new Date().toISOString(),
       }
 
-      const { error: updateError } = await supabase
+      const { data: updatedRequest, error: updateError } = await supabase
         .from('service_requests')
         .update({
           status: 'Encoded',
@@ -627,7 +639,14 @@ export default function StaffEncodeDeskPage() {
           updated_at: new Date().toISOString(),
         })
         .eq('id', selected.id)
+        .in('status', AWAITING_STATUSES)
+        .select('id')
+        .maybeSingle()
       if (updateError) throw updateError
+      if (!updatedRequest) {
+        await refresh({ silent: true })
+        throw new Error('This request was cancelled or has already left the encode line.')
+      }
 
       void logAuditEvent({
         action: 'staff_encode_visit',
@@ -994,7 +1013,7 @@ export default function StaffEncodeDeskPage() {
       <EncodeServiceFormModal
         showDiagnosis={false}
         showMedicalCertificatePurposes={serviceKind === 'medcert'}
-        open={Boolean(selectedId)}
+        open={Boolean(selected)}
         onClose={closeEncodeModal}
         title={formTitle}
         subtitle={selected ? `${displayName(selected)} · ${serviceCode}` : ''}
