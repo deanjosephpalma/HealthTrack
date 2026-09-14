@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { liveQuery } from 'dexie'
+import './QueueDisplayPage.css'
 import { listLocalQueue } from '../../lib/offline/queueService'
 import { startAutoSync, subscribeSyncStatus } from '../../lib/offline/syncEngine'
 import { useOnlineStatus } from '../../lib/offline/connectivity'
@@ -11,6 +12,7 @@ export default function QueueDisplayPage() {
   const [error, setError] = useState('')
   const [lastSync, setLastSync] = useState('')
   const [voice, setVoice] = useState(false)
+  const [fullscreen, setFullscreen] = useState(false)
   const [room, setRoom] = useState('')
   const [clock, setClock] = useState(() => Date.now())
   const panel = useRef(null)
@@ -54,6 +56,12 @@ export default function QueueDisplayPage() {
 
   useEffect(() => () => { if (speechAvailable) window.speechSynthesis.cancel() }, [speechAvailable])
 
+  useEffect(() => {
+    const update = () => setFullscreen(document.fullscreenElement === panel.current)
+    document.addEventListener('fullscreenchange', update)
+    return () => document.removeEventListener('fullscreenchange', update)
+  }, [])
+
   async function toggleFullscreen() {
     try {
       if (document.fullscreenElement) await document.exitFullscreen()
@@ -61,33 +69,37 @@ export default function QueueDisplayPage() {
     } catch { setError('Hindi available ang fullscreen sa browser na ito.') }
   }
 
-  const renderTickets = (items, large = false) => items.map((row) => (
-    <div key={row.id} className="rounded-2xl border border-teal-200 bg-white p-6 text-slate-950">
-      <p className={`break-words font-black ${large ? 'text-6xl md:text-8xl' : 'text-4xl'}`}>{ticketLabel(row)}</p>
-      <p className="mt-3 text-2xl font-semibold">{row.counter_room || 'Nurse desk'}</p>
-    </div>
+  const renderTickets = (items) => items.map((row) => (
+    <article key={row.id} className="qd-ticket">
+      <p className="qd-number">{ticketLabel(row)}</p>
+      <p className="qd-destination"><span aria-hidden="true">?</span> {row.counter_room || 'Nurse desk'}</p>
+    </article>
   ))
+  const warning = !online || Boolean(error)
 
   return (
-    <section ref={panel} className="min-h-screen overflow-auto bg-slate-50 p-4 text-slate-950 md:p-8">
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-        <div><p className="text-xl font-semibold">HealthTrack · RHU Pila</p><h1 className="text-3xl font-bold">Queue Display</h1></div>
-        <div className="flex flex-wrap items-center gap-3">
-          <label className="font-semibold">Desk <select className="min-h-12 rounded-lg border p-2" value={room} onChange={(e) => { setRoom(e.target.value); window.speechSynthesis?.cancel() }}><option value="">Lahat ng desk</option>{rooms.map((value) => <option key={value}>{value}</option>)}</select></label>
-          <button type="button" disabled={!speechAvailable} aria-pressed={voice} className="min-h-12 rounded-xl border px-4 font-semibold disabled:opacity-50" onClick={() => { if (voice) window.speechSynthesis.cancel(); setVoice(!voice) }}>{voice ? 'Voice: On' : 'Voice: Off'}</button>
-          <button type="button" className="min-h-12 rounded-xl bg-teal-800 px-4 font-semibold text-white" onClick={toggleFullscreen}>Fullscreen / Exit</button>
+    <section ref={panel} className="queue-display">
+      <header className="qd-header">
+        <div className="qd-brand"><span className="qd-brand-icon" aria-hidden="true">+</span><div><p className="qd-eyebrow">HEALTHTRACK ? RHU PILA</p><h1>Queue Display</h1><p className="qd-subtitle">Tingnan ang inyong numero at hintayin ang tawag.</p></div></div>
+        <div className="qd-clock"><strong>{new Date(clock).toLocaleTimeString('en-PH', { timeZone: 'Asia/Manila', hour: '2-digit', minute: '2-digit' })}</strong><span>{new Date(clock).toLocaleDateString('en-PH', { timeZone: 'Asia/Manila', month: 'long', day: 'numeric', year: 'numeric' })}</span></div>
+      </header>
+      <div className="qd-toolbar">
+        <label className="qd-filter">Ipakitang desk<select value={room} onChange={(e) => { setRoom(e.target.value); window.speechSynthesis?.cancel() }}><option value="">Lahat ng desk</option>{rooms.map((value) => <option key={value}>{value}</option>)}</select></label>
+        <div className="qd-actions">
+          <button type="button" disabled={!speechAvailable} aria-pressed={voice} className={`qd-button ${voice ? 'qd-button-active' : ''}`} onClick={() => { if (voice) window.speechSynthesis.cancel(); setVoice(!voice) }}><span aria-hidden="true">?</span> Voice {voice ? 'on' : 'off'}</button>
+          <button type="button" className="qd-button qd-button-primary" onClick={toggleFullscreen}><span aria-hidden="true">?</span> {fullscreen ? 'Exit fullscreen' : 'Fullscreen'}</button>
         </div>
       </div>
-      <p role="status" className="mb-5 text-lg font-semibold">{!online ? 'Offline — huling naka-save na pila. Magtanong po sa staff.' : error || (lastSync ? `Huling update: ${new Date(lastSync).toLocaleTimeString('en-PH')}` : 'Kinukuha ang pinakabagong pila…')}</p>
-      {!speechAvailable && <p>Hindi available ang voice announcement sa browser na ito.</p>}
-      {loading ? <p role="status">Binabasa ang pila…</p> : <>
-        <div className="grid gap-6 xl:grid-cols-2">
-          <section className="rounded-3xl bg-teal-900 p-6 text-white"><h2 className="mb-4 text-3xl font-bold">Tinatawag ngayon</h2><div className="grid gap-4" aria-live="polite" aria-atomic="true">{called.length ? renderTickets(called, true) : <p className="text-2xl">Wala pang tinatawag.</p>}</div></section>
-          <section className="rounded-3xl border-2 border-blue-200 bg-blue-50 p-6"><h2 className="mb-4 text-3xl font-bold">Susunod — maghanda po</h2><div className="grid gap-4">{next.length ? renderTickets(next) : <p className="text-2xl">Hintayin po ang tawag ng staff.</p>}</div></section>
+      <div className={`qd-status ${warning ? 'qd-status-warning' : ''}`} role="status"><span className="qd-status-dot" aria-hidden="true" />{!online ? 'Offline ? huling naka-save na pila. Magtanong po sa staff.' : error || (lastSync ? `Huling update: ${new Date(lastSync).toLocaleTimeString('en-PH', { timeZone: 'Asia/Manila' })}` : 'Kinukuha ang pinakabagong pila?')}</div>
+      {!speechAvailable && <p className="qd-note">Hindi available ang voice announcement sa browser na ito.</p>}
+      {loading ? <div className="qd-loading" role="status">Binabasa ang pila?</div> : <>
+        <div className="qd-board">
+          <section className="qd-serving"><div className="qd-panel-heading"><div><p className="qd-eyebrow">NOW CALLING</p><h2>Tinatawag ngayon</h2></div><span className="qd-count">{called.length}</span></div><p className="qd-panel-instruction">Pumunta po sa nakasaad na desk.</p><div className="qd-ticket-list" aria-live="polite" aria-atomic="true">{called.length ? renderTickets(called) : <div className="qd-empty"><span aria-hidden="true">?</span><h3>Wala pang tinatawag</h3><p>Manatili po sa waiting area.</p></div>}</div></section>
+          <section className="qd-next"><div className="qd-panel-heading"><div><p className="qd-eyebrow">UP NEXT</p><h2>Susunod sa pila</h2></div><span className="qd-count">{next.length}</span></div><p className="qd-panel-instruction">Maghanda po at hintaying tawagin.</p><div className="qd-ticket-list">{next.length ? renderTickets(next) : <div className="qd-empty"><span aria-hidden="true">?</span><h3>Hintayin ang susunod na tawag</h3><p>Staff ang magtatalaga ng susunod.</p></div>}</div></section>
         </div>
-        <section className="mt-6"><h2 className="mb-4 text-2xl font-bold">Naghihintay ({waiting.length})</h2><div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{renderTickets(waiting)}</div>{!waiting.length && <p className="text-xl">Wala pang naghihintay.</p>}</section>
+        <section className="qd-waiting"><div className="qd-waiting-heading"><div><p className="qd-eyebrow">WAITING AREA</p><h2>Naghihintay <span className="qd-count">{waiting.length}</span></h2></div><p>Hintayin pong lumabas ang inyong numero sa itaas.</p></div>{waiting.length ? <div className="qd-waiting-grid">{renderTickets(waiting)}</div> : <p className="qd-waiting-empty">Wala pang naghihintay sa pilang ito.</p>}</section>
       </>}
-      <p className="mt-6 text-xl">Tingnan ang inyong ticket number at desk. Lumapit po sa staff kung kailangan ng tulong.</p>
+      <footer className="qd-footer"><span className="qd-help-icon" aria-hidden="true">?</span><p><strong>Kailangan ng tulong?</strong> Lumapit po sa nurse o staff.</p><span className="qd-footer-brand">Rural Health Unit of Pila</span></footer>
     </section>
   )
 }

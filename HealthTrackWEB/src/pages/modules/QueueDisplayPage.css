@@ -1,0 +1,63 @@
+.queue-display { --qd-ink: #153b40; color: var(--qd-ink); background: #f4f8f7; border: 1px solid #d9e6e3; border-radius: 24px; padding: clamp(16px, 2.5vw, 36px); min-width: 0; }
+.queue-display :where(h1, h2, h3, p) { margin: 0; }
+.qd-header, .qd-brand, .qd-toolbar, .qd-actions, .qd-panel-heading, .qd-waiting-heading, .qd-footer { display: flex; align-items: center; gap: 16px; }
+.qd-header, .qd-toolbar, .qd-panel-heading, .qd-waiting-heading { justify-content: space-between; }
+.qd-header { margin-bottom: 26px; flex-wrap: wrap; }
+.qd-brand-icon { display: grid; place-items: center; flex-shrink: 0; width: 52px; height: 52px; border-radius: 16px; background: #12685f; color: white; font-size: 40px; font-weight: 600; }
+.queue-display .qd-eyebrow { font-size: 12px; font-weight: 800; letter-spacing: .13em; line-height: 1.6; }
+.queue-display h1 { font-size: clamp(26px, 3vw, 36px); letter-spacing: -.04em; font-weight: 800; line-height: 1.25; }
+.queue-display .qd-subtitle { color: #4c6669; font-size: 15px; margin-top: 5px; }
+.qd-clock { display: grid; gap: 2px; text-align: right; font-variant-numeric: tabular-nums; }
+.qd-clock strong { font-size: 25px; letter-spacing: -.04em; }
+.qd-clock span { font-size: 13px; color: #4c6669; }
+.qd-toolbar { padding: 14px 16px; border: 1px solid #dbe6e3; border-radius: 16px; background: white; flex-wrap: wrap; }
+.qd-filter { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; font-weight: 700; font-size: 14px; }
+.qd-filter select { min-height: 44px; max-width: 100%; border: 1px solid #b6cbc6; border-radius: 10px; background: #f6faf8; padding: 8px 32px 8px 12px; color: #153b40; font: inherit; }
+.qd-actions { flex-wrap: wrap; gap: 8px; }
+.qd-button { min-height: 44px; border: 1px solid #b6cbc6; padding: 9px 16px; border-radius: 10px; background: white; color: #284d50; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 8px; }
+.qd-button:hover { background: #eef7f3; }
+.qd-button:disabled { opacity: .55; cursor: not-allowed; }
+.qd-button-primary, .qd-button-primary:hover { background: #155f57; color: white; border-color: #155f57; }
+.qd-button-active { background: #e1f2e9; border-color: #569582; }
+.queue-display :where(button, select):focus-visible { outline: 3px solid #0969a0; outline-offset: 3px; }
+.qd-status { display: flex; align-items: center; gap: 8px; padding: 14px 2px 18px; color: #466467; font-size: 13px; }
+.qd-status-dot { width: 8px; height: 8px; border-radius: 50%; background: #277d63; flex-shrink: 0; }
+.qd-status-warning { color: #85450c; font-weight: 700; }
+.qd-status-warning .qd-status-dot { background: #b76513; }
+.qd-board { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 20px; align-items: stretch; }
+.qd-serving, .qd-next { padding: clamp(20px, 2.5vw, 32px); border-radius: 20px; min-width: 0; }
+.qd-serving { color: white; background: linear-gradient(130deg, #124c47, #17685f); box-shadow: 0 12px 24px -18px #164e45; }
+.qd-next { background: #eaf2ef; border: 1px solid #ccdcd5; }
+.queue-display h2 { font-size: clamp(22px, 2.3vw, 29px); font-weight: 800; letter-spacing: -.025em; }
+.qd-serving .qd-eyebrow { color: #c3e4d9; }
+.qd-next .qd-eyebrow, .qd-waiting .qd-eyebrow { color: #4c6c61; }
+.qd-count { display: inline-grid; place-items: center; min-width: 34px; height: 34px; padding: 0 8px; border-radius: 10px; background: #dbe9e2; color: #254e40; font-size: 15px; font-weight: 800; vertical-align: middle; }
+.qd-serving .qd-count { color: white; background: #ffffff20; }
+.queue-display .qd-panel-instruction { margin-top: 8px; font-size: 16px; line-height: 1.5; }
+.qd-ticket-list { display: grid; gap: 12px; margin-top: 22px; }
+.qd-ticket { min-width: 0; }
+.qd-serving .qd-ticket { background: #ffffff0d; border: 1px solid #ffffff40; border-radius: 16px; padding: 20px; text-align: center; }
+.queue-display .qd-number { font-size: clamp(44px, 5vw, 74px); font-weight: 800; letter-spacing: -.045em; font-variant-numeric: tabular-nums; line-height: 1.15; overflow-wrap: anywhere; }
+.qd-serving .qd-number { font-size: clamp(52px, 6.8vw, 104px); }
+.queue-display .qd-destination { font-size: 19px; font-weight: 600; margin-top: 12px; overflow-wrap: anywhere; }
+.qd-next .qd-ticket { padding: 20px; border-radius: 14px; background: white; border: 1px solid #d5e2dc; }
+.qd-empty { min-height: 195px; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; gap: 10px; }
+.qd-empty > span { font-size: 50px; opacity: .65; }
+.qd-empty h3 { font-size: 20px; font-weight: 700; }
+.qd-empty p { font-size: 16px; }
+.qd-waiting { background: white; border: 1px solid #dbe6e3; border-radius: 20px; padding: 24px; margin-top: 20px; }
+.qd-waiting-heading { flex-wrap: wrap; margin-bottom: 20px; }
+.qd-waiting-heading > p { color: #4c6669; font-size: 14px; max-width: 260px; }
+.qd-waiting-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr)); gap: 12px; }
+.qd-waiting .qd-ticket { border: 1px solid #dce6e2; background: #f7faf8; border-radius: 12px; padding: 16px; }
+.qd-waiting .qd-number { font-size: 30px; }
+.qd-waiting .qd-destination { font-size: 15px; margin-top: 6px; color: #4c6669; }
+.qd-waiting-empty, .qd-note { color: #4c6669; font-size: 16px; }
+.qd-footer { padding-top: 22px; flex-wrap: wrap; font-size: 14px; }
+.qd-help-icon { display: grid; place-items: center; width: 30px; height: 30px; border: 1px solid #9ebbb0; border-radius: 50%; font-weight: 800; }
+.qd-footer-brand { margin-left: auto; color: #4c6669; font-size: 12px; }
+.qd-loading { padding: 80px 20px; text-align: center; font-size: 22px; }
+.queue-display:fullscreen { width: 100%; height: 100%; overflow-y: auto; border: 0; border-radius: 0; padding: clamp(24px, 3vw, 56px); }
+.queue-display:fullscreen .qd-serving .qd-number { font-size: clamp(72px, 9vw, 160px); }
+@media (max-width: 850px) { .qd-board { grid-template-columns: minmax(0, 1fr); } .qd-clock { text-align: left; } }
+@media (max-width: 480px) { .qd-brand-icon { display: none; } .qd-toolbar { align-items: stretch; } .qd-filter { width: 100%; } .qd-filter select { width: 100%; } .qd-actions { width: 100%; } .qd-button { flex: 1; justify-content: center; padding-inline: 10px; } .qd-waiting { padding: 18px; } .qd-footer-brand { margin-left: 46px; } }
