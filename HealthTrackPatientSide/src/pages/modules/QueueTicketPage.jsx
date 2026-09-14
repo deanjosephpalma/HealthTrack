@@ -10,14 +10,14 @@ import { useOnlineStatus } from '../../lib/offline/connectivity'
 import { listMyLocalTickets, countPendingOutbox } from '../../lib/offline/joinQueue'
 import { startPatientAutoSync } from '../../lib/offline/syncEngine'
 
-function queueStatusLabel(status, room) {
+function queueStatusLabel(status) {
   const v = (status ?? 'waiting').toString().toLowerCase()
-  if (v === 'next') return 'Susunod na po kayo / You are next'
-  if (v === 'called') return `Tinatawag na po kayo / Please proceed to ${room || 'the staff desk'}`
+  if (v === 'next') return 'You are next'
+  if (v === 'called') return 'Please proceed to MHO Office'
   if (v === 'skipped') return 'Skipped — wait to be recalled'
-  if (v === 'completed' || v === 'done') return 'Tapos na / Completed'
-  if (v === 'cancelled') return 'Kinansela / Cancelled'
-  return 'Naghihintay sa pila / Waiting in line'
+  if (v === 'completed' || v === 'done') return 'Completed'
+  if (v === 'cancelled') return 'Cancelled'
+  return 'Waiting in line'
 }
 
 function queueStatusClasses(status) {
@@ -309,7 +309,7 @@ export default function QueueTicketPage() {
           <div className={`queue-ticket-hero rounded-2xl border p-5 ${queueStatusClasses(activeTicket.status)}`}>
             <p className="text-xs font-semibold uppercase tracking-[0.16em]">Your ticket</p>
             <p className="queue-ticket-number mt-2 text-4xl font-bold">{labelOf(activeTicket)}</p>
-            <p className="mt-2 text-sm font-semibold">{queueStatusLabel(activeTicket.status, activeTicket.counter_room)}</p>
+            <p className="mt-2 text-sm font-semibold">{queueStatusLabel(activeTicket.status)}</p>
             {ticketPriority.isPriority ? (
               <p className="mt-2 text-sm font-semibold text-violet-800">Priority · {ticketPriority.label}</p>
             ) : null}
@@ -407,7 +407,7 @@ export default function QueueTicketPage() {
                 <div className="flex items-center justify-between gap-2">
                   <p className="font-semibold text-slate-900">{labelOf(t)}</p>
                   <span className={`rounded-full border px-2 py-0.5 text-xs font-semibold ${queueStatusClasses(t.status)}`}>
-                    {queueStatusLabel(t.status, t.counter_room)}
+                    {queueStatusLabel(t.status)}
                   </span>
                 </div>
                 <p className="text-xs text-slate-500">{t.reason}</p>
