@@ -98,7 +98,7 @@ export default function QueuePage() {
     setActionLoadingId(item.id)
     setError('')
     try {
-      await updateQueueStatusLocal(item, newStatus)
+      await updateQueueStatusLocal(item, newStatus, { autoAdvance: true })
       void logAuditEvent({
         action: `queue_${newStatus}`,
         entityType: 'queue',
@@ -153,7 +153,7 @@ export default function QueuePage() {
 
   const renderItem = (item, index = 0, { showPosition = false } = {}) => {
     const status = (item.status ?? 'waiting').toString().toLowerCase()
-    const isBusy = actionLoadingId === item.id
+    const isBusy = actionLoadingId !== null
     const isDone = doneStatuses.includes(status)
     const queueLabel = queueLabelOf(item)
     const priority = resolvePatientPriority(item)

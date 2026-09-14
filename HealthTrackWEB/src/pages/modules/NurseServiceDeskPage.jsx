@@ -272,7 +272,7 @@ export default function NurseServiceDeskPage() {
     if (status === 'called') return
     setError('')
     try {
-      await updateQueueStatusLocal(selected, 'called')
+      await updateQueueStatusLocal(selected, 'called', { autoAdvance: true })
       if (online) await syncNow()
       await refreshQueue()
     } catch (e) {
@@ -354,7 +354,7 @@ export default function NurseServiceDeskPage() {
         id: recordId,
       })
 
-      await updateQueueStatusLocal(selected, 'completed')
+      await updateQueueStatusLocal(selected, 'completed', { autoAdvance: true })
 
       if (serviceRequest?.id) {
         const statusPatch = { status: 'Completed', updated_at: nowIso }
@@ -472,7 +472,7 @@ export default function NurseServiceDeskPage() {
       }
 
       // The counter visit is done, but the permit itself remains pending Doctor approval.
-      await updateQueueStatusLocal(selected, 'completed')
+      await updateQueueStatusLocal(selected, 'completed', { autoAdvance: true })
       if (online) await syncNow()
 
       void logAuditEvent({

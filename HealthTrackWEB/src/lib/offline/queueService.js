@@ -2,7 +2,7 @@ import { generateQueueNumber } from '../workflowEngine'
 import { staffOfflineDb, getMeta, setMeta, getOrCreateDeviceId, todayKey } from './db'
 import { isOnline } from './connectivity'
 import { compareByPriorityThenArrival } from '../patientPriority'
-import { shouldMergeQueueRow } from '../queueState'
+import { shouldMergeQueueRow, queueAdvanceChanges } from '../queueState'
 
 function newId() {
   return crypto.randomUUID()
@@ -144,7 +144,22 @@ export async function createWalkIn({
 /**
  * Update queue status local-first.
  */
-export async function updateQueueStatusLocal(item, newStatus) {
+export async function updateQueueStatusLocal(item, newStatus, { autoAdvance = false } = {}) {
+  if (autoAdvance) {
+    return staffOfflineDb.transaction('rw', staffOfflineDb.queue, staffOfflineDb.outbox, async () => {
+      const rows = await staffOfflineDb.queue.toArray()
+      const current = rows.find((row) => row.id === item.id)
+      if (!current) throw new Error('Queue ticket no longer exists. Refresh the queue.')
+      // Ignore a repeated click or a stale screen after another local transition.
+      if (current.status !== item.status) throw new Error('Queue status changed. Refresh and try again.')
+      const changes = queueAdvanceChanges(rows, item.id, newStatus)
+      for (const change of changes) {
+        const row = rows.find((entry) => entry.id === change.id)
+        await updateQueueStatusLocal({ ...row, ...(row.id === item.id ? item : {}) }, change.status)
+      }
+      return await staffOfflineDb.queue.get(item.id)
+    })
+  }
   const now = new Date().toISOString()
   const patch = { status: newStatus, updated_at: now, synced: 0 }
   await staffOfflineDb.queue.update(item.id, patch)
