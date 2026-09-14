@@ -13,6 +13,7 @@ import { logAuditEvent, supabase } from '../../lib/supabaseClient'
 import { resolvePatientPriority, compareByPriorityThenArrival } from '../../lib/patientPriority'
 import { linePositionLabel } from '../../lib/queueDemoExamples'
 import { notifyPatient } from '../../lib/patientNotifications'
+import { getCharterByCode } from '../../config/citizenCharter'
 
 const AWAITING_STATUSES = ['Awaiting Encoding', 'Encoded']
 /** Highlight patients waiting longer than this (minutes) before encoding finishes. */
@@ -55,6 +56,8 @@ function clearEncodeDraft({ userId, requestId }) {
 
 /** Intake keys that must stay on service_requests.intake_data root for PDF / nurse release. */
 const INTAKE_ROOT_KEYS = [
+  'partner_name', 'partner_age', 'wedding_date', 'wedding_place',
+  'has_marriage_license_application', 'contact_number', 'partner_contact', 'address', 'additional_notes',
   'join_reason',
   'is_senior',
   'is_pwd',
@@ -126,6 +129,8 @@ function pickIntakeRootFields(source = {}) {
 }
 
 const REQUIRED_ENCODE_FIELDS = {
+  pre_marriage_counseling: getCharterByCode('pre_marriage_counseling').intakeFields
+    .filter((field) => field.required).map((field) => [field.name, field.label]),
   outpatient: [
     ['first_name', 'First name'],
     ['last_name', 'Last name'],
@@ -341,6 +346,9 @@ export default function StaffEncodeDeskPage() {
   const { user, profile } = useAuth()
   const online = useOnlineStatus()
   const [rows, setRows] = useState([])
+  const [walkInOpen, setWalkInOpen] = useState(false)
+  const [walkInServices, setWalkInServices] = useState([])
+  const [walkInDraft, setWalkInDraft] = useState(null)
   const [encoderNames, setEncoderNames] = useState(() => ({}))
   const [loading, setLoading] = useState(true)
   const [selectedId, setSelectedId] = useState('')
@@ -357,7 +365,7 @@ export default function StaffEncodeDeskPage() {
   const formDataRef = useRef(formData)
   formDataRef.current = formData
 
-  const selected = useMemo(() => rows.find((r) => r.id === selectedId) || null, [rows, selectedId])
+  const selected = useMemo(() => walkInDraft || rows.find((r) => r.id === selectedId) || null, [walkInDraft, rows, selectedId])
 
   const filteredRows = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -546,6 +554,7 @@ export default function StaffEncodeDeskPage() {
 
   // Hydrate form once per selected patient — never on background row refresh.
   useEffect(() => {
+    if (walkInDraft) return
     if (!selectedId) {
       hydratedForId.current = ''
       setFormData({})
@@ -557,7 +566,7 @@ export default function StaffEncodeDeskPage() {
     hydratedForId.current = selectedId
     const restoredDraft = loadEncodeDraft({ userId: user?.id, requestId: row.id })
     setFormData({ ...buildFormFromRow(row), ...(restoredDraft || {}) })
-  }, [selectedId, rows, user?.id])
+  }, [selectedId, rows, user?.id, walkInDraft])
 
   const displayName = (row) => displayNameFromPatient(row.patients || {})
 
@@ -569,10 +578,40 @@ export default function StaffEncodeDeskPage() {
     }
   }
 
+  const openWalkIn = async () => {
+    setError('')
+    setMessage('')
+    const { data, error: servicesError } = await supabase.from('service_types')
+      .select('id, name, queue_prefix').eq('active', true).order('name')
+    if (servicesError) { setError(servicesError.message); return }
+    setWalkInServices(data || [])
+    setWalkInOpen(true)
+  }
+
+  const selectWalkInService = (serviceId) => {
+    const service = walkInServices.find((s) => s.id === serviceId)
+    if (!service) return
+    const draft = {
+      id: crypto.randomUUID(), patient_id: crypto.randomUUID(),
+      service_type_id: service.id, service_types: service,
+      patients: {}, status: 'Awaiting Encoding',
+      intake_data: { source: 'walk_in', line_joined_at: new Date().toISOString() },
+    }
+    const initial = buildFormFromRow(draft)
+    setFormData(initial)
+    formDataRef.current = initial
+    setWalkInDraft(draft)
+    setWalkInOpen(false)
+    setInvalidField(null)
+  }
+
   const handleSaveEncode = async () => {
-    if (!selected) return
+    if (!selected || saving) return
+    if (!online) { setError('Connect to the internet to save encoding.'); return }
     const snapshot = formDataRef.current
-    const missingField = findMissingEncodeField(snapshot, useOfficialForm ? charterKey : serviceKind)
+    const missingName = walkInDraft && [['first_name', 'First name'], ['last_name', 'Last name']]
+      .find(([name]) => !String(snapshot[name] || '').trim())
+    const missingField = missingName || findMissingEncodeField(snapshot, useOfficialForm ? charterKey : serviceKind)
     if (missingField) {
       setError(`Required field missing: ${missingField[1]}. Please complete the form before saving.`)
       setMessage('')
@@ -585,14 +624,13 @@ export default function StaffEncodeDeskPage() {
     setMessage('')
     try {
       const patientId = selected.patient_id || selected.patients?.id
+      let patientPatch = null
       if (patientId) {
         const fullName = [snapshot.first_name, snapshot.middle_name, snapshot.last_name]
           .filter(Boolean)
           .join(' ')
           .trim()
-        const { error: patientError } = await supabase
-          .from('patients')
-          .update({
+        patientPatch = {
             first_name: snapshot.first_name || null,
             middle_name: snapshot.middle_name || null,
             last_name: snapshot.last_name || null,
@@ -614,9 +652,11 @@ export default function StaffEncodeDeskPage() {
             municipality: snapshot.municipality || 'Pila',
             province: snapshot.province || 'Laguna',
             updated_at: new Date().toISOString(),
-          })
-          .eq('id', patientId)
-        if (patientError) throw patientError
+        }
+        if (!walkInDraft) {
+          const { error: patientError } = await supabase.from('patients').update(patientPatch).eq('id', patientId)
+          if (patientError) throw patientError
+        }
       }
 
       const prevIntake =
@@ -631,7 +671,13 @@ export default function StaffEncodeDeskPage() {
         encoded_at: new Date().toISOString(),
       }
 
-      const { data: updatedRequest, error: updateError } = await supabase
+      const { data: updatedRequest, error: updateError } = walkInDraft
+        ? await supabase.rpc('save_bhw_walk_in', {
+            p_request_id: selected.id, p_patient_id: patientId,
+            p_service_type_id: selected.service_type_id,
+            p_patient_data: patientPatch, p_intake_data: nextIntake,
+          })
+        : await supabase
         .from('service_requests')
         .update({
           status: 'Encoded',
@@ -666,12 +712,18 @@ export default function StaffEncodeDeskPage() {
       clearEncodeDraft({ userId: user?.id, requestId: selected.id })
       setFormData(snapshot)
       setRows((prev) =>
-        prev.map((r) =>
+        (walkInDraft && !prev.some((r) => r.id === selected.id)
+          ? [...prev, { ...selected, patients: { id: patientId, ...patientPatch } }] : prev).map((r) =>
           r.id === selected.id
             ? { ...r, status: 'Encoded', intake_data: nextIntake, updated_at: new Date().toISOString() }
             : r,
         ),
       )
+      if (walkInDraft) {
+        hydratedForId.current = selected.id
+        setSelectedId(selected.id)
+        setWalkInDraft(null)
+      }
       void notifyPatient({
         patientId: patientId || selected.patient_id,
         serviceRequestId: selected.id,
@@ -825,6 +877,9 @@ export default function StaffEncodeDeskPage() {
   }
 
   const closeEncodeModal = () => {
+    if (saving || issuing) return
+    if (walkInDraft) clearEncodeDraft({ userId: user?.id, requestId: walkInDraft.id })
+    setWalkInDraft(null)
     hydratedForId.current = ''
     setSelectedId('')
     setFormData({})
@@ -866,6 +921,23 @@ export default function StaffEncodeDeskPage() {
         </button>
       </div>
 
+      <div className="flex flex-wrap items-center gap-3">
+        <button type="button" className="primary-btn !mt-0" disabled={!online || Boolean(selected)} onClick={() => void openWalkIn()}>
+          Add walk-in
+        </button>
+        <span className="text-sm text-slate-600">Choose a service, complete its form, then issue a queue number.</span>
+      </div>
+      {walkInOpen ? (
+        <div className="rounded-2xl border border-teal-200 bg-teal-50/40 p-4 space-y-3">
+          <label className="field-label" htmlFor="encode-walk-in-service">Walk-in service</label>
+          <select id="encode-walk-in-service" className="field-input" value="" onChange={(e) => selectWalkInService(e.target.value)}>
+            <option value="">Select a service to open its encode form</option>
+            {walkInServices.map((service) => <option key={service.id} value={service.id}>{service.name}</option>)}
+          </select>
+          {!walkInServices.length ? <p className="text-sm">No active services available.</p> : null}
+          <button type="button" className="secondary-btn" onClick={() => setWalkInOpen(false)}>Cancel</button>
+        </div>
+      ) : null}
       {error ? <p className="error-banner">{error}</p> : null}
       {message ? <p className="info-banner">{message}</p> : null}
       {loading ? <p className="info-banner">Loading encode line…</p> : null}

@@ -1,3 +1,5 @@
+import CharterServiceForm from './CharterServiceForm'
+
 /**
  * BHW / Volunteer encode layouts that mirror official RHU certificate / permit forms.
  * Field names align with citizenCharter intake + issuedDocumentPdf details.
@@ -95,7 +97,7 @@ function PaperShell({ eyebrow, title, formNo, badge, children }) {
 function PatientStrip({ data, onChange }) {
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-4">
-      <p className="mb-3 text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Patient / Applicant (portal profile)</p>
+      <p className="mb-3 text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Patient / Applicant</p>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Field label="First name" name="first_name" data={data} onChange={onChange} />
         <Field label="Middle name" name="middle_name" data={data} onChange={onChange} />
@@ -356,6 +358,7 @@ function DeathCertificateReviewEncode({ data, onChange }) {
 }
 
 const OFFICIAL_ENCODE_KEYS = new Set([
+  'pre_marriage_counseling',
   'health_card_issuance',
   'sanitary_permit_issuance',
   'exhumation_cremation_transfer_permit',
@@ -401,7 +404,8 @@ export default function OfficialServiceEncodeForm({ charterKey, data = {}, onCha
   }
 
   let body = null
-  if (charterKey === 'health_card_issuance') body = <HealthCertificateEncode data={data} onChange={handleChange} />
+  if (charterKey === 'pre_marriage_counseling') body = <CharterServiceForm charterKey={charterKey} data={data} onChange={onChange} />
+  else if (charterKey === 'health_card_issuance') body = <HealthCertificateEncode data={data} onChange={handleChange} />
   else if (charterKey === 'sanitary_permit_issuance') body = <SanitaryPermitEncode data={data} onChange={handleChange} />
   else if (charterKey === 'exhumation_cremation_transfer_permit')
     body = <ExhumationCremationTransferEncode data={data} onChange={handleChange} />

@@ -1,11 +1,10 @@
 import { useCallback, useEffect, useState } from 'react'
-import { logAuditEvent, supabase } from '../../lib/supabaseClient'
+import { logAuditEvent } from '../../lib/supabaseClient'
 import ModuleEmptyState from '../../components/ModuleEmptyState'
 import { useAuth } from '../../context/useAuth'
 import { useConfirm } from '../../context/ConfirmContext'
 import { useOnlineStatus } from '../../lib/offline/connectivity'
 import {
-  createWalkIn,
   listLocalQueue,
   updateQueueStatusLocal,
   archiveQueueLocal,
@@ -62,6 +61,7 @@ function queueLabelOf(item) {
 
 export default function QueuePage() {
   const { user } = useAuth()
+
   const { confirm } = useConfirm()
   const online = useOnlineStatus()
   const [queueItems, setQueueItems] = useState([])
@@ -70,16 +70,6 @@ export default function QueuePage() {
   const [actionLoadingId, setActionLoadingId] = useState(null)
   const [pendingCount, setPendingCount] = useState(0)
   const [syncing, setSyncing] = useState(false)
-  const [services, setServices] = useState([])
-
-  const [walkInOpen, setWalkInOpen] = useState(false)
-  const [walkInName, setWalkInName] = useState('')
-  const [walkInPhone, setWalkInPhone] = useState('')
-  const [walkInReason, setWalkInReason] = useState('')
-  const [walkInServiceId, setWalkInServiceId] = useState('')
-  const [walkInSubmitting, setWalkInSubmitting] = useState(false)
-  const [walkInMessage, setWalkInMessage] = useState('')
-
   const refreshLocal = useCallback(async () => {
     const rows = await listLocalQueue()
     setQueueItems(rows)
@@ -103,32 +93,6 @@ export default function QueuePage() {
       unsub()
     }
   }, [refreshLocal])
-
-  useEffect(() => {
-    const loadServices = async () => {
-      const { data } = await supabase
-        .from('services')
-        .select('id, name, queue_prefix')
-        .order('name', { ascending: true })
-      if (Array.isArray(data) && data.length > 0) {
-        setServices(data)
-        setWalkInServiceId(data[0].id)
-        return
-      }
-      const { data: types } = await supabase
-        .from('service_types')
-        .select('id, name, queue_prefix')
-        .order('name', { ascending: true })
-      const mapped = (types ?? []).map((t) => ({
-        id: t.id,
-        name: t.name,
-        queue_prefix: t.queue_prefix || 'RHU',
-      }))
-      setServices(mapped)
-      if (mapped[0]) setWalkInServiceId(mapped[0].id)
-    }
-    void loadServices()
-  }, [])
 
   const handleStatusAction = async (item, newStatus) => {
     setActionLoadingId(item.id)
@@ -172,36 +136,6 @@ export default function QueuePage() {
       if (online) void syncNow().then(() => refreshLocal())
     } catch (e) {
       setError(e?.message || 'Failed to archive.')
-    }
-  }
-
-  const handleWalkIn = async (event) => {
-    event.preventDefault()
-    setWalkInSubmitting(true)
-    setWalkInMessage('')
-    setError('')
-    try {
-      const svc = services.find((s) => s.id === walkInServiceId)
-      const { label } = await createWalkIn({
-        patientName: walkInName,
-        phoneNumber: walkInPhone || null,
-        reason: walkInReason || 'Walk-in',
-        serviceCode: svc?.queue_prefix || 'RHU',
-        serviceName: svc?.name || '',
-        serviceId: svc?.id || null,
-        assignedStaffId: user?.id ?? null,
-      })
-      setWalkInMessage(`Ticket ${label} created.`)
-      setWalkInName('')
-      setWalkInPhone('')
-      setWalkInReason('')
-      setWalkInOpen(false)
-      await refreshLocal()
-      if (online) void syncNow().then(() => refreshLocal())
-    } catch (e) {
-      setError(e?.message || 'Failed to create walk-in ticket.')
-    } finally {
-      setWalkInSubmitting(false)
     }
   }
 
@@ -339,7 +273,7 @@ export default function QueuePage() {
         <div>
       <h2 className="module-title">Queue Management</h2>
       <p className="module-subtitle">
-        Walk-in queueing with offline support. Doctor-bound services (Animal Bite, OPD, Med Cert, TB) are reviewed under Doctor Consult.
+        Queue management with offline support. Walk-in patients are encoded at the BHW / Volunteer Encode Desk. Doctor-bound services (Animal Bite, OPD, Med Cert, TB) are reviewed under Doctor Consult.
       </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -363,77 +297,9 @@ export default function QueuePage() {
           >
             {syncing ? 'Syncing…' : 'Sync now'}
           </button>
-          <button type="button" className="primary-btn !mt-0 text-xs" onClick={() => setWalkInOpen((v) => !v)}>
-            {walkInOpen ? 'Close form' : 'Add walk-in'}
-          </button>
+
         </div>
       </div>
-
-      {walkInOpen ? (
-        <form onSubmit={handleWalkIn} className="mb-5 space-y-3 rounded-2xl border border-teal-200 bg-teal-50/40 p-4">
-          <p className="text-sm font-semibold text-teal-900">New walk-in ticket</p>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div>
-              <label className="field-label" htmlFor="walkin-name">
-                Patient name <span className="text-rose-500" aria-hidden="true">*</span>
-              </label>
-              <input
-                id="walkin-name"
-                className="field-input"
-                required
-                value={walkInName}
-                onChange={(e) => setWalkInName(e.target.value)}
-                placeholder="Full name"
-              />
-            </div>
-            <div>
-              <label className="field-label" htmlFor="walkin-phone">
-                Phone (optional)
-              </label>
-              <input
-                id="walkin-phone"
-                className="field-input"
-                value={walkInPhone}
-                onChange={(e) => setWalkInPhone(e.target.value)}
-                placeholder="09xxxxxxxxx"
-              />
-            </div>
-            <div>
-              <label className="field-label" htmlFor="walkin-service">
-                Service
-              </label>
-              <select
-                id="walkin-service"
-                className="field-input"
-                value={walkInServiceId}
-                onChange={(e) => setWalkInServiceId(e.target.value)}
-              >
-                {services.length === 0 ? <option value="">Default (RHU)</option> : null}
-                {services.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name} ({s.queue_prefix || 'RHU'})
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="field-label" htmlFor="walkin-reason">
-                Reason
-              </label>
-              <input
-                id="walkin-reason"
-                className="field-input"
-                value={walkInReason}
-                onChange={(e) => setWalkInReason(e.target.value)}
-                placeholder="Chief complaint"
-              />
-            </div>
-          </div>
-          <button type="submit" className="primary-btn" disabled={walkInSubmitting}>
-            {walkInSubmitting ? 'Creating…' : 'Issue ticket'}
-          </button>
-        </form>
-      ) : null}
 
       <div className="queue-summary-grid mb-5" aria-label="Queue summary">
         <article className="queue-summary-card queue-summary-serving">
@@ -458,14 +324,13 @@ export default function QueuePage() {
         </article>
       </div>
 
-      {walkInMessage ? <p className="info-banner mb-4">{walkInMessage}</p> : null}
       {loading && <p className="info-banner mb-4">Loading queue data...</p>}
       {error && <p className="error-banner mb-4">Queue error: {error}</p>}
 
       {!loading && activeQueue.length === 0 && doneQueue.length === 0 ? (
         <ModuleEmptyState
           title="No queue entries yet"
-          description="Add a walk-in patient or wait for patients who join the queue from the patient portal."
+          description="Patients appear here after encoding and queue number issuance at the BHW / Volunteer Encode Desk."
         />
       ) : (
         <div className="space-y-6">
