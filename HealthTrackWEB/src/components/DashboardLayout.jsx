@@ -69,7 +69,7 @@ function NavIcon({ name }) {
 
 function menuSection(moduleKey) {
   if ([MODULES.OVERVIEW].includes(moduleKey)) return 'Overview'
-  if ([MODULES.QUEUE, MODULES.STAFF_ENCODE, MODULES.NURSE_SERVICE_DESK, MODULES.WORKFLOW].includes(moduleKey)) return 'Operations'
+  if ([MODULES.QUEUE, MODULES.QUEUE_DISPLAY, MODULES.STAFF_ENCODE, MODULES.NURSE_SERVICE_DESK, MODULES.WORKFLOW].includes(moduleKey)) return 'Operations'
   if ([MODULES.DOCTOR_CONSULT, MODULES.PATIENTS, MODULES.FOLLOW_UPS].includes(moduleKey)) return 'Clinical care'
   if ([MODULES.INVENTORY, MODULES.REPORTED_CASES, MODULES.HEAT_MAP, MODULES.REPORTS].includes(moduleKey)) return 'Intelligence'
   return 'Administration'

@@ -24,6 +24,7 @@ export const MODULES = {
   PATIENTS: 'patients',
   INVENTORY: 'inventory',
   QUEUE: 'queue',
+  QUEUE_DISPLAY: 'queue-display',
   STAFF_ENCODE: 'staff-encode',
   DOCTOR_CONSULT: 'doctor-consult',
   NURSE_SERVICE_DESK: 'nurse-service-desk',
@@ -50,6 +51,7 @@ export const ROLE_PERMISSIONS = {
   ],
   [ROLES.NURSE]: [
     MODULES.OVERVIEW,
+    MODULES.QUEUE_DISPLAY,
     MODULES.QUEUE,
     MODULES.NURSE_SERVICE_DESK,
     MODULES.PATIENTS,
@@ -66,6 +68,7 @@ export const ROLE_PERMISSIONS = {
 }
 
 export const MODULE_META = {
+  [MODULES.QUEUE_DISPLAY]: { label: 'Queue Display', path: '/dashboard/queue-display', icon: 'queue' },
   [MODULES.OVERVIEW]: {
     label: 'Dashboard',
     path: '/dashboard',

@@ -1,0 +1,45 @@
+/* Rem-based sizing also respects browser zoom and the user's default font. */
+html[data-reading-size] { font-size: 112.5%; --patient-copy-size: 1rem; }
+html[data-reading-size="large"] { font-size: 137.5%; }
+html[data-reading-size="largest"] { font-size: 162.5%; }
+.patient-readable { --ht-muted: #475569; }
+.patient-readable :where(p, label, input, select, textarea, button, a, small, th, td, li),
+.patient-readable :where([class*="text-xs"], [class*="text-sm"], [class*="text-[10px]"], [class*="text-[11px]"], [class*="text-[12px]"]) {
+  font-size: max(var(--patient-copy-size), 1em);
+  line-height: 1.55;
+}
+.patient-readable :where(input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]), select, button, .menu-link, .btn-primary, .btn-secondary) {
+  min-height: 48px;
+}
+.patient-readable :where(button, .menu-link, .btn-primary, .btn-secondary) { white-space: normal; height: auto; }
+.patient-readable :where(input[type="checkbox"], input[type="radio"]) { width: 1.35rem; height: 1.35rem; }
+.patient-readable :where(input, select, textarea) { max-width: 100%; }
+.patient-readable :where(.text-slate-400, .text-slate-500, .text-gray-400, .text-gray-500) { color: #475569; }
+.patient-readable :where(a, button, input, select, textarea):focus-visible { outline: 3px solid #075985; outline-offset: 3px; }
+.patient-readable .app-header { flex-wrap: wrap; gap: 1rem; }
+.patient-readable .app-header > div { max-width: 100%; flex-wrap: wrap; }
+.patient-readable .app-main, .patient-readable #patient-content { min-width: 0; }
+.patient-readable .menu-link { overflow-wrap: anywhere; }
+.patient-readable .menu-link-active { background: #115e59; color: white; }
+.patient-readable .menu-link-active .menu-link-icon { color: white; background: #134e4a; }
+.patient-readable .patient-sidebar-account { flex-wrap: wrap; }
+.patient-readable .patient-sidebar-account strong { white-space: normal; overflow-wrap: anywhere; font-size: 1rem; }
+.patient-readable .patient-sidebar-account small,
+.patient-readable .patient-header-status small { color: #475569; font-size: 1rem; }
+.patient-readable .patient-notification-button { display: flex; gap: .5rem; width: auto; padding: .6rem; }
+.patient-readable .patient-sidebar-signout { width: auto; flex-wrap: wrap; padding: .5rem; }
+.patient-readable .patient-sidebar-signout svg { width: 1.25rem; height: 1.25rem; }
+.reading-controls { display: flex; flex-wrap: wrap; align-items: center; gap: .75rem; padding: 1rem; margin-bottom: 1.5rem; border: 1px solid #94a3b8; border-radius: 1rem; background: #fff; color: #172631; }
+.reading-controls label { font-weight: 700; }
+.reading-controls select { padding: .5rem .75rem; border: 1px solid #64748b; border-radius: .5rem; }
+.reading-controls p { flex-basis: 100%; margin: 0; }
+.patient-skip-link { position: fixed; top: .5rem; left: .5rem; transform: translateY(-200%); z-index: 100; padding: 1rem; background: white; color: #075985; }
+.patient-skip-link:focus { transform: translateY(0); }
+@media (max-width: 80rem) {
+  html[data-reading-size="large"] .app-shell,
+  html[data-reading-size="largest"] .app-shell { display: block; }
+  html[data-reading-size="large"] .app-sidebar,
+  html[data-reading-size="largest"] .app-sidebar { display: none; }
+  html[data-reading-size="large"] .patient-readable .lg\:hidden,
+  html[data-reading-size="largest"] .patient-readable .lg\:hidden { display: block; }
+}

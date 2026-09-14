@@ -11,6 +11,7 @@ import NurseDashboardPage from './pages/NurseDashboardPage'
 import BhwDashboardPage from './pages/BhwDashboardPage'
 import PatientsPage from './pages/modules/PatientsPage'
 import QueuePage from './pages/modules/QueuePage'
+import QueueDisplayPage from './pages/modules/QueueDisplayPage'
 import DoctorConsultPage from './pages/modules/DoctorConsultPage'
 import NurseServiceDeskPage from './pages/modules/NurseServiceDeskPage'
 import StaffEncodeDeskPage from './pages/modules/StaffEncodeDeskPage'
@@ -105,6 +106,7 @@ function App() {
         }
       >
         <Route index element={<DashboardIndexRoute />} />
+        <Route path="queue-display" element={<RoleProtectedRoute allowRoles={[ROLES.NURSE]}><QueueDisplayPage /></RoleProtectedRoute>} />
         <Route
           path="queue"
           element={

@@ -1,16 +1,17 @@
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { Fragment, useState, useEffect, useRef } from 'react'
 import { useAuth } from '../context/useAuth'
+import ReadingControls from './ReadingControls'
 import LogoutConfirmModal from './LogoutConfirmModal'
 import { supabase } from '../lib/supabaseClient'
 
 const MODULES = [
-  { key: 'dashboard', label: 'Main Menu', path: '/dashboard', icon: 'home' },
-  { key: 'service-intake', label: 'Service Info', path: '/dashboard/service-intake', icon: 'form' },
-  { key: 'queue', label: 'My Queue', path: '/dashboard/queue', icon: 'queue' },
-  { key: 'follow-ups', label: 'Follow-ups', path: '/dashboard/follow-ups', icon: 'calendar' },
+  { key: 'dashboard', label: 'Main Menu / Pangunahing Menu', path: '/dashboard', icon: 'home' },
+  { key: 'service-intake', label: 'Service Info / Mga Serbisyo', path: '/dashboard/service-intake', icon: 'form' },
+  { key: 'queue', label: 'My Queue / Aking Pila', path: '/dashboard/queue', icon: 'queue' },
+  { key: 'follow-ups', label: 'Follow-ups / Susunod na Balik', path: '/dashboard/follow-ups', icon: 'calendar' },
   { key: 'service-status', label: 'Service Status', path: '/dashboard/service-status', icon: 'status' },
-  { key: 'medical', label: 'Medical Records', path: '/dashboard/medical-records', icon: 'records' },
+  { key: 'medical', label: 'Medical Records / Aking Rekord', path: '/dashboard/medical-records', icon: 'records' },
   { key: 'profile', label: 'Profile', path: '/dashboard/profile', icon: 'user' },
 ]
 
@@ -130,7 +131,7 @@ function SidebarContent({ patientName, onLogout, onNavigate }) {
             <strong>{patientName || 'Patient account'}</strong>
             <small><i aria-hidden="true" />Securely signed in</small>
           </span>
-          <button className="patient-sidebar-signout" type="button" onClick={onLogout} aria-label="Sign out">
+          <button className="patient-sidebar-signout" type="button" onClick={onLogout} aria-label="Sign out"><span>Sign out</span>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
               <path d="M10 17l5-5-5-5" />
               <path d="M15 12H3" />
@@ -287,7 +288,8 @@ export default function PatientDashboardLayout() {
   }
 
   return (
-    <main className="app-shell">
+    <main className="app-shell patient-readable">
+      <a className="patient-skip-link" href="#patient-content">Skip to content / Pumunta sa nilalaman</a>
       <aside className="app-sidebar">
         <SidebarContent patientName={patient?.name} onLogout={handleLogoutRequest} onNavigate={handleNavigate} />
       </aside>
@@ -336,8 +338,8 @@ export default function PatientDashboardLayout() {
               <div><strong>HealthTrack</strong><small>{todayLabel}</small></div>
             </div>
             <div className="relative" ref={dropdownRef}>
-              <button type="button" className="header-icon-btn" onClick={toggleNotifications} aria-label="Notifications">
-                <BellIcon className="h-5 w-5" />
+              <button type="button" className="header-icon-btn patient-notification-button" onClick={toggleNotifications} aria-label="Notifications">
+                <BellIcon className="h-5 w-5" /><span>Notifications</span>
                 {unreadCount > 0 ? (
                   <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold text-white ring-2 ring-white">
                     {unreadCount > 9 ? '9+' : unreadCount}
@@ -346,7 +348,7 @@ export default function PatientDashboardLayout() {
               </button>
 
               {showNotifications ? (
-                <div className="absolute right-0 z-50 mt-2 max-h-96 w-80 overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-xl shadow-slate-900/10">
+                <div className="absolute right-0 z-50 mt-2 max-h-96 w-80 max-w-[85vw] overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-xl shadow-slate-900/10">
                   <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-100 bg-white/95 px-4 py-3 backdrop-blur">
                     <h3 className="text-sm font-bold text-slate-900">Notifications</h3>
                     {notifications.length > 0 ? (
@@ -392,7 +394,8 @@ export default function PatientDashboardLayout() {
           </div>
         </header>
 
-        <div className="min-h-0 flex-1">
+        <ReadingControls />
+        <div id="patient-content" tabIndex={-1} className="min-h-0 flex-1">
           <Outlet />
         </div>
       </section>
