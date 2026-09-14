@@ -171,11 +171,17 @@ export default function DoctorConsultPage() {
   }, [selected, serviceNameById])
 
   const openConsult = async (item) => {
+    const openingServiceKind = resolveDoctorServiceKind({
+      serviceCode: item.service_code,
+      serviceName: item.service_name || serviceNameById.get(item.service_id) || '',
+    })
     setSelectedId(item.id)
     setPanelLoading(true)
     setSaveMessage('')
     setError('')
-    setDiagnosisCode('')
+    // Animal Bite consultations default to the appropriate ICD-10 diagnosis.
+    // An existing clinical record below still takes precedence when reopened.
+    setDiagnosisCode(openingServiceKind === 'animal_bite' ? 'animal-bite' : '')
     setDiagnosisOther('')
     setNotes('')
     setPrescription('')
@@ -188,10 +194,6 @@ export default function DoctorConsultPage() {
     setShowPatientInfo(false)
     setIssuedDoc(null)
     setBhwEncoded(false)
-    const openingServiceKind = resolveDoctorServiceKind({
-      serviceCode: item.service_code,
-      serviceName: item.service_name || serviceNameById.get(item.service_id) || '',
-    })
     setScheduleEnabled(openingServiceKind !== 'outpatient')
     setScheduleStartDate(new Date().toISOString().slice(0, 10))
     setTbWeeks(24)
