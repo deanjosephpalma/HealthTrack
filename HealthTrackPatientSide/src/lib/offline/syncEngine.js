@@ -1,4 +1,5 @@
 import { supabase } from '../supabaseClient'
+import { subscribeWorkflowChanges } from '../workflowRealtime'
 import { patientOfflineDb } from './db'
 import { isOnline } from './connectivity'
 import {
@@ -272,11 +273,5 @@ export function startPatientAutoSync({ patientId, patientAuthId, intervalMs = 20
       }
     }
   }
-  window.addEventListener('online', run)
-  const id = window.setInterval(run, intervalMs)
-  void run()
-  return () => {
-    window.removeEventListener('online', run)
-    window.clearInterval(id)
-  }
+  return subscribeWorkflowChanges(supabase, run, { intervalMs })
 }

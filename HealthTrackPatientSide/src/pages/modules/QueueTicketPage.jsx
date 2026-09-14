@@ -14,7 +14,7 @@ import { queueDestination } from '../../lib/queueDestination'
 function queueStatusLabel(status, ticket) {
   const v = (status ?? 'waiting').toString().toLowerCase()
   if (v === 'next') return 'You are next'
-  if (v === 'called') return `Please Proceed to ${queueDestination(ticket)}`
+  if (v === 'called') return `You are now called. Please Proceed to ${queueDestination(ticket)}`
   if (v === 'skipped') return 'Skipped — wait to be recalled'
   if (v === 'completed' || v === 'done') return 'Completed'
   if (v === 'cancelled') return 'Cancelled'

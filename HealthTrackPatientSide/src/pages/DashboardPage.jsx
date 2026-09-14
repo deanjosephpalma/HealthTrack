@@ -78,7 +78,7 @@ function labelOf(ticket) {
 function ticketStatusText(status, ticket) {
   const v = (status ?? '').toLowerCase()
   if (v === 'waiting') return 'Waiting in line'
-  if (v === 'called') return `Please Proceed to ${queueDestination(ticket)}`
+  if (v === 'called') return `You are now called. Please Proceed to ${queueDestination(ticket)}`
   if (v === 'next') return 'You are next'
   if (v === 'skipped') return 'Skipped — wait to be recalled'
   return status || '—'

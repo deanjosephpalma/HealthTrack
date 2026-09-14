@@ -382,7 +382,7 @@ export default function DoctorConsultPage() {
     if (status === 'called') return
     setError('')
     try {
-      await updateQueueStatusLocal(selected, 'called')
+      await updateQueueStatusLocal(selected, 'called', { autoAdvance: true })
       if (online) await syncNow()
       await refreshQueue()
     } catch (e) {
@@ -501,7 +501,7 @@ export default function DoctorConsultPage() {
         id: recordId,
       })
 
-      await updateQueueStatusLocal(selected, 'completed')
+      await updateQueueStatusLocal(selected, 'completed', { autoAdvance: true })
 
       if (serviceRequest?.id) {
         const statusPatch = { status: 'Completed', updated_at: nowIso }
