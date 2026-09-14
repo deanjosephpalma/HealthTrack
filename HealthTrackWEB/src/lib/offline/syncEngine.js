@@ -118,7 +118,7 @@ async function pushUpdate(job) {
     message = msgCalled({ queueNumber: queueLabel, room })
     notification = {
       title: 'You are now called',
-      message: 'You are now called. Please proceed to the MHO Office.',
+      message: `You are now called. Please Proceed to ${room === 'Doctor Consult' ? 'MHO Office' : room}.`,
       type: 'queue_called',
     }
   }

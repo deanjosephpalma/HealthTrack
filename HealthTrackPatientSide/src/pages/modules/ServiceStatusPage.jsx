@@ -4,6 +4,7 @@ import { useAuth } from '../../context/useAuth'
 import { supabase } from '../../lib/supabaseClient'
 import CancelEncodeConfirmModal from '../../components/CancelEncodeConfirmModal'
 import ModuleEmptyState from '../../components/ModuleEmptyState'
+import { queueDestination } from '../../lib/queueDestination'
 import { fetchIssuedDocForServiceRequest } from '../../lib/issueDocuments'
 import {
   documentTitleFromRow,
@@ -187,7 +188,7 @@ function QueuePositionBanner({ patientAuthId }) {
       ) : null}
       {(queueEntry.status === 'next' || queueEntry.status === 'called') && (
         <p className="mt-2 animate-pulse text-sm font-bold">
-          You are being called! Please proceed to {queueEntry.counter_room || 'the clinic counter'}.
+          You are being called! Please Proceed to {queueDestination(queueEntry)}.
         </p>
       )}
     </div>

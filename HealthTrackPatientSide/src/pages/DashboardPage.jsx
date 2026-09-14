@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabaseClient'
 import { useOnlineStatus } from '../lib/offline/connectivity'
 import { listMyLocalTickets } from '../lib/offline/joinQueue'
 import { startPatientAutoSync } from '../lib/offline/syncEngine'
+import { queueDestination } from '../lib/queueDestination'
 
 function DashIcon({ name }) {
   const common = 'h-5 w-5'
@@ -74,10 +75,10 @@ function labelOf(ticket) {
   return null
 }
 
-function ticketStatusText(status) {
+function ticketStatusText(status, ticket) {
   const v = (status ?? '').toLowerCase()
   if (v === 'waiting') return 'Waiting in line'
-  if (v === 'called') return 'Please proceed to the counter'
+  if (v === 'called') return `Please Proceed to ${queueDestination(ticket)}`
   if (v === 'next') return 'You are next'
   if (v === 'skipped') return 'Skipped — wait to be recalled'
   return status || '—'
@@ -284,7 +285,10 @@ export default function DashboardPage() {
             <div>
               <p className="patient-panel-eyebrow text-teal-700">Current visit</p>
               <h3 id="current-visit-title" className="patient-ticket-number">{activeLabel || 'Queue ticket'}</h3>
-              <p className="mt-1 text-sm font-semibold text-teal-900">{ticketStatusText(activeTicket.status)}</p>
+              <p className="mt-1 text-sm font-semibold text-teal-900">{ticketStatusText(activeTicket.status, activeTicket)}</p>
+              {activeTicket.status?.toLowerCase() !== 'called' ? (
+                <p className="mt-1 text-sm font-semibold text-teal-900">Please Proceed to {queueDestination(activeTicket)}</p>
+              ) : null}
               <p className="mt-1 text-xs text-slate-600">{serviceName || 'RHU Pila service'} · Keep this screen ready when called.</p>
             </div>
             <Link className="patient-dash-btn-primary bg-teal-800! text-white! hover:bg-teal-700!" to="/dashboard/queue">
