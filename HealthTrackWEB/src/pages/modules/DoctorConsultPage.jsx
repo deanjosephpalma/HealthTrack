@@ -505,14 +505,7 @@ export default function DoctorConsultPage() {
 
       if (serviceRequest?.id) {
         const statusPatch = { status: 'Completed', updated_at: nowIso }
-        if (online) {
-          await supabase
-            .from('service_requests')
-            .update(statusPatch)
-            .eq('id', serviceRequest.id)
-        } else {
-          await enqueueServiceRequestUpdate(serviceRequest.id, statusPatch)
-        }
+        await enqueueServiceRequestUpdate(serviceRequest.id, statusPatch)
       }
 
       let released = null
@@ -632,7 +625,12 @@ export default function DoctorConsultPage() {
         }
       }
 
-      if (online) await syncNow()
+      let completionSync = null
+      if (online) {
+        // An existing sync may have read the outbox before this consultation was saved.
+        await syncNow()
+        completionSync = await syncNow()
+      }
 
       void logAuditEvent({
         action: 'doctor_complete_queue_consult',
@@ -650,7 +648,9 @@ export default function DoctorConsultPage() {
       })
 
       setSaveMessage(
-        recordOffline
+        completionSync && !completionSync.ok
+          ? 'Saved on this device, but sync failed. Keep this page open and retry Sync now; the nurse queue may still show this ticket.'
+          : recordOffline
           ? 'Saved offline. Diagnosis/forms/schedules will sync when you reconnect.'
           : released?.ok
             ? 'Medical Certificate released. Patient can download it from Medical Records.'

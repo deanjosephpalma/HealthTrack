@@ -90,8 +90,9 @@ async function pushCreate(job) {
 
 async function pushUpdate(job) {
   const { id, patch, notify } = job.payload
-  const { error } = await supabase.from('queue').update(patch).eq('id', id)
+  const { data, error } = await supabase.from('queue').update(patch).eq('id', id).select('id').maybeSingle()
   if (error) throw new Error(error.message)
+  if (!data) throw new Error('Queue update was not saved. Check queue access permissions and retry sync.')
   await staffOfflineDb.queue.update(id, { synced: 1 })
 
   if (!notify || !isOnline()) return

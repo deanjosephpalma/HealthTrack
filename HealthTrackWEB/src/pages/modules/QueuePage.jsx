@@ -13,7 +13,7 @@ import {
 } from '../../lib/offline/queueService'
 import { startAutoSync, syncNow, subscribeSyncStatus } from '../../lib/offline/syncEngine'
 import { resolvePatientPriority, compareByPriorityThenArrival } from '../../lib/patientPriority'
-import { linePositionLabel } from '../../lib/queueDemoExamples'
+import { nextQueueItem } from '../../lib/queueState'
 
 const formatPatientNumber = (value) => {
   const num = Number(value)
@@ -92,6 +92,8 @@ export default function QueuePage() {
     const unsub = subscribeSyncStatus((status) => {
       setSyncing(Boolean(status.syncing))
       if (typeof status.pending === 'number') setPendingCount(status.pending)
+      if (status.error) setError(`Queue sync failed: ${status.error}`)
+      else if (status.lastSyncAt) setError('')
       if (!status.syncing) void refreshLocal()
     })
     const stop = startAutoSync({ intervalMs: 15000 })
@@ -212,8 +214,7 @@ export default function QueuePage() {
     .sort(compareByPriorityThenArrival)
   const doneQueue = queueItems.filter((i) => doneStatuses.includes((i.status ?? '').toLowerCase()))
   const servingItem = activeQueue.find((item) => (item.status ?? '').toString().toLowerCase() === 'called') ?? null
-  const nextItem =
-    activeQueue.find((item) => (item.status ?? '').toString().toLowerCase() === 'next') ?? activeQueue[0] ?? null
+  const nextItem = nextQueueItem(activeQueue)
   const waitingCount = activeQueue.filter((item) => (item.status ?? '').toString().toLowerCase() === 'waiting').length
 
   const renderItem = (item, index = 0, { showPosition = false } = {}) => {
@@ -222,8 +223,8 @@ export default function QueuePage() {
     const isDone = doneStatuses.includes(status)
     const queueLabel = queueLabelOf(item)
     const priority = resolvePatientPriority(item)
-    const position = showPosition ? linePositionLabel(index) : ''
-    const isNext = showPosition && index === 0
+    const isNext = showPosition && item.id === nextItem?.id
+    const position = !showPosition ? '' : status === 'called' ? 'Serving' : isNext ? 'Next' : status === 'skipped' ? 'Skipped' : `#${index + 1}`
 
     return (
       <article

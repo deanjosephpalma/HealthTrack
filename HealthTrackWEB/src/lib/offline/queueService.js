@@ -2,6 +2,7 @@ import { generateQueueNumber } from '../workflowEngine'
 import { staffOfflineDb, getMeta, setMeta, getOrCreateDeviceId, todayKey } from './db'
 import { isOnline } from './connectivity'
 import { compareByPriorityThenArrival } from '../patientPriority'
+import { shouldMergeQueueRow } from '../queueState'
 
 function newId() {
   return crypto.randomUUID()
@@ -202,10 +203,7 @@ export async function mergeRemoteQueueRows(remoteRows) {
       })
       continue
     }
-    if (local.pending_create) continue
-    const remoteTs = Date.parse(remote.updated_at || remote.created_at || 0) || 0
-    const localTs = Date.parse(local.updated_at || local.created_at || 0) || 0
-    if (remoteTs >= localTs) {
+    if (shouldMergeQueueRow(local, remote)) {
       await staffOfflineDb.queue.put({
         ...local,
         ...remote,
