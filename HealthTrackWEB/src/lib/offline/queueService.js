@@ -1,4 +1,5 @@
 import { generateQueueNumber } from '../workflowEngine'
+import { supabase } from '../supabaseClient'
 import { staffOfflineDb, getMeta, setMeta, getOrCreateDeviceId, todayKey } from './db'
 import { isOnline } from './connectivity'
 import { compareByPriorityThenArrival } from '../patientPriority'
@@ -146,6 +147,20 @@ export async function createWalkIn({
  */
 export async function updateQueueStatusLocal(item, newStatus, { autoAdvance = false } = {}) {
   if (autoAdvance) {
+    if (isOnline()) {
+      const { data, error } = await supabase.rpc('advance_queue_status', {
+        p_queue_id: item.id,
+        p_status: newStatus,
+      })
+      if (!error) {
+        const remoteRows = Array.isArray(data) ? data : []
+        await mergeRemoteQueueRows(remoteRows)
+        return remoteRows.find((row) => row.id === item.id) ?? { ...item, status: newStatus }
+      }
+      // The local-first behavior keeps existing deployments usable until the
+      // migration below has been applied to Supabase.
+      if (error.code !== 'PGRST202') throw new Error(error.message)
+    }
     return staffOfflineDb.transaction('rw', staffOfflineDb.queue, staffOfflineDb.outbox, async () => {
       const rows = await staffOfflineDb.queue.toArray()
       const current = rows.find((row) => row.id === item.id)
