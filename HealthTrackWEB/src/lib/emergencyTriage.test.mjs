@@ -1,9 +1,15 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { triageReasons, isEmergencyNurse } from './emergencyTriage.js'
+import { triageReasons, isEmergencyNurse, isHighVitalReferral } from './emergencyTriage.js'
 
 // Synthetic thresholds for boundary testing, not clinical recommendations.
 const policy = { enabled: true, systolic: 150, diastolic: 95, temperature: 39 }
+test('priority queue includes automatic referrals and elevated manual referrals, excludes direct incidents', () => {
+  assert.equal(isHighVitalReferral({ source: 'bhw', vitals: { bp: '150/80' } }, null), true)
+  assert.equal(isHighVitalReferral({ source: 'bhw', vitals: { emergency_manual: true, temp: '39' } }, policy), true)
+  assert.equal(isHighVitalReferral({ source: 'bhw', vitals: { emergency_manual: true, bp: '120/80' } }, policy), false)
+  assert.equal(isHighVitalReferral({ source: 'direct', vitals: { temp: '40' } }, policy), false)
+})
 test('either BP component or temperature independently triggers referral including boundary', () => {
   assert.equal(triageReasons({ bp: '150/80' }, policy).length, 1)
   assert.equal(triageReasons({ bp: '120/95' }, policy).length, 1)

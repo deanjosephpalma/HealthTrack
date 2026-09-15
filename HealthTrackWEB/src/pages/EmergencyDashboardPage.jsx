@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
+import { Link } from 'react-router-dom'
 
 const emptyForm = { patient_name: '', reason: '', bp: '', temp: '', notes: '' }
 const fieldClass = 'w-full rounded-lg border border-slate-300 bg-white p-3 text-sm'
@@ -58,6 +59,10 @@ export default function EmergencyDashboardPage() {
     <header className="rounded-2xl bg-rose-900 p-6 text-white">
       <p className="text-sm font-semibold text-rose-100">Nurse Zuleika • Emergency station</p>
       <h1 className="mt-2 text-3xl font-bold">Emergency Dashboard</h1>
+      <div className="my-4 flex flex-wrap gap-3">
+        <Link to="/dashboard/nurse-consult" className="rounded-lg bg-white px-4 py-2 font-semibold text-rose-900">Nurse Consult</Link>
+        <Link to="/dashboard/queue" className="rounded-lg border border-white/50 px-4 py-2 font-semibold">High-priority Queue</Link>
+      </div>
       <p className="mt-2">Immediate assessment for elevated vital signs, accidents, and emergency walk-ins.</p>
       <div className="mt-5 flex gap-6"><span>{active.filter(c => c.status === 'pending').length} awaiting assessment</span><span>{active.filter(c => c.status === 'in_care').length} in care</span></div>
     </header>
@@ -80,6 +85,7 @@ export default function EmergencyDashboardPage() {
       {displayed.map(c => <article key={c.id} className="space-y-3 rounded-xl border border-rose-200 bg-white p-5">
         <div className="flex flex-wrap justify-between gap-2"><h3 className="text-lg font-bold">{c.patient_name}</h3><span className="text-sm font-semibold">{c.status.replace('_', ' ')} • {c.source === 'bhw' ? 'BHW referral' : 'Direct emergency'}</span></div>
         <p>{c.reason}</p><p className="text-sm">BP: {c.vitals?.bp || 'Not recorded'} • Temperature: {c.vitals?.temp || 'Not recorded'}{c.vitals?.temp ? ' °C' : ''}</p>
+        <Link className="inline-block font-semibold text-rose-700" to={`/dashboard/nurse-consult?case=${c.id}`}>Open consultation →</Link>
         <p className="text-xs text-slate-500">Received {new Date(c.created_at).toLocaleString()}</p>
         <label className="block text-sm font-semibold">Care / referral notes<textarea className={fieldClass} value={notes[c.id] ?? c.notes} onChange={e => setNotes({ ...notes, [c.id]: e.target.value })} /></label>
         <div className="flex flex-wrap gap-2">{[['in_care','Start care'],['completed','Complete'],['referred','Refer / transfer'],[c.status,'Save notes']].map(([status,label]) => <button key={label} disabled={busy || (status === c.status && label !== 'Save notes')} className="rounded-lg border px-3 py-2 text-sm font-semibold disabled:opacity-40" onClick={() => void perform(() => supabase.rpc('update_emergency_case', { p_id: c.id, p_status: status, p_notes: notes[c.id] ?? c.notes }), 'Case updated.')}>{label}</button>)}</div>

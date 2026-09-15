@@ -13,6 +13,8 @@ import {
 import { startAutoSync, syncNow, subscribeSyncStatus } from '../../lib/offline/syncEngine'
 import { resolvePatientPriority, compareByPriorityThenArrival } from '../../lib/patientPriority'
 import { nextQueueItem } from '../../lib/queueState'
+import { isEmergencyNurse } from '../../lib/emergencyTriage'
+import NurseConsultPage from './NurseConsultPage'
 
 const formatPatientNumber = (value) => {
   const num = Number(value)
@@ -60,6 +62,11 @@ function queueLabelOf(item) {
 }
 
 export default function QueuePage() {
+  const { profile, user } = useAuth()
+  return isEmergencyNurse(profile, user) ? <NurseConsultPage queueOnly /> : <RegularQueuePage />
+}
+
+function RegularQueuePage() {
   const { user } = useAuth()
 
   const { confirm } = useConfirm()

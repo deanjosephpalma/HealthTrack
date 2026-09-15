@@ -1,5 +1,12 @@
 export const EMERGENCY_NURSE_EMAIL = 'zuleika.jacosalem@healthtrack.com'
 
+export function isHighVitalReferral(emergencyCase, policy) {
+  // Automatic referrals retain their original eligibility even if cutoffs change.
+  // Direct incidents and manual urgent referrals appear in Nurse Consult instead.
+  return emergencyCase.source === 'bhw' &&
+    (!emergencyCase.vitals?.emergency_manual || triageReasons(emergencyCase.vitals, policy).length > 0)
+}
+
 export function isEmergencyNurse(profile, user) {
   return profile?.role === 'Nurse' && (profile?.email || user?.email || '').trim().toLowerCase() === EMERGENCY_NURSE_EMAIL
 }

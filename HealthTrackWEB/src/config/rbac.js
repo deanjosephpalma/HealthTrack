@@ -20,6 +20,7 @@ export function isStaffPortalRole(role) {
 }
 
 export const MODULES = {
+  NURSE_CONSULT: 'nurse-consult',
   OVERVIEW: 'overview',
   PATIENTS: 'patients',
   INVENTORY: 'inventory',
@@ -68,6 +69,7 @@ export const ROLE_PERMISSIONS = {
 }
 
 export const MODULE_META = {
+  [MODULES.NURSE_CONSULT]: { label: 'Nurse Consult', path: '/dashboard/nurse-consult', icon: 'stethoscope' },
   [MODULES.QUEUE_DISPLAY]: { label: 'Queue Display', path: '/dashboard/queue-display', icon: 'queue' },
   [MODULES.OVERVIEW]: {
     label: 'Dashboard',

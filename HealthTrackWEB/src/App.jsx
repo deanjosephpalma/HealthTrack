@@ -9,6 +9,7 @@ import LoginPage from './pages/LoginPage'
 import DashboardPage from './pages/DashboardPage'
 import NurseDashboardPage from './pages/NurseDashboardPage'
 import EmergencyDashboardPage from './pages/EmergencyDashboardPage'
+import NurseConsultPage from './pages/modules/NurseConsultPage'
 import { isEmergencyNurse } from './lib/emergencyTriage'
 import BhwDashboardPage from './pages/BhwDashboardPage'
 import PatientsPage from './pages/modules/PatientsPage'
@@ -109,6 +110,7 @@ function App() {
         }
       >
         <Route index element={<DashboardIndexRoute />} />
+        <Route path="nurse-consult" element={<EmergencyNurseRoute><NurseConsultPage /></EmergencyNurseRoute>} />
         <Route path="queue-display" element={<RoleProtectedRoute allowRoles={[ROLES.NURSE]}><QueueDisplayPage /></RoleProtectedRoute>} />
         <Route
           path="queue"
@@ -257,3 +259,9 @@ function App() {
 }
 
 export default App
+
+function EmergencyNurseRoute({ children }) {
+  const { profile, user, loading, profileLoading } = useAuth()
+  if (loading || profileLoading) return <RouteFallback />
+  return isEmergencyNurse(profile, user) ? children : <Navigate to="/dashboard" replace />
+}

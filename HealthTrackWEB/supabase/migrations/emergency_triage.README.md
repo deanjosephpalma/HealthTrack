@@ -10,6 +10,12 @@ Direct emergency cases require a patient display name and incident description; 
 
 The dashboard polls every ten seconds. Emergency actions require an online database connection. Apply the migration before using this feature.
 
+## Nurse consultation and priority queue
+
+Zuleika's Queue page reads active emergency referrals instead of the regular queue. It includes automatic elevated-vitals referrals and manual BHW referrals whose readings meet the configured thresholds. Automatic referrals remain eligible when thresholds change. Accidents and other manual emergencies are available directly in Nurse Consult, even when they are not in the high-vitals list. Other nurses retain the regular Queue page.
+
+Nurse Consult is restricted to Zuleika's account and saves assessment/care/referral notes and case status through the existing emergency-case RPC. It includes completed/referred consultation history. No additional migration is needed for this page beyond `emergency_triage.sql`.
+
 ## Acceptance checks after applying SQL
 
 - Sign in as Zuleika: emergency home page, direct encoding, start care, notes, completion, referral and history.
