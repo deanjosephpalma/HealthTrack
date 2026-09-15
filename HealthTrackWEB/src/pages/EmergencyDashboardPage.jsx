@@ -2,14 +2,12 @@ import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { Link } from 'react-router-dom'
 
-const emptyForm = { patient_name: '', reason: '', bp: '', temp: '', notes: '' }
 const fieldClass = 'w-full rounded-lg border border-slate-300 bg-white p-3 text-sm'
 
 export default function EmergencyDashboardPage() {
   const [cases, setCases] = useState([])
   const [policy, setPolicy] = useState(null)
   const [cutoffs, setCutoffs] = useState(null)
-  const [form, setForm] = useState(emptyForm)
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
   const [busy, setBusy] = useState(false)
@@ -43,15 +41,6 @@ export default function EmergencyDashboardPage() {
     finally { setBusy(false) }
   }
 
-  async function encode(event) {
-    event.preventDefault()
-    const ok = await perform(() => supabase.from('emergency_cases').insert({
-      patient_name: form.patient_name.trim(), reason: form.reason.trim(), source: 'direct',
-      vitals: { bp: form.bp, temp: form.temp }, notes: form.notes,
-    }), 'Emergency case recorded. Patient goes directly to nurse assessment.')
-    if (ok) setForm(emptyForm)
-  }
-
   const active = cases.filter(c => ['pending', 'in_care'].includes(c.status))
   const displayed = history ? cases.filter(c => !['pending', 'in_care'].includes(c.status)) : active
   const settings = cutoffs || policy
@@ -68,17 +57,6 @@ export default function EmergencyDashboardPage() {
     </header>
     {error && <p role="alert" className="rounded-xl bg-rose-50 p-4 text-rose-800">{error}</p>}
     {message && <p role="status" className="rounded-xl bg-emerald-50 p-4 text-emerald-800">{message}</p>}
-    <section className="rounded-2xl border bg-white p-5">
-      <h2 className="text-xl font-bold">Encode emergency case</h2>
-      <p className="mb-4 text-sm text-slate-600">No BHW encoding or queue ticket required. Use “Unidentified patient” when the name is unknown.</p>
-      <form onSubmit={encode} className="grid gap-4 sm:grid-cols-2">
-        {Object.entries({ patient_name: 'Patient name', reason: 'Incident / reason for emergency', bp: 'BP (mmHg, e.g. 120/80)', temp: 'Temperature (°C)' }).map(([key, label]) => <label key={key} className="text-sm font-semibold">{label}
-          <input className={fieldClass} required={['patient_name','reason'].includes(key)} value={form[key]} type={key === 'temp' ? 'number' : 'text'} step={key === 'temp' ? '0.1' : undefined} pattern={key === 'bp' ? '\\s*[0-9]{2,3}\\s*/\\s*[0-9]{2,3}\\s*' : undefined} onChange={e => setForm({ ...form, [key]: e.target.value })} />
-        </label>)}
-        <label className="text-sm font-semibold sm:col-span-2">Initial notes<textarea className={fieldClass} value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} /></label>
-        <button disabled={busy || loading || !policy} className="rounded-xl bg-rose-700 p-3 font-semibold text-white disabled:opacity-50">Save emergency case</button>
-      </form>
-    </section>
     <section className="space-y-3">
       <div className="flex items-center justify-between"><h2 className="text-xl font-bold">{history ? 'Case history' : 'Active emergencies'}</h2><button className="text-sm font-semibold text-rose-700" onClick={() => setHistory(!history)}>{history ? 'Show active cases' : 'Show history'}</button></div>
       {loading ? <p>Loading cases…</p> : !displayed.length && <p className="rounded-xl border bg-white p-6 text-slate-600">No {history ? 'closed' : 'active'} emergency cases.</p>}

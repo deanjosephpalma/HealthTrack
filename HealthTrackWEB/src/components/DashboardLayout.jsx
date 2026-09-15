@@ -79,6 +79,7 @@ function NavIcon({ name }) {
 }
 
 function menuSection(moduleKey) {
+  if (moduleKey === MODULES.EMERGENCY_ENCODE) return 'Clinical care'
   if ([MODULES.OVERVIEW].includes(moduleKey)) return 'Overview'
   if ([MODULES.QUEUE, MODULES.QUEUE_DISPLAY, MODULES.STAFF_ENCODE, MODULES.NURSE_SERVICE_DESK, MODULES.WORKFLOW].includes(moduleKey)) return 'Operations'
   if ([MODULES.DOCTOR_CONSULT, MODULES.NURSE_CONSULT, MODULES.PATIENTS, MODULES.FOLLOW_UPS].includes(moduleKey)) return 'Clinical care'
@@ -87,6 +88,7 @@ function menuSection(moduleKey) {
 }
 
 const PAGE_COPY = {
+  '/dashboard/emergency-encode': { kicker: 'Emergency station', title: 'Emergency Encode', subtitle: 'Register accidents and emergency walk-ins.' },
   '/dashboard/nurse-consult': { kicker: 'Emergency station', title: 'Nurse Consult', subtitle: 'Patient assessment, care, and referral.' },
   '/dashboard/queue': { kicker: 'Front desk', title: 'Queue', subtitle: 'Call patients and manage today’s line.' },
   '/dashboard/staff-encode': {
@@ -131,7 +133,7 @@ export default function DashboardLayout() {
       moduleKey !== MODULES.ACCOUNTS &&
       !(emergencyNurse && EMERGENCY_NURSE_HIDDEN_MODULES.has(moduleKey)),
     )
-  if (emergencyNurse && !isAccountManager) menuItems.splice(1, 0, MODULES.NURSE_CONSULT)
+  if (emergencyNurse && !isAccountManager) menuItems.splice(1, 0, MODULES.EMERGENCY_ENCODE, MODULES.NURSE_CONSULT)
   const isHeatMapRoute = location.pathname.startsWith('/dashboard/heat-map')
   const isDashboardHome = location.pathname === '/dashboard'
   const pageMeta = PAGE_COPY[location.pathname] || null

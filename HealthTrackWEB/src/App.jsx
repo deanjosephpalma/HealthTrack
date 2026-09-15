@@ -10,6 +10,7 @@ import DashboardPage from './pages/DashboardPage'
 import NurseDashboardPage from './pages/NurseDashboardPage'
 import EmergencyDashboardPage from './pages/EmergencyDashboardPage'
 import NurseConsultPage from './pages/modules/NurseConsultPage'
+import EmergencyEncodePage from './pages/modules/EmergencyEncodePage'
 import { isEmergencyNurse } from './lib/emergencyTriage'
 import BhwDashboardPage from './pages/BhwDashboardPage'
 import PatientsPage from './pages/modules/PatientsPage'
@@ -111,6 +112,7 @@ function App() {
       >
         <Route index element={<DashboardIndexRoute />} />
         <Route path="nurse-consult" element={<EmergencyNurseRoute><NurseConsultPage /></EmergencyNurseRoute>} />
+        <Route path="emergency-encode" element={<EmergencyNurseRoute><EmergencyEncodePage /></EmergencyNurseRoute>} />
         <Route path="queue-display" element={<RoleProtectedRoute allowRoles={[ROLES.NURSE]}><QueueDisplayPage /></RoleProtectedRoute>} />
         <Route
           path="queue"
