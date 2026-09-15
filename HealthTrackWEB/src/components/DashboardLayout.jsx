@@ -3,6 +3,14 @@ import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/useAuth'
 import { MODULE_META, MODULES, getSidebarModules } from '../config/rbac'
 import { useConfirm } from '../context/ConfirmContext'
+import { isEmergencyNurse } from '../lib/emergencyTriage'
+
+const EMERGENCY_NURSE_HIDDEN_MODULES = new Set([
+  MODULES.REPORTS,
+  MODULES.WORKFLOW,
+  MODULES.NURSE_SERVICE_DESK,
+  MODULES.QUEUE_DISPLAY,
+])
 
 function MenuIcon({ open }) {
   return (
@@ -112,9 +120,13 @@ export default function DashboardLayout() {
     (profile?.name || '').trim().toLowerCase() === managerName ||
     (managerEmail && (profile?.email || user?.email || '').trim().toLowerCase() === managerEmail)
 
+  const emergencyNurse = isEmergencyNurse(profile, user)
   const menuItems = isAccountManager
     ? [MODULES.ACCOUNTS]
-    : getSidebarModules(role).filter((moduleKey) => moduleKey !== MODULES.ACCOUNTS)
+    : getSidebarModules(role).filter((moduleKey) =>
+      moduleKey !== MODULES.ACCOUNTS &&
+      !(emergencyNurse && EMERGENCY_NURSE_HIDDEN_MODULES.has(moduleKey)),
+    )
   const isHeatMapRoute = location.pathname.startsWith('/dashboard/heat-map')
   const isDashboardHome = location.pathname === '/dashboard'
   const pageMeta = PAGE_COPY[location.pathname] || null
