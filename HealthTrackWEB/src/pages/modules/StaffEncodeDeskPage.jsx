@@ -14,6 +14,7 @@ import { resolvePatientPriority, compareByPriorityThenArrival } from '../../lib/
 import { linePositionLabel } from '../../lib/queueDemoExamples'
 import { notifyPatient } from '../../lib/patientNotifications'
 import { getCharterByCode } from '../../config/citizenCharter'
+import { triageReasons } from '../../lib/emergencyTriage'
 
 const AWAITING_STATUSES = ['Awaiting Encoding', 'Encoded']
 /** Highlight patients waiting longer than this (minutes) before encoding finishes. */
@@ -353,6 +354,16 @@ export default function StaffEncodeDeskPage() {
   const [loading, setLoading] = useState(true)
   const [selectedId, setSelectedId] = useState('')
   const [formData, setFormData] = useState({})
+  const [triagePolicy, setTriagePolicy] = useState(null)
+  useEffect(() => {
+    const load = async () => {
+      const { data } = await supabase.from('emergency_triage_policy').select('*').single()
+      setTriagePolicy(data)
+    }
+    void load()
+    const timer = window.setInterval(load, 10000)
+    return () => window.clearInterval(timer)
+  }, [])
   const [saving, setSaving] = useState(false)
   const [issuing, setIssuing] = useState(false)
   const [error, setError] = useState('')
@@ -492,7 +503,7 @@ export default function StaffEncodeDeskPage() {
       // No hard cap — show every patient awaiting / ready for encoding.
 
       if (queryError) throw queryError
-      const nextRows = Array.isArray(data) ? data : []
+      const nextRows = Array.isArray(data) ? data.filter(row => !row.intake_data?.emergency_referred) : []
       setRows(nextRows)
 
       const encoderIds = [
@@ -611,7 +622,8 @@ export default function StaffEncodeDeskPage() {
     const snapshot = formDataRef.current
     const missingName = walkInDraft && [['first_name', 'First name'], ['last_name', 'Last name']]
       .find(([name]) => !String(snapshot[name] || '').trim())
-    const missingField = missingName || findMissingEncodeField(snapshot, useOfficialForm ? charterKey : serviceKind)
+    const urgent = snapshot.emergency_manual || triageReasons(snapshot, triagePolicy).length > 0
+    const missingField = missingName || (!urgent && findMissingEncodeField(snapshot, useOfficialForm ? charterKey : serviceKind))
     if (missingField) {
       setError(`Required field missing: ${missingField[1]}. Please complete the form before saving.`)
       setMessage('')
@@ -623,6 +635,9 @@ export default function StaffEncodeDeskPage() {
     setError('')
     setMessage('')
     try {
+      if (snapshot.emergency_manual && !triagePolicy) {
+        throw new Error('Emergency referral is not available yet. Apply the emergency_triage.sql database migration first.')
+      }
       const patientId = selected.patient_id || selected.patients?.id
       let patientPatch = null
       if (patientId) {
@@ -694,6 +709,22 @@ export default function StaffEncodeDeskPage() {
         throw new Error('This request was cancelled or has already left the encode line.')
       }
 
+      const { data: saved, error: triageError } = await supabase.from('service_requests')
+        .select('intake_data').eq('id', selected.id).single()
+      if (triageError) throw triageError
+      if (saved?.intake_data?.emergency_referred) {
+        clearEncodeDraft({ userId: user?.id, requestId: selected.id })
+        setWalkInDraft(null)
+        setSelectedId('')
+        setFormData({})
+        hydratedForId.current = ''
+        await refresh({ silent: true })
+        setMessage('High-priority patient referred directly to Nurse Zuleika’s Emergency Dashboard. No queue number needed.')
+        void notifyPatient({ patientId, serviceRequestId: selected.id, title: 'Priority nurse assessment',
+          message: 'Please proceed directly to Nurse Zuleika for assessment. No regular queue ticket is needed.', type: 'encoding_complete' })
+        return
+      }
+
       void logAuditEvent({
         action: 'staff_encode_visit',
         entityType: 'service_requests',
@@ -741,6 +772,10 @@ export default function StaffEncodeDeskPage() {
 
   const handleGetQueueNumber = async () => {
     if (!selected) return
+    if (formDataRef.current.emergency_manual || triageReasons(formDataRef.current, triagePolicy).length) {
+      setError('Elevated vital signs detected. Save encoding to refer this patient to Nurse Zuleika.')
+      return
+    }
     if (selected.status !== 'Encoded') {
       setError('Save encoding first before issuing a queue number.')
       return
@@ -751,6 +786,10 @@ export default function StaffEncodeDeskPage() {
     setError('')
     setMessage('')
     try {
+      const { data: latest, error: latestError } = await supabase.from('service_requests')
+        .select('intake_data').eq('id', selected.id).single()
+      if (latestError) throw latestError
+      if (latest.intake_data?.emergency_referred) throw new Error('This patient has been referred to Nurse Zuleika. No queue ticket is needed.')
       const patientName =
         [snapshot.first_name, snapshot.middle_name, snapshot.last_name].filter(Boolean).join(' ').trim() ||
         displayName(selected)
@@ -1101,7 +1140,12 @@ export default function StaffEncodeDeskPage() {
         issuing={issuing}
         onSave={() => void handleSaveEncode()}
         onIssueQueue={() => void handleGetQueueNumber()}
-        canIssueQueue={selected?.status === 'Encoded'}
+        canIssueQueue={selected?.status === 'Encoded' && !formData.emergency_manual && !triageReasons(formData, triagePolicy).length}
+        triageNotice={<div className="mb-4 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-900">
+          <p>{triageReasons(formData, triagePolicy).length ? `${triageReasons(formData, triagePolicy).join(' • ')}. Saving refers this patient directly to Nurse Zuleika.` : triagePolicy?.enabled ? 'Automatic referral is enabled for elevated BP or temperature.' : 'Automatic referral is not enabled. RHU-approved cutoffs must be configured by Nurse Zuleika.'}</p>
+          <label className="mt-3 flex items-center gap-2 font-semibold"><input type="checkbox" checked={Boolean(formData.emergency_manual)} onChange={e => handleDraftFormChange({ ...formData, emergency_manual: e.target.checked })} />Urgent case — refer directly to Nurse Zuleika</label>
+          {formData.emergency_manual && <p className="mt-2">Save encoding to send this patient for immediate nurse assessment without a queue ticket.</p>}
+        </div>}
         encodedByName={
           selected?.intake_data?.encoded_by
             ? encoderNames[selected.intake_data.encoded_by] || ''

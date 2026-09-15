@@ -8,6 +8,8 @@ import { ENCODER_ROLES, isEncoderRole, ROLES } from './config/rbac'
 import LoginPage from './pages/LoginPage'
 import DashboardPage from './pages/DashboardPage'
 import NurseDashboardPage from './pages/NurseDashboardPage'
+import EmergencyDashboardPage from './pages/EmergencyDashboardPage'
+import { isEmergencyNurse } from './lib/emergencyTriage'
 import BhwDashboardPage from './pages/BhwDashboardPage'
 import PatientsPage from './pages/modules/PatientsPage'
 import QueuePage from './pages/modules/QueuePage'
@@ -75,6 +77,7 @@ function DashboardIndexRoute() {
   }
 
   if (role === ROLES.NURSE) {
+    if (isEmergencyNurse(profile, user)) return <EmergencyDashboardPage />
     return <NurseDashboardPage />
   }
 

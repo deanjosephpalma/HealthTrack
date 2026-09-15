@@ -34,6 +34,7 @@ export default function EncodeServiceFormModal({
   encodedByName = '',
   encodedAt = '',
   invalidField = null,
+  triageNotice = null,
 }) {
   const formContentRef = useRef(null)
   useBodyScrollLock(open)
@@ -159,6 +160,7 @@ export default function EncodeServiceFormModal({
         </div>
 
         <div ref={formContentRef} className="min-h-0 flex-1 overflow-y-auto px-4 py-5 sm:px-6 sm:py-6">
+          {triageNotice}
           {error ? <p className="error-banner mb-4">{error}</p> : null}
           {message ? <p className="info-banner mb-4">{message}</p> : null}
           {joinReason ? (
