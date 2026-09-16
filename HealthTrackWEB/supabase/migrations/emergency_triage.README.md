@@ -1,5 +1,9 @@
 # Emergency nurse intake
 
+## Repair: missing service_request_id column
+
+If BHW encoding or queue issuance reports `column "service_request_id" does not exist`, apply `emergency_triage_queue_link_fix.sql` in Supabase SQL Editor. The original migration referenced `queue.service_request_id` without creating it. The repair adds that link, backfills unambiguous existing request links, and reloads the API schema cache. Apply this repair before deploying the updated queue sync client, then retry the existing patient's queue action. Do not rerun the original migration on an already installed database: its policies and triggers already exist.
+
 Apply `emergency_triage.sql` in the Supabase SQL Editor after the existing workflow and BHW walk-in migrations. Alternatively configure `DATABASE_URL` or `SUPABASE_DB_URL` in `.env.seed` and run `node scripts/apply-emergency-triage.mjs` from HealthTrackWEB. Apply once; the SQL transaction rolls back on failure.
 
 The active Nurse profile with email `zuleika.jacosalem@healthtrack.com` receives the emergency home dashboard. No account or password is created or changed. Database policies restrict direct encoding, care updates, and threshold settings to that account. BHW/Volunteer staff can see their intake referrals; other nurses do not gain emergency-case access.

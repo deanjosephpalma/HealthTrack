@@ -34,6 +34,7 @@ function emitSync(status) {
 
 async function pushCreate(job) {
   const { row, assignedStaffId, serviceRequestId } = job.payload
+  const linkedRequestId = serviceRequestId || row.service_request_id || null
   const insertPayload = {
     id: row.id,
     queue_number: row.queue_number,
@@ -42,6 +43,7 @@ async function pushCreate(job) {
     status: row.status || 'waiting',
     appointment_id: row.appointment_id ?? null,
     patient_id: row.patient_id ?? null,
+    service_request_id: linkedRequestId,
     phone_number: row.phone_number ?? null,
     service_code: row.service_code ?? 'RHU',
     counter_room: row.counter_room ?? 'Counter 1',
@@ -61,7 +63,6 @@ async function pushCreate(job) {
 
   await staffOfflineDb.queue.update(row.id, { synced: 1, pending_create: 0 })
 
-  const linkedRequestId = serviceRequestId || row.service_request_id || null
   if (linkedRequestId) {
     const { error: linkError } = await supabase
       .from('service_requests')

@@ -1,5 +1,10 @@
 -- Apply after bhw_walk_in_encode.sql. Cutoffs must be configured by the RHU nurse.
 begin;
+-- Queue triggers below need the reverse link before a ticket is inserted.
+alter table public.queue
+  add column if not exists service_request_id uuid references public.service_requests(id) on delete set null;
+create index if not exists queue_service_request_id_idx on public.queue(service_request_id);
+
 create or replace function public.is_emergency_nurse() returns boolean
 language sql stable security definer set search_path = public as $$
   select exists(select 1 from public.profiles where id = auth.uid()
