@@ -1,3 +1,4 @@
+import { emergencyStatus } from '../../lib/emergencyStatus'
 import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../context/useAuth'
@@ -213,7 +214,7 @@ export default function ServiceStatusPage() {
     const { data, error: err } = await supabase
       .from('service_requests')
       .select(`
-        id, reference_number, current_step_index, current_status, status, queue_id, created_at, remarks,
+        id, reference_number, current_step_index, current_status, status, intake_data, queue_id, created_at, remarks,
         service_types (id, name, queue_prefix),
         service_request_steps (id, step_index, step_name, step_type, status, completed_at),
         appointments (id, appointment_date, preferred_schedule, phone_number)
@@ -343,6 +344,7 @@ export default function ServiceStatusPage() {
             const completedCount = steps.filter((s) => s.status === 'completed').length
             const totalSteps = steps.length
             const progress = totalSteps > 0 ? Math.round((completedCount / totalSteps) * 100) : 0
+            const emergency = emergencyStatus(req)
             const rawStatus = resolveStatus(req)
             const isDone = ['completed', 'done'].includes(rawStatus.toLowerCase())
             const prefix = req.service_types?.queue_prefix ?? 'RHU'
@@ -361,7 +363,7 @@ export default function ServiceStatusPage() {
                   </div>
                   <div className="flex shrink-0 flex-col items-end gap-2">
                     <span className={`rounded-full px-3 py-1 text-xs font-semibold ${statusClasses(rawStatus)}`}>
-                      {isDone ? '✓ Completed' : statusLabel(rawStatus)}
+                      {emergency ? emergency.title : isDone ? '✓ Completed' : statusLabel(rawStatus)}
                     </span>
                     {showDelete ? (
                       <button
@@ -380,7 +382,8 @@ export default function ServiceStatusPage() {
                   </div>
                 </div>
 
-                {totalSteps > 0 && (
+                {emergency && <p className="mb-3 rounded-xl bg-rose-50 p-3 text-sm text-rose-900">{emergency.message}</p>}
+                {!emergency && totalSteps > 0 && (
                   <div className="mb-3">
                     <div className="mb-1 flex justify-between text-xs text-slate-500">
                       <span>Progress</span>

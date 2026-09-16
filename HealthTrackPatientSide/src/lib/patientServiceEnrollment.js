@@ -85,7 +85,7 @@ export async function fetchActiveEnrollment(patientAuthId) {
     .from('service_requests')
     .select(REQUEST_SELECT)
     .eq('patient_id', patient.id)
-    .in('status', ['Draft', 'Ready', 'Awaiting Encoding', 'Encoded'])
+    .in('status', ['Draft', 'Ready', 'Awaiting Encoding', 'Encoded', 'In Progress'])
     .order('updated_at', { ascending: false })
     .limit(1)
     .maybeSingle()
@@ -199,7 +199,7 @@ export async function enrollPatientInService(patientAuthId, serviceId, userMeta 
     .select(REQUEST_SELECT)
     .eq('patient_id', patient.id)
     .eq('service_type_id', serviceId)
-    .in('status', ['Draft', 'Ready', 'Awaiting Encoding', 'Encoded'])
+    .in('status', ['Draft', 'Ready', 'Awaiting Encoding', 'Encoded', 'In Progress'])
     .order('updated_at', { ascending: false })
     .limit(1)
     .maybeSingle()
@@ -227,7 +227,7 @@ export async function enrollPatientInService(patientAuthId, serviceId, userMeta 
     .from('service_requests')
     .update({ status: 'Cancelled', updated_at: new Date().toISOString() })
     .eq('patient_id', patient.id)
-    .in('status', ['Draft', 'Ready', 'Awaiting Encoding', 'Encoded'])
+    .in('status', ['Draft', 'Ready', 'Awaiting Encoding', 'Encoded', 'In Progress'])
   if (cancelError) {
     console.warn('[enrollPatientInService] cancel previous enrollments:', cancelError.message)
   }

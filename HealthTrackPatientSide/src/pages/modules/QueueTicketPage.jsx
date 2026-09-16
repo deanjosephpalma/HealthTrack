@@ -10,6 +10,7 @@ import { useOnlineStatus } from '../../lib/offline/connectivity'
 import { listMyLocalTickets, countPendingOutbox } from '../../lib/offline/joinQueue'
 import { startPatientAutoSync } from '../../lib/offline/syncEngine'
 import { queueDestination } from '../../lib/queueDestination'
+import { emergencyStatus } from '../../lib/emergencyStatus'
 
 function queueStatusLabel(status, ticket) {
   const v = (status ?? 'waiting').toString().toLowerCase()
@@ -43,6 +44,7 @@ export default function QueueTicketPage() {
   const { user, patient, enrollment, refreshEnrollment } = useAuth()
   const online = useOnlineStatus()
   const [tickets, setTickets] = useState([])
+  const [emergencyVisits, setEmergencyVisits] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
@@ -92,10 +94,12 @@ export default function QueueTicketPage() {
   )
   const ticketPriority = resolvePatientPriority(activeTicket || {})
 
-  const awaitingStaff = enrollmentStatus === 'Awaiting Encoding'
-  const encodedWaitingNumber = enrollmentStatus === 'Encoded'
+  const emergency = emergencyStatus(enrollment)
+  const awaitingStaff = !emergency && enrollmentStatus === 'Awaiting Encoding'
+  const encodedWaitingNumber = !emergency && enrollmentStatus === 'Encoded'
   const canJoinStaffLine =
     !activeTicket &&
+    !emergency?.active &&
     !awaitingStaff &&
     !encodedWaitingNumber &&
     enrollmentStatus !== 'In Queue'
@@ -106,6 +110,14 @@ export default function QueueTicketPage() {
       if (!soft) setLoading(true)
       setError('')
       try {
+        if (online && patientId) {
+          const { data, error: visitError } = await supabase.from('service_requests')
+            .select('id, status, intake_data, updated_at, service_types(name)')
+            .eq('patient_id', patientId).eq('intake_data->>emergency_referred', 'true')
+            .order('updated_at', { ascending: false }).limit(5)
+          if (visitError) throw visitError
+          setEmergencyVisits(data || [])
+        }
         const local = await listMyLocalTickets({
           patientId,
           patientAuthId: user.id,
@@ -118,11 +130,12 @@ export default function QueueTicketPage() {
         if (!soft) setLoading(false)
       }
     },
-    [patientId, user],
+    [patientId, user, online],
   )
 
   useEffect(() => {
-    void refresh()
+    const timer = window.setTimeout(() => void refresh(), 0)
+    return () => window.clearTimeout(timer)
   }, [refresh])
 
   useEffect(() => {
@@ -286,7 +299,7 @@ export default function QueueTicketPage() {
             className="field-input"
             aria-invalid={error === 'Select a service first.'}
             aria-describedby={error === 'Select a service first.' ? 'queue-service-error' : undefined}
-            disabled={servicesLoading || enrolling || Boolean(activeTicket) || awaitingStaff || encodedWaitingNumber}
+            disabled={servicesLoading || enrolling || Boolean(activeTicket) || awaitingStaff || encodedWaitingNumber || emergency?.active}
             value={serviceCleared ? '' : enrollment?.service_type_id || enrollment?.service_types?.id || ''}
             onChange={handleServiceChange}
           >
@@ -306,7 +319,19 @@ export default function QueueTicketPage() {
           {enrolling ? <p className="mt-2 text-xs text-slate-500">Switching service…</p> : null}
         </div>
 
-        {activeTicket ? (
+        {emergencyVisits.filter(visit => visit.id !== enrollment?.id).map(visit => {
+          const summary = emergencyStatus(visit)
+          return <div key={visit.id} className="rounded-2xl border border-rose-200 bg-rose-50 p-5" role="status">
+            <p className="text-xs font-semibold">{visit.service_types?.name || 'Emergency visit'} · {new Date(visit.updated_at).toLocaleString()}</p>
+            <p className="mt-2 text-lg font-bold">{summary.title}</p><p className="mt-2 text-sm">{summary.message}</p>
+          </div>
+        })}
+        {emergency ? (
+          <div className="rounded-2xl border border-rose-200 bg-rose-50 p-5" role="status">
+            <p className="text-lg font-bold">{emergency.title}</p>
+            <p className="mt-2 text-sm">{emergency.message}</p>
+          </div>
+        ) : activeTicket ? (
           <div className={`queue-ticket-hero rounded-2xl border p-5 ${queueStatusClasses(activeTicket.status)}`}>
             <p className="text-xs font-semibold uppercase tracking-[0.16em]">Your ticket</p>
             <p className="queue-ticket-number mt-2 text-4xl font-bold">{labelOf(activeTicket)}</p>

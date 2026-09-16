@@ -1,5 +1,9 @@
 # Emergency nurse intake
 
+## Patient portal consultation status
+
+Apply `emergency_patient_status_sync.sql` after the queue-link repair. It updates linked service requests atomically when emergency cases are created or their status changes, and backfills existing cases (including completed consultations). Active cases use `In Progress`; completed/transferred cases close the service request as `Completed`, with the precise outcome in `intake_data.emergency_status`. Clinical notes remain in the emergency table. Deploy the Patient Portal changes to display referral, care, completion, and transfer messages in My Queue and Service Status. Recent emergency visits remain visible in My Queue after the active enrollment closes. The base emergency migration now includes the same triggers for new installations.
+
 ## Repair: missing service_request_id column
 
 If BHW encoding or queue issuance reports `column "service_request_id" does not exist`, apply `emergency_triage_queue_link_fix.sql` in Supabase SQL Editor. The original migration referenced `queue.service_request_id` without creating it. The repair adds that link, backfills unambiguous existing request links, and reloads the API schema cache. Apply this repair before deploying the updated queue sync client, then retry the existing patient's queue action. Do not rerun the original migration on an already installed database: its policies and triggers already exist.
