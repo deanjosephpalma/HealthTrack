@@ -39,15 +39,15 @@ export default function NurseConsultPage({ queueOnly = false }) {
     ? active(c) && isHighVitalReferral(c, policy)
     : history ? !active(c) : active(c))
 
-  async function save(status) {
+  async function save() {
     if (!selected || saving) return
     setSaving(true); setError(''); setMessage('')
     try {
-      const { error: saveError } = await supabase.rpc('update_emergency_case', {
-        p_id: selected.id, p_status: status, p_notes: drafts[selected.id] ?? selected.notes,
+      const { error: saveError } = await supabase.rpc('complete_emergency_consultation', {
+        p_id: selected.id, p_notes: drafts[selected.id] ?? selected.notes,
       })
       if (saveError) throw saveError
-      setMessage('Consultation saved.')
+      setMessage('Consultation completed and saved to patient records.')
       setDrafts(previous => { const next = { ...previous }; delete next[selected.id]; return next })
       await load()
     } catch (e) { setError(e.message) }
@@ -58,7 +58,7 @@ export default function NurseConsultPage({ queueOnly = false }) {
     <header className="rounded-2xl bg-rose-900 p-6 text-white">
       <p className="text-sm">Nurse Zuleika</p>
       <h1 className="mt-2 text-3xl font-bold">{queueOnly ? 'High-priority Queue' : 'Nurse Consultation'}</h1>
-      <p className="mt-2">{queueOnly ? 'High BP and high temperature referrals for immediate assessment.' : 'Assess emergency patients, record care, and complete or refer the consultation.'}</p>
+      <p className="mt-2">{queueOnly ? 'High BP and high temperature referrals for immediate assessment.' : 'Assess emergency patients, record care, and complete the consultation.'}</p>
     </header>
     {error && <p role="alert" className="rounded-xl bg-rose-50 p-4 text-rose-800">{error}</p>}
     {message && <p role="status" className="rounded-xl bg-emerald-50 p-4 text-emerald-800">{message}</p>}
@@ -81,12 +81,12 @@ export default function NurseConsultPage({ queueOnly = false }) {
           <h2 className="text-xl font-bold">{selected.patient_name}</h2>
           <p className="mt-2">{selected.reason}</p>
           <dl className="my-4 grid grid-cols-2 gap-3 text-sm">
-            {Object.entries({ 'Blood pressure': selected.vitals?.bp, 'Temperature (°C)': selected.vitals?.temp, 'Pulse / HR': selected.vitals?.pr_hr, 'Respiratory rate': selected.vitals?.rr, 'SpO₂ (%)': selected.vitals?.spo2, Status: selected.status.replace('_', ' ') }).map(([label,value]) => <div key={label}><dt className="text-slate-500">{label}</dt><dd className="font-semibold">{value || 'Not recorded'}</dd></div>)}
+            {Object.entries({ Age: selected.vitals?.age, Contact: selected.vitals?.mobile_phone, Barangay: selected.vitals?.barangay, Municipality: selected.vitals?.municipality, 'Weight (kg)': selected.vitals?.wt, 'Height (cm)': selected.vitals?.ht, 'Blood pressure': selected.vitals?.bp, 'Temperature (°C)': selected.vitals?.temp, 'Pulse / HR': selected.vitals?.pr_hr, 'Respiratory rate': selected.vitals?.rr, 'SpO₂ (%)': selected.vitals?.spo2, Status: selected.status.replace('_', ' ') }).map(([label,value]) => <div key={label}><dt className="text-slate-500">{label}</dt><dd className="font-semibold">{value || 'Not recorded'}</dd></div>)}
           </dl>
           <label className="block font-semibold" htmlFor="consult-notes">Assessment, care provided, and referral plan</label>
-          <textarea id="consult-notes" rows={12} className="mt-2 w-full rounded-xl border p-3 text-sm" disabled={saving} placeholder="Record symptoms, assessment findings, interventions, response, and referral or discharge instructions." value={drafts[selected.id] ?? selected.notes} onChange={e => setDrafts({ ...drafts, [selected.id]: e.target.value })} />
+          <textarea id="consult-notes" rows={12} className="mt-2 w-full rounded-xl border p-3 text-sm" disabled={saving || !active(selected)} placeholder="Record symptoms, assessment findings, interventions, response, and referral or discharge instructions." value={drafts[selected.id] ?? selected.notes} onChange={e => setDrafts({ ...drafts, [selected.id]: e.target.value })} />
           <div className="mt-4 flex flex-wrap gap-2">
-            {[[selected.status,'Save notes'], ...(active(selected) ? [['in_care','Start consultation'],['completed','Complete consultation'],['referred','Refer / transfer']] : [])].map(([status,label]) => <button key={label} disabled={saving || (label === 'Start consultation' && selected.status === 'in_care')} onClick={() => void save(status)} className="rounded-lg bg-rose-800 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">{label}</button>)}
+            {active(selected) ? <button disabled={saving || !(drafts[selected.id] ?? selected.notes ?? '').trim()} onClick={() => void save()} className="rounded-lg bg-rose-800 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">{saving ? 'Saving consultation...' : 'Complete consultation'}</button> : <p className="text-sm text-emerald-700">This consultation is closed. View the saved record in Patient Records.</p>}
           </div>
         </>}
       </section>}

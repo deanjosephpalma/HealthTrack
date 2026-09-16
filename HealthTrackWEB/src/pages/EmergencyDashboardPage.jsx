@@ -13,7 +13,6 @@ export default function EmergencyDashboardPage() {
   const [busy, setBusy] = useState(false)
   const [loading, setLoading] = useState(true)
   const [history, setHistory] = useState(false)
-  const [notes, setNotes] = useState({})
   const load = useCallback(async () => {
     const [result, settings] = await Promise.all([
       supabase.from('emergency_cases').select('*').order('created_at', { ascending: false }),
@@ -65,8 +64,6 @@ export default function EmergencyDashboardPage() {
         <p>{c.reason}</p><p className="text-sm">BP: {c.vitals?.bp || 'Not recorded'} • Temperature: {c.vitals?.temp || 'Not recorded'}{c.vitals?.temp ? ' °C' : ''}</p>
         <Link className="inline-block font-semibold text-rose-700" to={`/dashboard/nurse-consult?case=${c.id}`}>Open consultation →</Link>
         <p className="text-xs text-slate-500">Received {new Date(c.created_at).toLocaleString()}</p>
-        <label className="block text-sm font-semibold">Care / referral notes<textarea className={fieldClass} value={notes[c.id] ?? c.notes} onChange={e => setNotes({ ...notes, [c.id]: e.target.value })} /></label>
-        <div className="flex flex-wrap gap-2">{[['in_care','Start care'],['completed','Complete'],['referred','Refer / transfer'],[c.status,'Save notes']].map(([status,label]) => <button key={label} disabled={busy || (status === c.status && label !== 'Save notes')} className="rounded-lg border px-3 py-2 text-sm font-semibold disabled:opacity-40" onClick={() => void perform(() => supabase.rpc('update_emergency_case', { p_id: c.id, p_status: status, p_notes: notes[c.id] ?? c.notes }), 'Case updated.')}>{label}</button>)}</div>
       </article>)}
     </section>
     {settings && <details className="rounded-xl border bg-white p-5" open={!policy?.enabled}>

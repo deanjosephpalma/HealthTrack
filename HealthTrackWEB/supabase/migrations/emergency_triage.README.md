@@ -1,5 +1,15 @@
 # Emergency nurse intake
 
+## Completed consultation records and expanded intake
+
+Apply `emergency_consultation_records.sql` after `emergency_patient_status_sync.sql`, before deploying the updated staff UI. The new completion RPC atomically creates one `patient_records` row per emergency case and closes the case. Repeated completion requests return the same record. The migration also backfills earlier completed/referred cases. Medical Records and staff Patient Records use this shared table. Completed record snapshots retain vital signs, demographics, contact/address details, reason, and care notes; they are labelled as an emergency nursing assessment.
+
+Emergency Encode supports existing-patient selection or a new staff patient profile, contact number, age, sex, BP, temperature, pulse, respiration, SpO2, height, weight, Pila barangay choices, and an outside-Pila address option. Choose the patient's existing profile to link the record to their portal account. A new/unidentified person without an account gets a staff-visible record; portal visibility requires linking the correct patient profile to that account. Names alone are never used to assign account ownership.
+
+The consultation page has one completion action. Assessment/care notes are required. Routine intake measurements remain optional so incomplete emergency registration does not prevent care. Existing completed notes and vital signs are retained; missing historical measurements are not invented.
+
+Validation: `scripts/test-emergency-records.mjs` uses an isolated local PostgreSQL cluster and synthetic data to check migration reapplication, backfill, repeat completion, record fields, account linkage, BHW status sync, new-patient creation, and authorization. It never reads deployment credentials.
+
 ## Patient portal consultation status
 
 Apply `emergency_patient_status_sync.sql` after the queue-link repair. It updates linked service requests atomically when emergency cases are created or their status changes, and backfills existing cases (including completed consultations). Active cases use `In Progress`; completed/transferred cases close the service request as `Completed`, with the precise outcome in `intake_data.emergency_status`. Clinical notes remain in the emergency table. Deploy the Patient Portal changes to display referral, care, completion, and transfer messages in My Queue and Service Status. Recent emergency visits remain visible in My Queue after the active enrollment closes. The base emergency migration now includes the same triggers for new installations.
@@ -14,7 +24,7 @@ The active Nurse profile with email `zuleika.jacosalem@healthtrack.com` receives
 
 Automatic referral starts disabled. Nurse Zuleika must enter RHU-approved systolic, diastolic, and temperature thresholds and enable it on the dashboard. Meeting any cutoff (inclusive) triggers referral when encoding is saved. These configurable rules are not a complete clinical triage protocol; below-threshold values do not establish that a patient is safe. BHW staff can select the urgent-referral checkbox regardless of readings. Emergency intake permits incomplete routine fields to avoid requiring full routine registration before referral.
 
-Direct emergency cases require a patient display name and incident description; vital signs are optional. Use “Unidentified patient” when necessary. These cases are stored separately and do not automatically create a longitudinal patient record. BHW cases remain linked to their existing patient and service request. The original encoded request is retained and marked `intake_data.emergency_referred`; the BHW line excludes it. Queue inserts and request queue linking are blocked for referred cases. Closed emergency cases stay in history and do not automatically re-enter the regular queue.
+Direct emergency cases require a patient display name and incident description; vital signs are optional. Use “Unidentified patient” when necessary. With the consultation-record migration applied, direct encoding links or creates a patient profile, and completion creates a longitudinal patient record. BHW cases remain linked to their existing patient and service request. The original encoded request is retained and marked `intake_data.emergency_referred`; the BHW line excludes it. Queue inserts and request queue linking are blocked for referred cases. Closed emergency cases stay in history and do not automatically re-enter the regular queue.
 
 The dashboard polls every ten seconds. Emergency actions require an online database connection. Apply the migration before using this feature.
 
