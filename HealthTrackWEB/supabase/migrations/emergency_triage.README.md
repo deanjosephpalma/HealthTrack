@@ -2,6 +2,8 @@
 
 ## Completed consultation records and expanded intake
 
+If the initial records migration failed with `Forbidden: diagnosis write denied`, rerun the corrected `emergency_consultation_records.sql`. Nursing assessment is stored in notes, leaving diagnosis unset and preserving the doctor-only diagnosis trigger. The local regression test includes that real trigger for both SQL Editor-style backfill (no user role) and nurse completion.
+
 Apply `emergency_consultation_records.sql` after `emergency_patient_status_sync.sql`, before deploying the updated staff UI. The new completion RPC atomically creates one `patient_records` row per emergency case and closes the case. Repeated completion requests return the same record. The migration also backfills earlier completed/referred cases. Medical Records and staff Patient Records use this shared table. Completed record snapshots retain vital signs, demographics, contact/address details, reason, and care notes; they are labelled as an emergency nursing assessment.
 
 Emergency Encode supports existing-patient selection or a new staff patient profile, contact number, age, sex, BP, temperature, pulse, respiration, SpO2, height, weight, Pila barangay choices, and an outside-Pila address option. Choose the patient's existing profile to link the record to their portal account. A new/unidentified person without an account gets a staff-visible record; portal visibility requires linking the correct patient profile to that account. Names alone are never used to assign account ownership.

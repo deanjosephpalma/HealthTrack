@@ -16,12 +16,15 @@ const run = (command, args) => {
 }
 const schema = readFileSync(new URL('../supabase/schema.sql', import.meta.url), 'utf8')
 const recordTable = schema.slice(schema.indexOf('create table if not exists public.patient_records ('), schema.indexOf('alter table public.patient_records add column'))
+const security = readFileSync(new URL('../supabase/migrations/security_hardening_rls.sql', import.meta.url), 'utf8')
+const diagnosisGuard = security.slice(security.indexOf('create or replace function public.enforce_doctor_only_diagnosis()'), security.indexOf('-- 8) email_logs'))
 const sql = `
 create role authenticated;
 create role anon;
 create schema auth;
 create table auth.users(id uuid primary key);
 create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$;
+create function auth.jwt() returns jsonb language sql stable as $$ select '{}'::jsonb $$;
 create table profiles(id uuid primary key references auth.users, name text, email text, role text, employment_status text);
 create function public.current_user_role() returns text language sql stable as $$ select role from profiles where id=auth.uid() $$;
 create table patients(id uuid primary key default gen_random_uuid(),name text not null,patient_auth_id uuid references auth.users,
@@ -32,6 +35,7 @@ create table appointments(id uuid primary key);
 create table service_requests(id uuid primary key default gen_random_uuid(),patient_id uuid references patients,
 queue_id uuid references queue,status text,current_status text,intake_data jsonb default '{}',updated_at timestamptz default now());
 ${recordTable}
+${diagnosisGuard}
 ${readFileSync(new URL('../supabase/migrations/emergency_triage.sql', import.meta.url), 'utf8')}
 insert into auth.users values('00000000-0000-0000-0000-000000000001'),('00000000-0000-0000-0000-000000000002');
 insert into profiles values('00000000-0000-0000-0000-000000000001','Test nurse','zuleika.jacosalem@healthtrack.com','Nurse','Active');
@@ -39,9 +43,12 @@ select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000001'
 -- Legacy completed direct case is backfilled by the new migration.
 insert into emergency_cases(id,patient_name,source,reason,status,vitals,notes)
 values('00000000-0000-0000-0000-000000000010','Legacy test','direct','Test incident','completed','{"temp":"","age":""}','Legacy notes');
+-- SQL Editor migration has no authenticated application role.
+select set_config('request.jwt.claim.sub','',false);
 ${readFileSync(new URL('../supabase/migrations/emergency_consultation_records.sql', import.meta.url), 'utf8')}
 -- Reapplication must not duplicate historical records.
 ${readFileSync(new URL('../supabase/migrations/emergency_consultation_records.sql', import.meta.url), 'utf8')}
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000001',false);
 do $$
 declare p_id uuid; c_id uuid := gen_random_uuid(); r_id uuid; second_id uuid; sr_id uuid; count_records integer;
 begin
@@ -62,7 +69,14 @@ begin
   if r_id is distinct from second_id then raise exception 'Duplicate record on retry'; end if;
   if not exists(select 1 from patient_records where id=r_id and patient_id=p_id and patient_auth_id='00000000-0000-0000-0000-000000000002'
     and temp=39.2 and spo2=98 and wt=62.5 and ht=165 and age=26 and mobile_phone='09000000000'
-    and municipality='Other town' and barangay='Other barangay' and workflow_status='completed' and notes like '%Assessment and care test%') then raise exception 'Record fields or account linkage missing'; end if;
+    and municipality='Other town' and barangay='Other barangay' and workflow_status='completed' and diagnosis is null
+    and notes like '%Emergency nursing assessment%' and notes like '%Assessment and care test%') then raise exception 'Record fields or account linkage missing'; end if;
+  begin
+    update patient_records set diagnosis='Forbidden nurse diagnosis' where id=r_id;
+    raise exception 'Diagnosis protection was bypassed';
+  exception when others then
+    if sqlerrm <> 'Forbidden: only Doctors may modify diagnosis' then raise; end if;
+  end;
   -- BHW referral -> completion -> both record and patient-facing status.
   insert into service_requests(patient_id,status,intake_data) values(p_id,'Encoded','{"staff_encode":{"emergency_manual":true,"first_name":"Linked","last_name":"test","temp":"40"}}') returning id into sr_id;
   select id into c_id from emergency_cases where service_request_id=sr_id;

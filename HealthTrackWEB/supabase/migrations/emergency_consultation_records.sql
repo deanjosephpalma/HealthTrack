@@ -1,4 +1,5 @@
 -- Apply after emergency_patient_status_sync.sql. Safe to rerun.
+-- Nursing assessment belongs in notes; diagnosis remains reserved for Doctors.
 begin;
 alter table public.patient_records add column if not exists emergency_case_id uuid
   references public.emergency_cases(id) on delete set null;
@@ -45,7 +46,7 @@ begin
     emergency_case_id,patient_id,patient_auth_id,patient_name,first_name,middle_name,last_name,
     age,sex,birthdate,mobile_phone,barangay,municipality,province,
     date_of_consultation,bp,temp,pr_hr,rr,spo2,wt,ht,waist,hip,
-    diagnosis,notes,workflow_status,nurse_completed_at,created_by
+    notes,workflow_status,nurse_completed_at,created_by
   ) values (
     c.id,p.id,p.patient_auth_id,c.patient_name,v->>'first_name',v->>'middle_name',v->>'last_name',
     coalesce(public.emergency_numeric(v->>'age')::integer,
@@ -55,7 +56,7 @@ begin
     (c.updated_at at time zone 'Asia/Manila')::date,v->>'bp',public.emergency_numeric(v->>'temp'),
     v->>'pr_hr',v->>'rr',public.emergency_numeric(v->>'spo2'),public.emergency_numeric(v->>'wt'),
     public.emergency_numeric(v->>'ht'),public.emergency_numeric(v->>'waist'),public.emergency_numeric(v->>'hip'),
-    'Emergency nursing assessment',concat_ws(E'\n\n','Reason: ' || c.reason,nullif(c.notes,'')),
+    concat_ws(E'\n\n','Emergency nursing assessment','Reason: ' || c.reason,nullif(c.notes,'')),
     'completed',c.updated_at,coalesce(auth.uid(),c.created_by)
   ) returning id into record_id;
   return record_id;
