@@ -95,6 +95,15 @@ export default function QueueTicketPage() {
   const ticketPriority = resolvePatientPriority(activeTicket || {})
 
   const emergency = emergencyStatus(enrollment)
+  const closedEmergencyVisits = [...new Map(
+    [...emergencyVisits, ...(emergency && !emergency.active ? [enrollment] : [])]
+      .filter(visit => emergencyStatus(visit)?.active === false)
+      .map(visit => [visit.id, visit]),
+  ).values()]
+  const recentTickets = [
+    ...tickets.map(ticket => ({ key: `ticket:${ticket.id}`, ticket, date: ticket.updated_at || ticket.created_at })),
+    ...closedEmergencyVisits.map(visit => ({ key: `emergency:${visit.id}`, visit, date: visit.updated_at || visit.created_at })),
+  ].sort((a, b) => (Date.parse(b.date) || 0) - (Date.parse(a.date) || 0))
   const awaitingStaff = !emergency && enrollmentStatus === 'Awaiting Encoding'
   const encodedWaitingNumber = !emergency && enrollmentStatus === 'Encoded'
   const canJoinStaffLine =
@@ -319,14 +328,14 @@ export default function QueueTicketPage() {
           {enrolling ? <p className="mt-2 text-xs text-slate-500">Switching service…</p> : null}
         </div>
 
-        {emergencyVisits.filter(visit => visit.id !== enrollment?.id).map(visit => {
+        {emergencyVisits.filter(visit => visit.id !== enrollment?.id && emergencyStatus(visit)?.active).map(visit => {
           const summary = emergencyStatus(visit)
           return <div key={visit.id} className="rounded-2xl border border-rose-200 bg-rose-50 p-5" role="status">
             <p className="text-xs font-semibold">{visit.service_types?.name || 'Emergency visit'} · {new Date(visit.updated_at).toLocaleString()}</p>
             <p className="mt-2 text-lg font-bold">{summary.title}</p><p className="mt-2 text-sm">{summary.message}</p>
           </div>
         })}
-        {emergency ? (
+        {emergency?.active ? (
           <div className="rounded-2xl border border-rose-200 bg-rose-50 p-5" role="status">
             <p className="text-lg font-bold">{emergency.title}</p>
             <p className="mt-2 text-sm">{emergency.message}</p>
@@ -421,18 +430,28 @@ export default function QueueTicketPage() {
         {error && error !== 'Select a service first.' ? <p className="error-banner">{error}</p> : null}
         {loading ? <p className="info-banner">Loading your tickets…</p> : null}
 
-        {!loading && tickets.length === 0 && !activeTicket && !awaitingStaff && !encodedWaitingNumber ? (
+        {!loading && recentTickets.length === 0 && !emergency?.active && !emergencyVisits.some(visit => emergencyStatus(visit)?.active) && !activeTicket && !awaitingStaff && !encodedWaitingNumber ? (
           <ModuleEmptyState
             title="Not in line yet"
             description="Select a service and tap Get in line when you arrive at the RHU."
           />
         ) : null}
 
-        {tickets.length > 0 ? (
+        {recentTickets.length > 0 ? (
           <div className="queue-history space-y-2">
             <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Recent tickets</p>
-            {tickets.map((t) => (
-              <div key={t.id} className="rounded-xl border border-slate-200 bg-white px-4 py-3">
+            {recentTickets.map(({ key, ticket: t, visit }) => visit ? (
+              <div key={key} className="rounded-xl border border-slate-200 bg-white px-4 py-3">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="font-semibold text-slate-900">{visit.service_types?.name || 'Emergency consultation'}</p>
+                  <span className={`rounded-full border px-2 py-0.5 text-xs font-semibold ${queueStatusClasses('completed')}`}>
+                    {visit.intake_data.emergency_status === 'referred' ? 'Referred / transferred' : 'Completed'}
+                  </span>
+                </div>
+                <p className="text-xs text-slate-500">Nurse Zuleika · {new Date(visit.updated_at || visit.created_at).toLocaleString()}</p>
+              </div>
+            ) : (
+              <div key={key} className="rounded-xl border border-slate-200 bg-white px-4 py-3">
                 <div className="flex items-center justify-between gap-2">
                   <p className="font-semibold text-slate-900">{labelOf(t)}</p>
                   <span className={`rounded-full border px-2 py-0.5 text-xs font-semibold ${queueStatusClasses(t.status)}`}>
