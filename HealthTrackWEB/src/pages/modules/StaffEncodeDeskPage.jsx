@@ -619,11 +619,11 @@ export default function StaffEncodeDeskPage() {
   const handleSaveEncode = async () => {
     if (!selected || saving) return
     if (!online) { setError('Connect to the internet to save encoding.'); return }
-    const snapshot = formDataRef.current
+    const snapshot = { ...formDataRef.current, emergency_manual: false }
     const triage = classifyTriage(snapshot, triagePolicy)
     const missingName = walkInDraft && [['first_name', 'First name'], ['last_name', 'Last name']]
       .find(([name]) => !String(snapshot[name] || '').trim())
-    const urgent = snapshot.emergency_manual || triageReasons(snapshot, triagePolicy).length > 0
+    const urgent = triage.level === 'red'
     const missingField = missingName || (!urgent && findMissingEncodeField(snapshot, useOfficialForm ? charterKey : serviceKind))
     if (missingField) {
       setError(`Required field missing: ${missingField[1]}. Please complete the form before saving.`)
@@ -636,9 +636,6 @@ export default function StaffEncodeDeskPage() {
     setError('')
     setMessage('')
     try {
-      if (snapshot.emergency_manual && !triagePolicy) {
-        throw new Error('Emergency referral is not available yet. Apply the emergency_triage.sql database migration first.')
-      }
       const patientId = selected.patient_id || selected.patients?.id
       let patientPatch = null
       if (patientId) {
@@ -784,7 +781,7 @@ export default function StaffEncodeDeskPage() {
 
   const handleGetQueueNumber = async () => {
     if (!selected) return
-    if (formDataRef.current.emergency_manual || triageReasons(formDataRef.current, triagePolicy).length) {
+    if (triageReasons({ ...formDataRef.current, emergency_manual: false }, triagePolicy).length) {
       setError('Elevated vital signs detected. Save encoding to refer this patient to Nurse Zuleika.')
       return
     }
@@ -951,7 +948,7 @@ export default function StaffEncodeDeskPage() {
     return serviceName ? `Encode ${serviceName} details` : 'Encode Service Details'
   }, [charterKey, serviceKind, serviceName])
 
-  const visibleTriage = classifyTriage(formData, triagePolicy)
+  const visibleTriage = classifyTriage({ ...formData, emergency_manual: false }, triagePolicy)
 
   return (
     <section className="module-card space-y-4">
@@ -1154,12 +1151,10 @@ export default function StaffEncodeDeskPage() {
         issuing={issuing}
         onSave={() => void handleSaveEncode()}
         onIssueQueue={() => void handleGetQueueNumber()}
-        canIssueQueue={selected?.status === 'Encoded' && !formData.emergency_manual && !triageReasons(formData, triagePolicy).length}
+        canIssueQueue={selected?.status === 'Encoded' && !triageReasons({ ...formData, emergency_manual: false }, triagePolicy).length}
         triageNotice={['red', 'yellow'].includes(visibleTriage.level) ? <div className={`mb-6 rounded-xl border p-4 text-sm ${visibleTriage.level === 'red' ? 'border-rose-200 bg-rose-50 text-rose-900' : 'border-amber-200 bg-amber-50 text-amber-950'}`} role="alert">
           <p className="font-semibold">{visibleTriage.level.toUpperCase()} — {visibleTriage.reasons.join(' • ')}</p>
-          <p className="mt-1">{visibleTriage.level === 'red' ? 'Immediate nurse assessment is required; admission/referral requires clinician confirmation.' : 'Abnormal vital signs detected. This patient will use the priority queue.'}</p>
-          <label className="mt-3 flex items-center gap-2 font-semibold"><input type="checkbox" checked={Boolean(formData.emergency_manual)} onChange={e => handleDraftFormChange({ ...formData, emergency_manual: e.target.checked })} />Refer directly to Nurse Zuleika</label>
-          {formData.emergency_manual && <p className="mt-2">Save encoding to send this patient for immediate nurse assessment without a queue ticket.</p>}
+          <p className="mt-1">{visibleTriage.level === 'red' ? 'Saving automatically sends this patient for immediate nurse assessment. Admission/referral requires clinician confirmation.' : 'Saving automatically places this patient in the priority queue.'}</p>
         </div> : null}
         encodedByName={
           selected?.intake_data?.encoded_by
