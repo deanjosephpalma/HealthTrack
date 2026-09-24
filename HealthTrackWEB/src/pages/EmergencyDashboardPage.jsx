@@ -68,14 +68,23 @@ export default function EmergencyDashboardPage() {
     </section>
     {settings && <details className="rounded-xl border bg-white p-5" open={!policy?.enabled}>
       <summary className="cursor-pointer font-semibold">Automatic referral cutoffs — {policy?.enabled ? 'enabled' : 'not configured / disabled'}</summary>
-      <p className="my-3 text-sm text-slate-600">Enter the RHU-approved thresholds. A reading at or above any cutoff routes the patient here. These are referral rules, not a diagnosis.</p>
+      <p className="my-3 text-sm text-slate-600">Enter RHU-approved adult thresholds. Red readings route the patient here; Yellow readings use the priority queue. These are decision-support rules, not a diagnosis or automatic admission order.</p>
       <form className="grid gap-3 sm:grid-cols-3" onSubmit={async e => {
         e.preventDefault()
-        const ok = await perform(() => supabase.from('emergency_triage_policy').update({ enabled: true, systolic: Number(settings.systolic), diastolic: Number(settings.diastolic), temperature: Number(settings.temperature) }).eq('id', true).select().single(), 'Automatic referral cutoffs saved.')
+        const ok = await perform(() => supabase.from('emergency_triage_policy').update({
+          enabled: true,
+          systolic: Number(settings.systolic), diastolic: Number(settings.diastolic), temperature: Number(settings.temperature),
+          low_systolic: Number(settings.low_systolic), yellow_systolic: Number(settings.yellow_systolic),
+          yellow_diastolic: Number(settings.yellow_diastolic), yellow_temperature: Number(settings.yellow_temperature),
+        }).eq('id', true).select().single(), 'Three-level triage cutoffs saved.')
         if (ok) setCutoffs(null)
       }}>
         {['systolic','diastolic','temperature'].map(key => <label key={key} className="text-sm capitalize">{key} {key === 'temperature' ? '(°C)' : '(mmHg)'}<input required type="number" min="0.1" step="0.1" className={fieldClass} value={settings[key] ?? ''} onChange={e => setCutoffs({ ...settings, [key]: e.target.value })} /></label>)}
-        <button disabled={busy} className="rounded-lg bg-slate-800 p-3 text-sm font-semibold text-white">Save approved cutoffs and enable</button>
+        {[
+          ['yellow_temperature', 'Yellow temperature (°C)'], ['yellow_systolic', 'Yellow systolic (mmHg)'],
+          ['yellow_diastolic', 'Yellow diastolic (mmHg)'], ['low_systolic', 'Red low systolic (mmHg)'],
+        ].map(([key, label]) => <label key={key} className="text-sm">{label}<input required type="number" min="0.1" step="0.1" className={fieldClass} value={settings[key] ?? ''} onChange={e => setCutoffs({ ...settings, [key]: e.target.value })} /></label>)}
+        <button disabled={busy} className="rounded-lg bg-slate-800 p-3 text-sm font-semibold text-white">Save three-level triage cutoffs</button>
       </form>
     </details>}
   </div>

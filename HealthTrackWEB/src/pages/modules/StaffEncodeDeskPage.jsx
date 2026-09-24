@@ -14,7 +14,7 @@ import { resolvePatientPriority, compareByPriorityThenArrival } from '../../lib/
 import { linePositionLabel } from '../../lib/queueDemoExamples'
 import { notifyPatient } from '../../lib/patientNotifications'
 import { getCharterByCode } from '../../config/citizenCharter'
-import { triageReasons } from '../../lib/emergencyTriage'
+import { classifyTriage, triageReasons } from '../../lib/emergencyTriage'
 
 const AWAITING_STATUSES = ['Awaiting Encoding', 'Encoded']
 /** Highlight patients waiting longer than this (minutes) before encoding finishes. */
@@ -620,6 +620,7 @@ export default function StaffEncodeDeskPage() {
     if (!selected || saving) return
     if (!online) { setError('Connect to the internet to save encoding.'); return }
     const snapshot = formDataRef.current
+    const triage = classifyTriage(snapshot, triagePolicy)
     const missingName = walkInDraft && [['first_name', 'First name'], ['last_name', 'Last name']]
       .find(([name]) => !String(snapshot[name] || '').trim())
     const urgent = snapshot.emergency_manual || triageReasons(snapshot, triagePolicy).length > 0
@@ -682,6 +683,17 @@ export default function StaffEncodeDeskPage() {
         ...prevIntake,
         ...pickIntakeRootFields(snapshot),
         staff_encode: snapshot,
+        triage_level: triage.level,
+        triage_reasons: triage.reasons,
+        triaged_at: new Date().toISOString(),
+        triaged_by: 'automatic',
+        ...(triage.level === 'yellow' ? {
+          is_priority: true,
+          priority_labels: Array.from(new Set([
+            ...String(prevIntake.priority_labels || '').split('/').map((item) => item.trim()).filter(Boolean),
+            'Yellow triage',
+          ])).join(' / '),
+        } : {}),
         encoded_by: user?.id || null,
         encoded_at: new Date().toISOString(),
       }
@@ -1142,7 +1154,8 @@ export default function StaffEncodeDeskPage() {
         onIssueQueue={() => void handleGetQueueNumber()}
         canIssueQueue={selected?.status === 'Encoded' && !formData.emergency_manual && !triageReasons(formData, triagePolicy).length}
         triageNotice={<div className="mb-4 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-900">
-          <p>{triageReasons(formData, triagePolicy).length ? `${triageReasons(formData, triagePolicy).join(' • ')}. Saving refers this patient directly to Nurse Zuleika.` : triagePolicy?.enabled ? 'Automatic referral is enabled for elevated BP or temperature.' : 'Automatic referral is not enabled. RHU-approved cutoffs must be configured by Nurse Zuleika.'}</p>
+          {classifyTriage(formData, triagePolicy).level === 'yellow' && <p className="mb-2 font-semibold">YELLOW — {classifyTriage(formData, triagePolicy).reasons.join(' • ')}. This patient will use the priority queue.</p>}
+          {classifyTriage(formData, triagePolicy).level !== 'yellow' && <p>{triageReasons(formData, triagePolicy).length ? `RED — ${triageReasons(formData, triagePolicy).join(' • ')}. Saving refers this patient for immediate nurse assessment; admission/referral requires clinician confirmation.` : triagePolicy?.enabled ? 'GREEN — no configured warning threshold detected. The patient follows the regular queue.' : 'Automatic triage is not enabled. RHU-approved cutoffs must be configured by Nurse Zuleika.'}</p>}
           <label className="mt-3 flex items-center gap-2 font-semibold"><input type="checkbox" checked={Boolean(formData.emergency_manual)} onChange={e => handleDraftFormChange({ ...formData, emergency_manual: e.target.checked })} />Urgent case — refer directly to Nurse Zuleika</label>
           {formData.emergency_manual && <p className="mt-2">Save encoding to send this patient for immediate nurse assessment without a queue ticket.</p>}
         </div>}
