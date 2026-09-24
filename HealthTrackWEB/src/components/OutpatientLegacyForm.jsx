@@ -55,7 +55,7 @@ const CheckboxCard = ({ label, name, data, onChange, disabled }) => (
   </label>
 )
 
-export default function OutpatientLegacyForm({ data, onChange = () => {}, readOnly = false, showDiagnosis = true, showMedicalCertificatePurposes = true }) {
+export default function OutpatientLegacyForm({ data, onChange = () => {}, readOnly = false, showDiagnosis = true, showMedicalCertificatePurposes = true, triageNotice = null }) {
   // Pila, Laguna Barangay Coordinates Lookup - ACCURATE VERIFIED DATA
   const BARANGAY_COORDINATES = {
     'Aplaya': { latitude: 14.2579, longitude: 121.3531 },
@@ -229,6 +229,8 @@ export default function OutpatientLegacyForm({ data, onChange = () => {}, readOn
                <FormField label="Waist (cm)" name="waist" type="number" data={data} onChange={handleChange} disabled={readOnly} />
                <FormField label="Hip (cm)" name="hip" type="number" data={data} onChange={handleChange} disabled={readOnly} />
              </div>
+
+             {triageNotice}
 
              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6 pt-6 border-t border-slate-100">
                <FormField label="Pangalan ng Operasyon" name="operation_name" data={data} onChange={handleChange} disabled={readOnly} />

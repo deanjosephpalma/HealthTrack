@@ -96,7 +96,7 @@ export default function EncodeServiceFormModal({
     ) : serviceKind === 'tb' ? (
       <TbLegacyForm data={formData} onChange={onFormChange} />
     ) : (
-      <OutpatientLegacyForm data={formData} onChange={onFormChange} showDiagnosis={showDiagnosis} showMedicalCertificatePurposes={showMedicalCertificatePurposes} />
+      <OutpatientLegacyForm data={formData} onChange={onFormChange} showDiagnosis={showDiagnosis} showMedicalCertificatePurposes={showMedicalCertificatePurposes} triageNotice={triageNotice} />
     )
 
   const form = children ?? defaultForm
@@ -160,7 +160,6 @@ export default function EncodeServiceFormModal({
         </div>
 
         <div ref={formContentRef} className="min-h-0 flex-1 overflow-y-auto px-4 py-5 sm:px-6 sm:py-6">
-          {triageNotice}
           {error ? <p className="error-banner mb-4">{error}</p> : null}
           {message ? <p className="info-banner mb-4">{message}</p> : null}
           {joinReason ? (

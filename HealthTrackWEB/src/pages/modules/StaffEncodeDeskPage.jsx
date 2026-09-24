@@ -951,6 +951,8 @@ export default function StaffEncodeDeskPage() {
     return serviceName ? `Encode ${serviceName} details` : 'Encode Service Details'
   }, [charterKey, serviceKind, serviceName])
 
+  const visibleTriage = classifyTriage(formData, triagePolicy)
+
   return (
     <section className="module-card space-y-4">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
@@ -1153,12 +1155,12 @@ export default function StaffEncodeDeskPage() {
         onSave={() => void handleSaveEncode()}
         onIssueQueue={() => void handleGetQueueNumber()}
         canIssueQueue={selected?.status === 'Encoded' && !formData.emergency_manual && !triageReasons(formData, triagePolicy).length}
-        triageNotice={<div className="mb-4 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-900">
-          {classifyTriage(formData, triagePolicy).level === 'yellow' && <p className="mb-2 font-semibold">YELLOW — {classifyTriage(formData, triagePolicy).reasons.join(' • ')}. This patient will use the priority queue.</p>}
-          {classifyTriage(formData, triagePolicy).level !== 'yellow' && <p>{triageReasons(formData, triagePolicy).length ? `RED — ${triageReasons(formData, triagePolicy).join(' • ')}. Saving refers this patient for immediate nurse assessment; admission/referral requires clinician confirmation.` : triagePolicy?.enabled ? 'GREEN — no configured warning threshold detected. The patient follows the regular queue.' : 'Automatic triage is not enabled. RHU-approved cutoffs must be configured by Nurse Zuleika.'}</p>}
-          <label className="mt-3 flex items-center gap-2 font-semibold"><input type="checkbox" checked={Boolean(formData.emergency_manual)} onChange={e => handleDraftFormChange({ ...formData, emergency_manual: e.target.checked })} />Urgent case — refer directly to Nurse Zuleika</label>
+        triageNotice={['red', 'yellow'].includes(visibleTriage.level) ? <div className={`mb-6 rounded-xl border p-4 text-sm ${visibleTriage.level === 'red' ? 'border-rose-200 bg-rose-50 text-rose-900' : 'border-amber-200 bg-amber-50 text-amber-950'}`} role="alert">
+          <p className="font-semibold">{visibleTriage.level.toUpperCase()} — {visibleTriage.reasons.join(' • ')}</p>
+          <p className="mt-1">{visibleTriage.level === 'red' ? 'Immediate nurse assessment is required; admission/referral requires clinician confirmation.' : 'Abnormal vital signs detected. This patient will use the priority queue.'}</p>
+          <label className="mt-3 flex items-center gap-2 font-semibold"><input type="checkbox" checked={Boolean(formData.emergency_manual)} onChange={e => handleDraftFormChange({ ...formData, emergency_manual: e.target.checked })} />Refer directly to Nurse Zuleika</label>
           {formData.emergency_manual && <p className="mt-2">Save encoding to send this patient for immediate nurse assessment without a queue ticket.</p>}
-        </div>}
+        </div> : null}
         encodedByName={
           selected?.intake_data?.encoded_by
             ? encoderNames[selected.intake_data.encoded_by] || ''
