@@ -17,24 +17,37 @@ export function parseBloodPressure(value) {
   return { systolic: Number(match[1]), diastolic: Number(match[2]) }
 }
 
+function validThreshold(value) {
+  if (value === null || value === undefined || String(value).trim() === '') return null
+  const number = Number(value)
+  return Number.isFinite(number) && number > 0 ? number : null
+}
+
 /** Three-level decision support; a clinician still confirms disposition. */
 export function classifyTriage(data = {}, policy) {
   if (!policy?.enabled) return { level: 'unclassified', reasons: [] }
   const bp = parseBloodPressure(data.bp)
   const rawTemp = String(data.temp ?? '').trim()
   const temp = rawTemp && Number.isFinite(Number(rawTemp)) ? Number(rawTemp) : null
+  const redLowSystolic = validThreshold(policy.low_systolic)
+  const redSystolic = validThreshold(policy.systolic)
+  const redDiastolic = validThreshold(policy.diastolic)
+  const redTemperature = validThreshold(policy.temperature)
+  const yellowSystolic = validThreshold(policy.yellow_systolic)
+  const yellowDiastolic = validThreshold(policy.yellow_diastolic)
+  const yellowTemperature = validThreshold(policy.yellow_temperature)
   const redReasons = []
   const yellowReasons = []
 
   if (data.emergency_manual) redReasons.push('Manual urgent referral')
-  if (bp && Number.isFinite(Number(policy.low_systolic)) && bp.systolic <= Number(policy.low_systolic)) redReasons.push(`Low BP: ${data.bp} mmHg`)
-  if (bp && (bp.systolic >= Number(policy.systolic) || bp.diastolic >= Number(policy.diastolic))) redReasons.push(`High BP: ${data.bp} mmHg`)
-  if (temp !== null && temp >= Number(policy.temperature)) redReasons.push(`High temperature: ${rawTemp} °C`)
+  if (bp && redLowSystolic !== null && bp.systolic <= redLowSystolic) redReasons.push(`Low BP: ${data.bp} mmHg`)
+  if (bp && ((redSystolic !== null && bp.systolic >= redSystolic) || (redDiastolic !== null && bp.diastolic >= redDiastolic))) redReasons.push(`High BP: ${data.bp} mmHg`)
+  if (temp !== null && redTemperature !== null && temp >= redTemperature) redReasons.push(`High temperature: ${rawTemp} °C`)
   if (redReasons.length) return { level: 'red', reasons: redReasons }
 
-  if (bp && Number.isFinite(Number(policy.yellow_systolic)) && bp.systolic >= Number(policy.yellow_systolic)) yellowReasons.push(`Elevated systolic BP: ${data.bp} mmHg`)
-  else if (bp && Number.isFinite(Number(policy.yellow_diastolic)) && bp.diastolic >= Number(policy.yellow_diastolic)) yellowReasons.push(`Elevated diastolic BP: ${data.bp} mmHg`)
-  if (temp !== null && Number.isFinite(Number(policy.yellow_temperature)) && temp >= Number(policy.yellow_temperature)) yellowReasons.push(`Elevated temperature: ${rawTemp} °C`)
+  if (bp && yellowSystolic !== null && bp.systolic >= yellowSystolic) yellowReasons.push(`Elevated systolic BP: ${data.bp} mmHg`)
+  else if (bp && yellowDiastolic !== null && bp.diastolic >= yellowDiastolic) yellowReasons.push(`Elevated diastolic BP: ${data.bp} mmHg`)
+  if (temp !== null && yellowTemperature !== null && temp >= yellowTemperature) yellowReasons.push(`Elevated temperature: ${rawTemp} °C`)
 
   return yellowReasons.length ? { level: 'yellow', reasons: yellowReasons } : { level: 'green', reasons: [] }
 }

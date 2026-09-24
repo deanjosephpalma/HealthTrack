@@ -29,6 +29,19 @@ test('disabled policy and missing readings do not invent referrals', () => {
   assert.deepEqual(triageReasons({ bp: 'abc', temp: '' }, policy), [])
   assert.equal(triageReasons({ bp: ' 180 / 80 ' }, policy).length, 1)
 })
+test('blank or null cutoffs do not turn normal vital signs red', () => {
+  const incompletePolicy = {
+    enabled: true,
+    systolic: null,
+    diastolic: '',
+    temperature: null,
+    low_systolic: undefined,
+    yellow_systolic: null,
+    yellow_diastolic: '',
+    yellow_temperature: null,
+  }
+  assert.equal(classifyTriage({ bp: '120/80', temp: '37' }, incompletePolicy).level, 'green')
+})
 test('only the designated nurse gets the emergency home page', () => {
   assert.equal(isEmergencyNurse({ role: 'Nurse', email: 'ZULEIKA.JACOSALEM@healthtrack.com' }), true)
   assert.equal(isEmergencyNurse({ role: 'BHW', email: 'zuleika.jacosalem@healthtrack.com' }), false)
