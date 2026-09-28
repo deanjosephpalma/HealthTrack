@@ -49,6 +49,7 @@ export default function NurseConsultPage({ queueOnly = false }) {
       if (saveError) throw saveError
       setMessage('Consultation completed and saved to patient records.')
       setDrafts(previous => { const next = { ...previous }; delete next[selected.id]; return next })
+      setParams({}, { replace: true })
       await load()
     } catch (e) { setError(e.message) }
     finally { setSaving(false) }
