@@ -31,7 +31,7 @@ Supabase provides PostgreSQL, authentication, realtime features, and access poli
 - **Data and authentication:** Supabase PostgreSQL, Supabase Auth, Realtime, Row Level Security
 - **Backend:** Laravel 12, PHP 8.2+, Laravel Sanctum
 - **Offline and visualizations:** Dexie/IndexedDB, Workbox PWA, Recharts, D3, MapLibre, Leaflet, deck.gl
-- **Deployment:** Render configuration is included for the API; frontend deployment can use any static host configured for Vite SPA routing.
+- **Deployment:** The intended setup is local hosting on an RHU computer or private LAN. A Render blueprint is present in the repository but is not required for local hosting.
 
 ## Prerequisites
 
@@ -170,14 +170,51 @@ Vite exposes variables prefixed with `VITE_` in the browser bundle. **Never plac
 
 Staff-only account seeding scripts are available in `HealthTrackWEB` (`npm run seed:accounts`, `npm run seed:staff`). Review each script and its required credentials before running it. Data clearing scripts are destructive and intended only for controlled development environments.
 
-## Deployment notes
+## Local / offline deployment
 
-- Build the staff app from `HealthTrackWEB/` with `npm ci && npm run build`; deploy the `dist/` directory and configure your static host to serve `index.html` for SPA routes.
-- Build the patient portal from `HealthTrackPatientSide/` the same way and deploy its `dist/` directory separately.
-- Build/deploy the API from `HealthTrackAPI/`. The root `render.yaml` defines a Render Docker service and lists required secrets as unsynchronized values.
-- Set frontend build variables in the hosting platform; Vite embeds them at build time. Only public Supabase values belong in frontend variables.
-- Use HTTPS, correct CORS/stateful-domain settings, secure cookie configuration, and shared session storage for multi-instance API deployments. Do not use file sessions across multiple API instances.
-- Apply schema changes through reviewed migrations and maintain database backups. Do not point seed or cleanup scripts at production unless the operation has been explicitly reviewed.
+HealthTrack is intended to be hosted on a computer inside the RHU or its private local network rather than deployed as a public website. Staff and patients on the same network can open the portals using that host computer's LAN IP address. This describes where the web apps are hosted; it does **not** mean every HealthTrack feature works without internet. The current configuration uses Supabase for authentication and data, so it needs internet access unless Supabase is separately self-hosted and the application is configured to use it. The browser PWA supports selected offline workflows, with synchronization when connectivity returns.
+
+### Prepare the local host
+
+1. Choose a computer on the RHU network to run the apps and API. Give it a stable private LAN IP (for example, `192.168.1.50`).
+2. Install the prerequisites listed above. Keep the host computer running while users need the system.
+3. Configure the database and credentials in Supabase, apply the schema and reviewed migrations, then prepare `HealthTrackAPI/.env` as described under Manual setup.
+4. In the API `.env`, set `APP_URL` to `http://<LAN-IP>:8000`. Add the staff and patient portal origins to `CORS_ALLOWED_ORIGINS` and their hosts/ports to `SANCTUM_STATEFUL_DOMAINS`, for example `192.168.1.50:4173,192.168.1.50:4174`. For an HTTP-only private LAN, set `SESSION_SECURE_COOKIE=false` and `SESSION_SAME_SITE=lax`. Use HTTPS and secure cookie settings if the LAN host is configured with TLS.
+5. In both frontend `.env` files, set the public Supabase URL and anon key. Set `VITE_API_URL=http://<LAN-IP>:8000/api` so browsers on other computers contact the LAN API instead of their own `localhost`. Do not put server secrets in either frontend file.
+
+### Build and run the applications
+
+Open separate terminals on the host computer. Build each frontend after setting its `.env` values; Vite embeds these values during the build.
+
+```powershell
+cd HealthTrackAPI
+php artisan serve --host=0.0.0.0 --port=8000
+```
+
+```powershell
+cd HealthTrackWEB
+npm ci
+npm run build
+npm run preview -- --host 0.0.0.0 --port 4173 --strictPort
+```
+
+```powershell
+cd HealthTrackPatientSide
+npm ci
+npm run build
+npm run preview -- --host 0.0.0.0 --port 4174 --strictPort
+```
+
+Allow inbound traffic to ports `4173`, `4174`, and `8000` in the host computer's firewall for the private RHU network only. Users on the same LAN can then open:
+
+- Staff portal: `http://<LAN-IP>:4173`
+- Patient portal: `http://<LAN-IP>:4174`
+
+Replace `<LAN-IP>` with the host's actual private IP address. Do not use `localhost` from another computer; it refers to that user's own device. The Vite preview server is a lightweight local hosting option for controlled LAN use. For long-running production-style hosting, serve each `dist/` folder through a maintained local web server and configure HTTPS, SPA route fallback, and the API origin accordingly.
+
+### Fully disconnected operation
+
+The repositories do not include a self-hosted Supabase deployment. With the standard hosted Supabase project, internet access is needed for authentication and cloud database access even though the portals and Laravel API run locally. A fully disconnected setup would require installing and maintaining Supabase/PostgreSQL and any other required services on the private network, updating the frontend/API environment values, and validating all workflows there. Do not use real patient information until access policies, backups, and recovery have been checked in that environment.
 
 ## Further documentation
 
